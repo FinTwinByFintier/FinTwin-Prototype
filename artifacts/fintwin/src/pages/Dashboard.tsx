@@ -2,14 +2,63 @@ import { motion } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
 import {
-  BarChart3, Leaf, FileText, Lock, TrendingUp, Building, RefreshCw, Bell, ChevronRight
+  BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
+  Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
+  CheckCircle2, Clock, AlertCircle
 } from "lucide-react";
+
+const transactions = [
+  { icon: ShoppingBag, label: "Retail Sale — CliQ", sub: "Today, 10:42 AM", amount: "+340 JOD", positive: true, color: "bg-emerald-500/10 text-emerald-600" },
+  { icon: Truck, label: "Supplier Payment", sub: "Yesterday, 3:15 PM", amount: "−1,200 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
+  { icon: Coffee, label: "Daily POS Sales", sub: "Yesterday, 8:00 PM", amount: "+820 JOD", positive: true, color: "bg-primary/10 text-primary" },
+  { icon: Zap, label: "Electricity Bill", sub: "Jul 14, 9:00 AM", amount: "−95 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
+  { icon: ShoppingBag, label: "JoFotara Invoice #2041", sub: "Jul 13, 11:30 AM", amount: "+1,540 JOD", positive: true, color: "bg-blue-500/10 text-blue-600" },
+];
+
+const matches = [
+  {
+    tag: "Islamic Finance",
+    tagColor: "text-primary",
+    label: "Murabaha Working Capital",
+    sub: "Arab Bank · Up to 25,000 JOD",
+    rate: "6.5%",
+    match: 87,
+    matchColor: "text-emerald-600",
+  },
+  {
+    tag: "Green Loan",
+    tagColor: "text-emerald-600",
+    label: "Energy Efficiency Fund",
+    sub: "CBJ · Up to 50,000 JOD",
+    rate: "2.75%",
+    match: 62,
+    matchColor: "text-emerald-600",
+  },
+  {
+    tag: "MSME Loan",
+    tagColor: "text-blue-600",
+    label: "Jordan Loan Guarantee Corp.",
+    sub: "JLGC · Up to 15,000 JOD",
+    rate: "7.0%",
+    match: 74,
+    matchColor: "text-amber-500",
+  },
+];
+
+const scoreBreakdown = [
+  { label: "Payment History", value: 82, color: "bg-emerald-500" },
+  { label: "Cash Flow", value: 70, color: "bg-primary" },
+  { label: "Business Age", value: 65, color: "bg-blue-500" },
+  { label: "Data Coverage", value: 55, color: "bg-amber-400" },
+];
 
 export default function Dashboard() {
   const { state } = useOnboarding();
   const businessName = state.businessName || "Amman Coffee Roasters";
   const category = state.category || "Micro Enterprise";
-  const connectedCount = Object.values(state.connectedSources).filter(Boolean).length;
+  const sector = state.businessSector || "Food & Hospitality";
+  const creditScore = 74;
+  const greenMatch = 62;
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
@@ -31,147 +80,242 @@ export default function Dashboard() {
       </header>
 
       <main className="flex-grow container mx-auto px-4 py-8">
+        {/* Page header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-3">
           <div>
             <h1 className="text-2xl font-bold mb-1">{businessName}</h1>
-            <div className="flex items-center text-muted-foreground text-sm gap-2">
+            <div className="flex items-center text-muted-foreground text-sm gap-2 flex-wrap">
               <Building className="w-4 h-4" />
               <span>{category}</span>
               <span>·</span>
-              <span className="flex items-center text-amber-500">
-                <RefreshCw className="w-3 h-3 mr-1" /> Building profile
+              <span>{sector}</span>
+              <span>·</span>
+              <span className="flex items-center text-emerald-600">
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Profile active
               </span>
             </div>
           </div>
           <Button variant="outline" size="sm">
-            <FileText className="w-4 h-4 mr-2" /> Export
+            <FileText className="w-4 h-4 mr-2" /> Export Report
           </Button>
         </div>
 
-        {/* Status banner */}
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-primary/8 border border-primary/20 rounded-2xl p-4 mb-8 flex items-center justify-between gap-4"
-        >
-          <div>
-            <p className="font-medium text-sm text-primary">Your financial twin is being built.</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Analyzing {connectedCount} data source{connectedCount !== 1 ? 's' : ''}. Scores ready soon.
-            </p>
-          </div>
-          <Button size="sm" variant="secondary" className="whitespace-nowrap text-xs">
-            Add Data
-          </Button>
-        </motion.div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: main content */}
           <div className="lg:col-span-2 space-y-6">
+
             {/* Score cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="bg-card border rounded-3xl p-6 shadow-sm relative overflow-hidden">
-                <div className="absolute inset-0 bg-background/40 backdrop-blur-sm flex flex-col items-center justify-center z-10">
-                  <RefreshCw className="w-7 h-7 text-primary animate-spin mb-2 duration-[3000ms]" />
-                  <span className="text-sm font-medium bg-background/80 px-3 py-1 rounded-full border">Calculating...</span>
-                </div>
-                <div className="opacity-40">
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Credit Readiness Score</p>
-                      <div className="text-4xl font-bold">--<span className="text-lg text-muted-foreground font-normal">/100</span></div>
+              {/* Credit Score */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="bg-card border rounded-3xl p-6 shadow-sm"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-medium">Credit Readiness</p>
+                    <div className="flex items-end gap-1.5">
+                      <span className="text-4xl font-bold">{creditScore}</span>
+                      <span className="text-muted-foreground text-base mb-1">/100</span>
                     </div>
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <BarChart3 className="w-5 h-5 text-primary" />
-                    </div>
+                    <p className="text-xs text-amber-500 font-medium mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Moderate — room to grow
+                    </p>
                   </div>
-                  <div className="h-1.5 w-full bg-muted rounded-full" />
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                  </div>
                 </div>
-              </div>
 
-              <div className="bg-card border rounded-3xl p-6 shadow-sm relative overflow-hidden">
-                <div className="absolute inset-0 bg-background/40 backdrop-blur-sm flex flex-col items-center justify-center z-10">
-                  <Lock className="w-7 h-7 text-muted-foreground mb-2" />
-                  <span className="text-sm font-medium bg-background/80 px-3 py-1 rounded-full border">Analyzing...</span>
-                </div>
-                <div className="opacity-40">
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Green Taxonomy Match</p>
-                      <div className="text-4xl font-bold">--<span className="text-lg text-muted-foreground font-normal">%</span></div>
-                    </div>
-                    <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">
-                      <Leaf className="w-5 h-5 text-emerald-600" />
-                    </div>
+                {/* Score bar */}
+                <div className="mb-5">
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${creditScore}%` }}
+                      transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
+                      className="h-full bg-primary rounded-full"
+                    />
                   </div>
-                  <div className="h-1.5 w-full bg-muted rounded-full" />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
+                    <span>0</span><span>100</span>
+                  </div>
                 </div>
-              </div>
+
+                {/* Breakdown */}
+                <div className="space-y-2.5">
+                  {scoreBreakdown.map(item => (
+                    <div key={item.label} className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground w-28 shrink-0">{item.label}</span>
+                      <div className="flex-grow h-1.5 bg-muted rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${item.value}%` }}
+                          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+                          className={`h-full rounded-full ${item.color}`}
+                        />
+                      </div>
+                      <span className="text-xs font-medium w-8 text-right">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Green Score */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-card border rounded-3xl p-6 shadow-sm"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-medium">Green Taxonomy</p>
+                    <div className="flex items-end gap-1.5">
+                      <span className="text-4xl font-bold">{greenMatch}%</span>
+                    </div>
+                    <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> CBJ-eligible
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                    <Leaf className="w-5 h-5 text-emerald-600" />
+                  </div>
+                </div>
+
+                {/* Donut-style ring */}
+                <div className="flex justify-center my-3">
+                  <svg width="100" height="100" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                    <motion.circle
+                      cx="50" cy="50" r="40" fill="none"
+                      stroke="#22c55e" strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 40}`}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 40 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 40 * (1 - greenMatch / 100) }}
+                      transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
+                      style={{ transformOrigin: "50% 50%", transform: "rotate(-90deg)" }}
+                    />
+                    <text x="50" y="55" textAnchor="middle" fontSize="16" fontWeight="700" fill="currentColor">{greenMatch}%</text>
+                  </svg>
+                </div>
+
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-xl p-3 text-xs text-emerald-700 dark:text-emerald-300">
+                  Qualifies for Energy Efficiency Fund at <strong>2.75% fixed rate</strong>
+                </div>
+              </motion.div>
             </div>
 
             {/* Activity */}
-            <div className="bg-card border rounded-3xl p-6 shadow-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-card border rounded-3xl p-6 shadow-sm"
+            >
               <div className="flex items-center justify-between mb-5">
-                <h3 className="font-semibold">Recent Activity</h3>
+                <div>
+                  <h3 className="font-semibold">Recent Activity</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Last 7 days · 5 transactions</p>
+                </div>
                 <Button variant="ghost" size="sm" className="text-primary text-xs">
                   View All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-muted/30 animate-pulse">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-muted" />
-                      <div className="space-y-2">
-                        <div className="h-3 w-28 bg-muted rounded" />
-                        <div className="h-2.5 w-16 bg-muted rounded" />
+
+              <div className="space-y-2">
+                {transactions.map((tx, i) => {
+                  const Icon = tx.icon;
+                  return (
+                    <motion.div
+                      key={tx.label}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + i * 0.06 }}
+                      className="flex items-center gap-4 p-3.5 rounded-2xl hover:bg-muted/40 transition-colors"
+                    >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.color}`}>
+                        <Icon className="w-4 h-4" />
                       </div>
-                    </div>
-                    <div className="h-4 w-14 bg-muted rounded" />
-                  </div>
-                ))}
+                      <div className="flex-grow min-w-0">
+                        <p className="text-sm font-medium truncate">{tx.label}</p>
+                        <p className="text-xs text-muted-foreground">{tx.sub}</p>
+                      </div>
+                      <div className={`text-sm font-semibold flex items-center gap-1 shrink-0 ${tx.positive ? 'text-emerald-600' : 'text-foreground'}`}>
+                        {tx.positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                        {tx.amount}
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Sidebar */}
+          {/* Right sidebar */}
           <div className="space-y-6">
-            <div className="bg-card border rounded-3xl p-6 shadow-sm">
-              <h3 className="font-semibold mb-5">Financing Matches</h3>
-              <div className="space-y-3 relative">
-                <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center text-center p-4 rounded-2xl">
-                  <TrendingUp className="w-7 h-7 text-primary mb-2" />
-                  <p className="text-sm font-medium">Matches appear once your score is ready.</p>
-                </div>
-                {[
-                  { tag: "Islamic Finance", label: "Murabaha Facility", sub: "Up to 50,000 JOD", tagClass: "text-primary" },
-                  { tag: "Green Loan", label: "Energy Efficiency Fund", sub: "2.5% fixed rate", tagClass: "text-emerald-600" },
-                ].map(m => (
-                  <div key={m.label} className="p-4 border rounded-2xl bg-muted/10 opacity-30">
-                    <div className={`text-xs font-medium uppercase tracking-wider mb-1 ${m.tagClass}`}>{m.tag}</div>
+            {/* Financing Matches */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-card border rounded-3xl p-6 shadow-sm"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-semibold">Financing Matches</h3>
+                <TrendingUp className="w-4 h-4 text-primary" />
+              </div>
+
+              <div className="space-y-3">
+                {matches.map((m, i) => (
+                  <motion.div
+                    key={m.label}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.08 }}
+                    className="p-4 border rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start justify-between mb-1.5">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${m.tagColor}`}>{m.tag}</span>
+                      <span className={`text-xs font-semibold ${m.matchColor}`}>{m.match}% match</span>
+                    </div>
                     <h4 className="font-medium text-sm mb-0.5">{m.label}</h4>
-                    <p className="text-xs text-muted-foreground">{m.sub}</p>
-                  </div>
+                    <p className="text-xs text-muted-foreground mb-3">{m.sub}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">{m.rate} / yr</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-card border rounded-3xl p-6 shadow-sm">
+            {/* Verification */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="bg-card border rounded-3xl p-6 shadow-sm"
+            >
               <h3 className="font-semibold mb-4">Verification</h3>
               <div className="space-y-3 text-sm">
                 {[
-                  { label: "Identity", status: "Verified", color: "bg-emerald-500", textColor: "text-emerald-600" },
-                  { label: "Data Sources", status: "Syncing", color: "bg-amber-400", textColor: "text-amber-500" },
-                  { label: "Company Registry", status: "Pending", color: "bg-muted-foreground", textColor: "text-muted-foreground" },
+                  { label: "Identity", status: "Verified", Icon: CheckCircle2, color: "text-emerald-600" },
+                  { label: "Data Sources", status: "3 connected", Icon: CheckCircle2, color: "text-emerald-600" },
+                  { label: "Company Registry", status: "Pending", Icon: Clock, color: "text-muted-foreground" },
                 ].map(v => (
                   <div key={v.label} className="flex items-center justify-between">
                     <span className="text-muted-foreground">{v.label}</span>
-                    <span className={`flex items-center font-medium ${v.textColor}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full mr-2 ${v.color}`} />{v.status}
+                    <span className={`flex items-center gap-1.5 font-medium text-xs ${v.color}`}>
+                      <v.Icon className="w-3.5 h-3.5" />{v.status}
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </main>
