@@ -4,19 +4,11 @@ import { useOnboarding, EnterpriseCategory } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2 } from "lucide-react";
 
 export function Step2Size() {
   const { state, updateState, setCurrentStep } = useOnboarding();
   const [showReveal, setShowReveal] = useState(false);
-
-  const yearsOptions = [
-    { value: "<1", label: "Less than 1 year" },
-    { value: "1-3", label: "1 to 3 years" },
-    { value: "3-5", label: "3 to 5 years" },
-    { value: ">5", label: "More than 5 years" },
-  ];
 
   const isFormComplete =
     state.employees.trim() !== "" &&
@@ -81,22 +73,21 @@ export function Step2Size() {
 
             {/* Years in Operation */}
             <div className="space-y-3">
-              <Label className="text-base font-medium">Years in Operation</Label>
-              <Select
-                value={state.yearsInOperation}
-                onValueChange={(val) => updateState({ yearsInOperation: val })}
-              >
-                <SelectTrigger className="h-12 text-lg">
-                  <SelectValue placeholder="Select years active" />
-                </SelectTrigger>
-                <SelectContent>
-                  {yearsOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="years" className="text-base font-medium">Years in Operation</Label>
+              <div className="relative">
+                <Input
+                  id="years"
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 3"
+                  value={state.yearsInOperation}
+                  onChange={(e) => updateState({ yearsInOperation: e.target.value })}
+                  className="h-12 text-lg pr-16"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                  years
+                </span>
+              </div>
             </div>
 
             {/* Annual Revenue */}
