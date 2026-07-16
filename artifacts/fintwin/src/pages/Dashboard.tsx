@@ -1,10 +1,12 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
 import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
-  CheckCircle2, Clock, AlertCircle
+  CheckCircle2, Clock, AlertCircle, LogOut
 } from "lucide-react";
 
 const transactions = [
@@ -53,7 +55,8 @@ const scoreBreakdown = [
 ];
 
 export default function Dashboard() {
-  const { state } = useOnboarding();
+  const { state, resetState } = useOnboarding();
+  const [menuOpen, setMenuOpen] = useState(false);
   const businessName = state.businessName || "Amman Coffee Roasters";
   const category = state.category || "Micro Enterprise";
   const sector = state.businessSector || "Food & Hospitality";
@@ -72,8 +75,39 @@ export default function Dashboard() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
             </Button>
-            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm border border-primary/30">
-              {businessName.substring(0, 2).toUpperCase()}
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm border border-primary/30 hover:bg-primary/30 transition-colors"
+              >
+                {businessName.substring(0, 2).toUpperCase()}
+              </button>
+              <AnimatePresence>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 top-11 z-20 w-44 bg-card border rounded-2xl shadow-lg overflow-hidden"
+                    >
+                      <div className="px-4 py-3 border-b">
+                        <p className="text-xs font-medium truncate">{businessName}</p>
+                        <p className="text-xs text-muted-foreground">Free plan</p>
+                      </div>
+                      <Link
+                        href="/"
+                        onClick={() => { resetState(); setMenuOpen(false); }}
+                        className="flex items-center gap-2.5 px-4 py-3 text-sm text-destructive hover:bg-destructive/5 transition-colors w-full"
+                      >
+                        <LogOut className="w-4 h-4" /> Sign out
+                      </Link>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
