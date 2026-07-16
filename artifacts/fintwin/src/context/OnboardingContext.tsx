@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { Commitment } from '@/lib/simulationEngine';
+
+export type { Commitment };
 
 export type BusinessSector = 
   | 'Retail & Trade'
@@ -29,6 +32,8 @@ export interface OnboardingState {
     pos: boolean;
     receipts: boolean;
   };
+
+  commitments: Commitment[];
 }
 
 interface OnboardingContextType {
@@ -37,7 +42,17 @@ interface OnboardingContextType {
   resetState: () => void;
   currentStep: number;
   setCurrentStep: (step: number) => void;
+  addCommitment: (c: Omit<Commitment, 'id'>) => void;
+  removeCommitment: (id: string) => void;
 }
+
+const defaultCommitments: Commitment[] = [
+  { id: 'c1', category: 'rent',         label: 'Office / Shop Rent',         amountJOD: 800  },
+  { id: 'c2', category: 'payroll',      label: 'Staff Salaries (4 employees)', amountJOD: 1600 },
+  { id: 'c3', category: 'utilities',    label: 'Electricity & Water',         amountJOD: 300  },
+  { id: 'c4', category: 'subscription', label: 'POS System & Software',       amountJOD: 100  },
+  { id: 'c5', category: 'insurance',    label: 'Business Insurance',          amountJOD: 100  },
+];
 
 const initialState: OnboardingState = {
   businessName: '',
@@ -53,7 +68,8 @@ const initialState: OnboardingState = {
     cliq: false,
     pos: false,
     receipts: false,
-  }
+  },
+  commitments: defaultCommitments,
 };
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -71,8 +87,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setCurrentStep(1);
   };
 
+  const addCommitment = (c: Omit<Commitment, 'id'>) => {
+    const id = `c-${Date.now()}`;
+    setState(prev => ({ ...prev, commitments: [...prev.commitments, { ...c, id }] }));
+  };
+
+  const removeCommitment = (id: string) => {
+    setState(prev => ({ ...prev, commitments: prev.commitments.filter(c => c.id !== id) }));
+  };
+
   return (
-    <OnboardingContext.Provider value={{ state, updateState, resetState, currentStep, setCurrentStep }}>
+    <OnboardingContext.Provider value={{ state, updateState, resetState, currentStep, setCurrentStep, addCommitment, removeCommitment }}>
       {children}
     </OnboardingContext.Provider>
   );

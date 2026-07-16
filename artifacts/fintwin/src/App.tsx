@@ -6,8 +6,10 @@ import Home from '@/pages/Home';
 import GetStarted from '@/pages/GetStarted';
 import Onboarding from '@/pages/Onboarding';
 import Dashboard from '@/pages/Dashboard';
+import Simulation from '@/pages/Simulation';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { OnboardingProvider } from '@/context/OnboardingContext';
+import { SimulationProvider } from '@/context/SimulationContext';
 
 const queryClient = new QueryClient();
 
@@ -18,6 +20,7 @@ function Router() {
       <Route path="/get-started" component={GetStarted} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/simulation" component={Simulation} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -28,9 +31,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <OnboardingProvider>
-          <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}>
-            <Router />
-          </WouterRouter>
+          <SimulationProvider>
+            <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}>
+              <Router />
+            </WouterRouter>
+          </SimulationProvider>
         </OnboardingProvider>
         <Toaster />
       </TooltipProvider>

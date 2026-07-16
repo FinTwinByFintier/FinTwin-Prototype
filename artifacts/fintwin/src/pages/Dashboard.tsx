@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
+import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
   Wallet, Timer, CreditCard, Plus, ChevronDown, ChevronUp,
-  Circle
+  Circle, FlaskConical, ReceiptText,
 } from "lucide-react";
 
 /* ─── Static mock data ─────────────────────────────────── */
@@ -62,29 +63,33 @@ function greenColor(score: number) {
   return               { bar: "bg-red-500",        text: "text-red-500",     label: "Low" };
 }
 
-const maxIncome  = Math.max(...cashFlow.map(d => d.income));
+const maxIncome = Math.max(...cashFlow.map(d => d.income));
 
 /* ─── Component ─────────────────────────────────────────── */
 export default function Dashboard() {
   const { state, resetState } = useOnboarding();
-  const [menuOpen, setMenuOpen]       = useState(false);
-  const [stepsOpen, setStepsOpen]     = useState(false);
+  const [, navigate] = useLocation();
+  const [menuOpen, setMenuOpen]             = useState(false);
+  const [stepsOpen, setStepsOpen]           = useState(false);
+  const [commitmentsOpen, setCommitmentsOpen] = useState(false);
 
-  const businessName   = state.businessName   || "Amman Coffee Roasters";
-  const category       = state.category       || "Micro Enterprise";
-  const sector         = state.businessSector || "Food & Hospitality";
-  const creditScore    = 74;
-  const greenScore     = 62;
-  const gc             = greenColor(greenScore);
+  const businessName = state.businessName   || "Amman Coffee Roasters";
+  const category     = state.category       || "Micro Enterprise";
+  const sector       = state.businessSector || "Food & Hospitality";
+  const creditScore  = 74;
+  const greenScore   = 62;
+  const gc           = greenColor(greenScore);
 
-  // Profile completion
+  const hasCommitments = (state.commitments ?? []).length > 0;
+
+  // Profile completion — commitments replaces company registry as the most impactful next step
   const profileItems = [
-    { label: "Business identity",    done: true },
-    { label: "Size & scale",         done: true },
-    { label: "Bank connected",       done: state.connectedSources.cliq },
-    { label: "JoFotara connected",   done: state.connectedSources.jofotara },
-    { label: "Receipts uploaded",    done: state.connectedSources.receipts },
-    { label: "Company registry",     done: false },
+    { label: "Business identity",     done: true },
+    { label: "Size & scale",          done: true },
+    { label: "Bank connected",        done: state.connectedSources.cliq },
+    { label: "JoFotara connected",    done: state.connectedSources.jofotara },
+    { label: "Receipts uploaded",     done: state.connectedSources.receipts },
+    { label: "Monthly commitments",   done: hasCommitments, action: () => setCommitmentsOpen(true) },
   ];
   const completedCount = profileItems.filter(p => p.done).length;
   const profilePct     = Math.round((completedCount / profileItems.length) * 100);
@@ -139,7 +144,7 @@ export default function Dashboard() {
       </header>
 
       <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Page title */}
+        {/* Page title + actions */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-7 gap-3">
           <div>
             <h1 className="text-2xl font-bold mb-1">{businessName}</h1>
@@ -152,15 +157,26 @@ export default function Dashboard() {
               <span className="flex items-center text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5 mr-1" />Profile active</span>
             </div>
           </div>
-          <Button variant="outline" size="sm"><FileText className="w-4 h-4 mr-2" />Export Report</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <FileText className="w-4 h-4 mr-2" />Export Report
+            </Button>
+            <Button
+              size="sm"
+              className="bg-primary hover:bg-primary/90 gap-2"
+              onClick={() => navigate('/simulation')}
+            >
+              <FlaskConical className="w-4 h-4" />Run Simulation
+            </Button>
+          </div>
         </div>
 
         {/* Top stat strip */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { icon: Wallet, label: "Net this month", value: "+2,305 JOD", sub: "↑ 14% vs last month", subColor: "text-emerald-600" },
-            { icon: Timer,  label: "Runway",          value: "4.2 months",  sub: "Based on current burn rate", subColor: "text-muted-foreground" },
-            { icon: CreditCard, label: "Active loans", value: "1 loan",   sub: "Next payment Aug 1", subColor: "text-muted-foreground" },
+            { icon: Wallet,     label: "Net this month",  value: "+2,305 JOD",  sub: "↑ 14% vs last month",     subColor: "text-emerald-600" },
+            { icon: Timer,      label: "Runway",           value: "4.2 months",  sub: "Based on current burn rate", subColor: "text-muted-foreground" },
+            { icon: CreditCard, label: "Active loans",     value: "1 loan",      sub: "Next payment Aug 1",        subColor: "text-muted-foreground" },
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
@@ -284,7 +300,6 @@ export default function Dashboard() {
                     <div className="h-full bg-amber-400/70" style={{ width: "25%" }} />
                     <div className="h-full bg-emerald-400/70" style={{ width: "25%" }} />
                   </div>
-                  {/* Indicator */}
                   <div className="relative h-0">
                     <motion.div
                       initial={{ left: "0%" }}
@@ -300,7 +315,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className={`rounded-xl p-3 text-xs border ${gc.text} bg-current/5`} style={{ backgroundColor: greenScore >= 75 ? 'rgb(240 253 244)' : greenScore >= 50 ? 'rgb(255 251 235)' : 'rgb(254 242 242)' }}>
+                <div className={`rounded-xl p-3 text-xs border ${gc.text}`} style={{ backgroundColor: greenScore >= 75 ? 'rgb(240 253 244)' : greenScore >= 50 ? 'rgb(255 251 235)' : 'rgb(254 242 242)' }}>
                   <p className="font-semibold mb-0.5">CBJ Green Finance eligible</p>
                   <p className="text-muted-foreground">Qualifies for Energy Efficiency Fund at <strong>2.75% fixed rate</strong>. Raise score to 75 to unlock top-tier green products.</p>
                 </div>
@@ -349,9 +364,9 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t">
                 {[
-                  { label: "Total income",   value: "+4,800 JOD",  color: "text-emerald-600" },
-                  { label: "Total expenses", value: "−2,900 JOD",  color: "text-foreground" },
-                  { label: "Net",            value: "+1,900 JOD",  color: "text-primary" },
+                  { label: "Total income",   value: "+4,800 JOD", color: "text-emerald-600" },
+                  { label: "Total expenses", value: "−2,900 JOD", color: "text-foreground" },
+                  { label: "Net",            value: "+1,900 JOD", color: "text-primary" },
                 ].map(s => (
                   <div key={s.label} className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
@@ -391,6 +406,22 @@ export default function Dashboard() {
                 })}
               </div>
             </motion.div>
+
+            {/* Simulation CTA */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-gradient-to-br from-primary/8 via-primary/5 to-transparent border border-primary/20 rounded-3xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-primary/15 rounded-full flex items-center justify-center shrink-0">
+                  <FlaskConical className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-grow">
+                  <h3 className="font-semibold mb-1">Model your next decision</h3>
+                  <p className="text-sm text-muted-foreground mb-4">What happens if you hire, take a loan, or go green? The digital twin updates every score in real time.</p>
+                  <Button size="sm" onClick={() => navigate('/simulation')} className="gap-2">
+                    <FlaskConical className="w-4 h-4" />Open Simulation
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
           {/* ── Right sidebar ── */}
@@ -403,26 +434,49 @@ export default function Dashboard() {
                 <span className="text-xs font-bold text-primary">{profilePct}%</span>
               </div>
 
-              {/* Progress bar */}
               <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-4">
                 <motion.div initial={{ width: 0 }} animate={{ width: `${profilePct}%` }} transition={{ duration: 0.8, delay: 0.3 }} className="h-full bg-primary rounded-full" />
               </div>
 
               <div className="space-y-2.5">
                 {profileItems.map(item => (
-                  <div key={item.label} className="flex items-center gap-2.5 text-xs">
+                  <div
+                    key={item.label}
+                    onClick={item.action}
+                    className={`flex items-center gap-2.5 text-xs ${item.action && !item.done ? 'cursor-pointer hover:opacity-80' : ''}`}
+                  >
                     {item.done
                       ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       : <Circle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />}
-                    <span className={item.done ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}>{item.label}</span>
+                    <span className={item.done ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}>
+                      {item.label}
+                    </span>
+                    {item.action && !item.done && (
+                      <span className="ml-auto text-primary text-[10px] font-medium">Add →</span>
+                    )}
                   </div>
                 ))}
               </div>
 
-              {profilePct < 100 && (
-                <Link href="/onboarding" className="mt-4 flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity pt-3 border-t">
-                  Complete profile <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              {/* Commitments shortcut */}
+              {!hasCommitments && (
+                <button
+                  onClick={() => setCommitmentsOpen(true)}
+                  className="mt-4 w-full flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity pt-3 border-t"
+                >
+                  <ReceiptText className="w-3.5 h-3.5" />
+                  Add monthly commitments
+                </button>
+              )}
+              {hasCommitments && profilePct < 100 && (
+                <button
+                  onClick={() => setCommitmentsOpen(true)}
+                  className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-3 border-t"
+                >
+                  <ReceiptText className="w-3 h-3" />
+                  {(state.commitments ?? []).length} commitments · {(state.commitments ?? []).reduce((s, c) => s + c.amountJOD, 0).toLocaleString()} JOD/mo
+                  <ArrowRight className="w-3 h-3 ml-auto" />
+                </button>
               )}
             </motion.div>
 
@@ -436,7 +490,6 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground mb-1">{ongoingLoan.label}</p>
               <p className="text-2xl font-bold mb-1">{ongoingLoan.remaining.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">JOD left</span></p>
 
-              {/* Repayment bar */}
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden mb-1.5">
                 <motion.div
                   initial={{ width: 0 }}
@@ -491,9 +544,9 @@ export default function Dashboard() {
               <h3 className="font-semibold text-sm mb-4">Verification</h3>
               <div className="space-y-3 text-sm">
                 {[
-                  { label: "Identity",         status: "Verified",      Icon: CheckCircle2, color: "text-emerald-600" },
-                  { label: "Data Sources",     status: "3 connected",   Icon: CheckCircle2, color: "text-emerald-600" },
-                  { label: "Company Registry", status: "Pending",       Icon: Clock,        color: "text-muted-foreground" },
+                  { label: "Identity",           status: "Verified",    Icon: CheckCircle2, color: "text-emerald-600" },
+                  { label: "Data Sources",       status: "3 connected", Icon: CheckCircle2, color: "text-emerald-600" },
+                  { label: "Company Registry",   status: "Pending",     Icon: Clock,        color: "text-muted-foreground" },
                 ].map(v => (
                   <div key={v.label} className="flex items-center justify-between">
                     <span className="text-muted-foreground text-xs">{v.label}</span>
@@ -507,6 +560,9 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Commitments sheet */}
+      <CommitmentsSheet open={commitmentsOpen} onOpenChange={setCommitmentsOpen} />
     </div>
   );
 }
