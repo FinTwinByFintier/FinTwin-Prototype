@@ -6,70 +6,95 @@ import { Button } from "@/components/ui/button";
 import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
-  CheckCircle2, Clock, AlertCircle, LogOut
+  CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
+  Wallet, Timer, CreditCard, Plus, ChevronDown, ChevronUp,
+  Circle
 } from "lucide-react";
 
+/* ─── Static mock data ─────────────────────────────────── */
 const transactions = [
-  { icon: ShoppingBag, label: "Retail Sale — CliQ", sub: "Today, 10:42 AM", amount: "+340 JOD", positive: true, color: "bg-emerald-500/10 text-emerald-600" },
-  { icon: Truck, label: "Supplier Payment", sub: "Yesterday, 3:15 PM", amount: "−1,200 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
-  { icon: Coffee, label: "Daily POS Sales", sub: "Yesterday, 8:00 PM", amount: "+820 JOD", positive: true, color: "bg-primary/10 text-primary" },
-  { icon: Zap, label: "Electricity Bill", sub: "Jul 14, 9:00 AM", amount: "−95 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
-  { icon: ShoppingBag, label: "JoFotara Invoice #2041", sub: "Jul 13, 11:30 AM", amount: "+1,540 JOD", positive: true, color: "bg-blue-500/10 text-blue-600" },
+  { icon: ShoppingBag, label: "Retail Sale — CliQ",        sub: "Today, 10:42 AM",       amount: "+340 JOD",   positive: true,  color: "bg-emerald-500/10 text-emerald-600" },
+  { icon: Truck,       label: "Supplier Payment",           sub: "Yesterday, 3:15 PM",    amount: "−1,200 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
+  { icon: Coffee,      label: "Daily POS Sales",            sub: "Yesterday, 8:00 PM",    amount: "+820 JOD",   positive: true,  color: "bg-primary/10 text-primary" },
+  { icon: Zap,         label: "Electricity Bill",           sub: "Jul 14, 9:00 AM",       amount: "−95 JOD",    positive: false, color: "bg-red-500/10 text-red-500" },
+  { icon: ShoppingBag, label: "JoFotara Invoice #2041",     sub: "Jul 13, 11:30 AM",      amount: "+1,540 JOD", positive: true,  color: "bg-blue-500/10 text-blue-600" },
+];
+
+const cashFlow = [
+  { month: "Apr", income: 5200, expense: 3800 },
+  { month: "May", income: 6100, expense: 4200 },
+  { month: "Jun", income: 5700, expense: 3600 },
+  { month: "Jul", income: 4800, expense: 2900 },
 ];
 
 const matches = [
-  {
-    tag: "Islamic Finance",
-    tagColor: "text-primary",
-    label: "Murabaha Working Capital",
-    sub: "Arab Bank · Up to 25,000 JOD",
-    rate: "6.5%",
-    match: 87,
-    matchColor: "text-emerald-600",
-  },
-  {
-    tag: "Green Loan",
-    tagColor: "text-emerald-600",
-    label: "Energy Efficiency Fund",
-    sub: "CBJ · Up to 50,000 JOD",
-    rate: "2.75%",
-    match: 62,
-    matchColor: "text-emerald-600",
-  },
-  {
-    tag: "MSME Loan",
-    tagColor: "text-blue-600",
-    label: "Jordan Loan Guarantee Corp.",
-    sub: "JLGC · Up to 15,000 JOD",
-    rate: "7.0%",
-    match: 74,
-    matchColor: "text-amber-500",
-  },
+  { tag: "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",      sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87 },
+  { tag: "Green Loan",      tagColor: "text-emerald-600", label: "Energy Efficiency Fund",        sub: "CBJ · Up to 50,000 JOD",       rate: "2.75%", match: 62 },
+  { tag: "MSME Loan",       tagColor: "text-blue-600",    label: "Jordan Loan Guarantee Corp.",   sub: "JLGC · Up to 15,000 JOD",      rate: "7.0%",  match: 74 },
 ];
 
 const scoreBreakdown = [
   { label: "Payment History", value: 82, color: "bg-emerald-500" },
-  { label: "Cash Flow", value: 70, color: "bg-primary" },
-  { label: "Business Age", value: 65, color: "bg-blue-500" },
-  { label: "Data Coverage", value: 55, color: "bg-amber-400" },
+  { label: "Cash Flow",       value: 70, color: "bg-primary" },
+  { label: "Business Age",    value: 65, color: "bg-blue-500" },
+  { label: "Data Coverage",   value: 55, color: "bg-amber-400" },
 ];
 
+const nextSteps = [
+  { label: "Connect your bank account via CliQ",     impact: "+8 pts",  done: true },
+  { label: "Verify company registration number",     impact: "+12 pts", done: false },
+  { label: "Upload 3 months of bank statements",     impact: "+6 pts",  done: false },
+  { label: "Add tax identification number",          impact: "+5 pts",  done: false },
+];
+
+const ongoingLoan = {
+  label: "Murabaha Facility — Arab Bank",
+  total: 20000,
+  remaining: 13400,
+  nextPayment: { amount: 850, date: "Aug 1, 2026" },
+  installments: { paid: 8, total: 24 },
+};
+
+/* ─── Helpers ───────────────────────────────────────────── */
+function greenColor(score: number) {
+  if (score >= 75) return { bar: "bg-emerald-500", text: "text-emerald-600", label: "Strong" };
+  if (score >= 50) return { bar: "bg-amber-400",   text: "text-amber-500",   label: "Developing" };
+  return               { bar: "bg-red-500",        text: "text-red-500",     label: "Low" };
+}
+
+const maxIncome  = Math.max(...cashFlow.map(d => d.income));
+
+/* ─── Component ─────────────────────────────────────────── */
 export default function Dashboard() {
   const { state, resetState } = useOnboarding();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const businessName = state.businessName || "Amman Coffee Roasters";
-  const category = state.category || "Micro Enterprise";
-  const sector = state.businessSector || "Food & Hospitality";
-  const creditScore = 74;
-  const greenMatch = 62;
+  const [menuOpen, setMenuOpen]       = useState(false);
+  const [stepsOpen, setStepsOpen]     = useState(false);
+
+  const businessName   = state.businessName   || "Amman Coffee Roasters";
+  const category       = state.category       || "Micro Enterprise";
+  const sector         = state.businessSector || "Food & Hospitality";
+  const creditScore    = 74;
+  const greenScore     = 62;
+  const gc             = greenColor(greenScore);
+
+  // Profile completion
+  const profileItems = [
+    { label: "Business identity",    done: true },
+    { label: "Size & scale",         done: true },
+    { label: "Bank connected",       done: state.connectedSources.cliq },
+    { label: "JoFotara connected",   done: state.connectedSources.jofotara },
+    { label: "Receipts uploaded",    done: state.connectedSources.receipts },
+    { label: "Company registry",     done: false },
+  ];
+  const completedCount = profileItems.filter(p => p.done).length;
+  const profilePct     = Math.round((completedCount / profileItems.length) * 100);
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
+      {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight">
-            Fin<span className="text-primary">Twin</span>
-          </span>
+          <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="relative text-muted-foreground">
               <Bell className="w-5 h-5" />
@@ -114,8 +139,8 @@ export default function Dashboard() {
       </header>
 
       <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Page header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-3">
+        {/* Page title */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-7 gap-3">
           <div>
             <h1 className="text-2xl font-bold mb-1">{businessName}</h1>
             <div className="flex items-center text-muted-foreground text-sm gap-2 flex-wrap">
@@ -124,38 +149,58 @@ export default function Dashboard() {
               <span>·</span>
               <span>{sector}</span>
               <span>·</span>
-              <span className="flex items-center text-emerald-600">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Profile active
-              </span>
+              <span className="flex items-center text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5 mr-1" />Profile active</span>
             </div>
           </div>
-          <Button variant="outline" size="sm">
-            <FileText className="w-4 h-4 mr-2" /> Export Report
-          </Button>
+          <Button variant="outline" size="sm"><FileText className="w-4 h-4 mr-2" />Export Report</Button>
+        </div>
+
+        {/* Top stat strip */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { icon: Wallet, label: "Net this month", value: "+2,305 JOD", sub: "↑ 14% vs last month", subColor: "text-emerald-600" },
+            { icon: Timer,  label: "Runway",          value: "4.2 months",  sub: "Based on current burn rate", subColor: "text-muted-foreground" },
+            { icon: CreditCard, label: "Active loans", value: "1 loan",   sub: "Next payment Aug 1", subColor: "text-muted-foreground" },
+          ].map((stat, i) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-card border rounded-2xl px-5 py-4 flex items-center gap-4"
+              >
+                <div className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground mb-0.5">{stat.label}</p>
+                  <p className="font-bold text-base leading-tight">{stat.value}</p>
+                  <p className={`text-xs mt-0.5 ${stat.subColor}`}>{stat.sub}</p>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: main content */}
+          {/* ── Left 2/3 ── */}
           <div className="lg:col-span-2 space-y-6">
 
             {/* Score cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Credit Score */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="bg-card border rounded-3xl p-6 shadow-sm"
-              >
-                <div className="flex items-start justify-between mb-5">
+              {/* Credit */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card border rounded-3xl p-6 shadow-sm">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-medium">Credit Readiness</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Credit Readiness</p>
                     <div className="flex items-end gap-1.5">
                       <span className="text-4xl font-bold">{creditScore}</span>
                       <span className="text-muted-foreground text-base mb-1">/100</span>
                     </div>
                     <p className="text-xs text-amber-500 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> Moderate — room to grow
+                      <AlertCircle className="w-3 h-3" />Moderate — room to grow
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -163,55 +208,68 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Score bar */}
-                <div className="mb-5">
+                <div className="mb-4">
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${creditScore}%` }}
-                      transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-                      className="h-full bg-primary rounded-full"
-                    />
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${creditScore}%` }} transition={{ duration: 1, delay: 0.3, ease: "easeOut" }} className="h-full bg-primary rounded-full" />
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
-                    <span>0</span><span>100</span>
-                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1.5"><span>0</span><span>100</span></div>
                 </div>
 
-                {/* Breakdown */}
                 <div className="space-y-2.5">
                   {scoreBreakdown.map(item => (
                     <div key={item.label} className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground w-28 shrink-0">{item.label}</span>
                       <div className="flex-grow h-1.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${item.value}%` }}
-                          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
-                          className={`h-full rounded-full ${item.color}`}
-                        />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${item.value}%` }} transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }} className={`h-full rounded-full ${item.color}`} />
                       </div>
                       <span className="text-xs font-medium w-8 text-right">{item.value}</span>
                     </div>
                   ))}
                 </div>
+
+                {/* Next steps toggle */}
+                <button
+                  onClick={() => setStepsOpen(o => !o)}
+                  className="mt-5 w-full flex items-center justify-between text-xs font-medium text-primary hover:opacity-80 transition-opacity pt-4 border-t"
+                >
+                  How to improve your score
+                  {stepsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+                <AnimatePresence>
+                  {stepsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-2.5 pt-3">
+                        {nextSteps.map(step => (
+                          <div key={step.label} className={`flex items-center gap-3 text-xs ${step.done ? 'opacity-40' : ''}`}>
+                            {step.done
+                              ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              : <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
+                            <span className={`flex-grow ${step.done ? 'line-through' : ''}`}>{step.label}</span>
+                            {!step.done && <span className="text-emerald-600 font-semibold shrink-0">{step.impact}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
-              {/* Green Score */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-card border rounded-3xl p-6 shadow-sm"
-              >
-                <div className="flex items-start justify-between mb-5">
+              {/* Green */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border rounded-3xl p-6 shadow-sm">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-medium">Green Taxonomy</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Green Finance Score</p>
                     <div className="flex items-end gap-1.5">
-                      <span className="text-4xl font-bold">{greenMatch}%</span>
+                      <span className="text-4xl font-bold">{greenScore}</span>
+                      <span className="text-muted-foreground text-base mb-1">/100</span>
                     </div>
-                    <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> CBJ-eligible
+                    <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${gc.text}`}>
+                      <Leaf className="w-3 h-3" />{gc.label}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">
@@ -219,58 +277,104 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Donut-style ring */}
-                <div className="flex justify-center my-3">
-                  <svg width="100" height="100" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                    <motion.circle
-                      cx="50" cy="50" r="40" fill="none"
-                      stroke="#22c55e" strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 40}`}
-                      initial={{ strokeDashoffset: 2 * Math.PI * 40 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 40 * (1 - greenMatch / 100) }}
-                      transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
-                      style={{ transformOrigin: "50% 50%", transform: "rotate(-90deg)" }}
-                    />
-                    <text x="50" y="55" textAnchor="middle" fontSize="16" fontWeight="700" fill="currentColor">{greenMatch}%</text>
-                  </svg>
+                {/* Color-coded bar */}
+                <div className="mb-5">
+                  <div className="relative h-3 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-red-400/70" style={{ width: "50%" }} />
+                    <div className="h-full bg-amber-400/70" style={{ width: "25%" }} />
+                    <div className="h-full bg-emerald-400/70" style={{ width: "25%" }} />
+                  </div>
+                  {/* Indicator */}
+                  <div className="relative h-0">
+                    <motion.div
+                      initial={{ left: "0%" }}
+                      animate={{ left: `${greenScore}%` }}
+                      transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
+                      className="absolute -top-4 -translate-x-1/2"
+                    >
+                      <div className="w-2.5 h-5 bg-foreground rounded-full shadow" />
+                    </motion.div>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-3">
+                    <span>0 · Low</span><span>50 · Mid</span><span>75 · High</span>
+                  </div>
                 </div>
 
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-xl p-3 text-xs text-emerald-700 dark:text-emerald-300">
-                  Qualifies for Energy Efficiency Fund at <strong>2.75% fixed rate</strong>
+                <div className={`rounded-xl p-3 text-xs border ${gc.text} bg-current/5`} style={{ backgroundColor: greenScore >= 75 ? 'rgb(240 253 244)' : greenScore >= 50 ? 'rgb(255 251 235)' : 'rgb(254 242 242)' }}>
+                  <p className="font-semibold mb-0.5">CBJ Green Finance eligible</p>
+                  <p className="text-muted-foreground">Qualifies for Energy Efficiency Fund at <strong>2.75% fixed rate</strong>. Raise score to 75 to unlock top-tier green products.</p>
+                </div>
+
+                <div className="mt-4 flex justify-between text-xs text-muted-foreground border-t pt-4">
+                  <span>Matched green products</span>
+                  <span className="font-semibold text-foreground">2 available</span>
                 </div>
               </motion.div>
             </div>
 
-            {/* Activity */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="bg-card border rounded-3xl p-6 shadow-sm"
-            >
+            {/* Cash flow */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card border rounded-3xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h3 className="font-semibold">Recent Activity</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Last 7 days · 5 transactions</p>
+                  <h3 className="font-semibold">Cash Flow</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Income vs. expenses · Last 4 months</p>
                 </div>
-                <Button variant="ghost" size="sm" className="text-primary text-xs">
-                  View All <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" />Income</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40 inline-block" />Expenses</span>
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="flex items-end gap-3 h-28">
+                {cashFlow.map((d, i) => (
+                  <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex items-end gap-1 h-20">
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${(d.income / maxIncome) * 100}%` }}
+                        transition={{ duration: 0.7, delay: 0.2 + i * 0.08, ease: "easeOut" }}
+                        className="flex-1 bg-primary rounded-t-lg min-h-[4px]"
+                      />
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${(d.expense / maxIncome) * 100}%` }}
+                        transition={{ duration: 0.7, delay: 0.25 + i * 0.08, ease: "easeOut" }}
+                        className="flex-1 bg-muted-foreground/25 rounded-t-lg min-h-[4px]"
+                      />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">{d.month}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t">
+                {[
+                  { label: "Total income",   value: "+4,800 JOD",  color: "text-emerald-600" },
+                  { label: "Total expenses", value: "−2,900 JOD",  color: "text-foreground" },
+                  { label: "Net",            value: "+1,900 JOD",  color: "text-primary" },
+                ].map(s => (
+                  <div key={s.label} className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+                    <p className={`font-bold text-sm ${s.color}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Transactions */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border rounded-3xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="font-semibold">Recent Transactions</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Last 7 days · 5 entries</p>
+                </div>
+                <Button variant="ghost" size="sm" className="text-primary text-xs">View All <ChevronRight className="w-4 h-4 ml-1" /></Button>
+              </div>
+              <div className="space-y-1">
                 {transactions.map((tx, i) => {
                   const Icon = tx.icon;
                   return (
-                    <motion.div
-                      key={tx.label}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 + i * 0.06 }}
-                      className="flex items-center gap-4 p-3.5 rounded-2xl hover:bg-muted/40 transition-colors"
-                    >
+                    <motion.div key={tx.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 + i * 0.05 }} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/40 transition-colors">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.color}`}>
                         <Icon className="w-4 h-4" />
                       </div>
@@ -289,60 +393,110 @@ export default function Dashboard() {
             </motion.div>
           </div>
 
-          {/* Right sidebar */}
-          <div className="space-y-6">
-            {/* Financing Matches */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-card border rounded-3xl p-6 shadow-sm"
-            >
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="font-semibold">Financing Matches</h3>
-                <TrendingUp className="w-4 h-4 text-primary" />
+          {/* ── Right sidebar ── */}
+          <div className="space-y-5">
+
+            {/* Profile completion */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">Profile completion</h3>
+                <span className="text-xs font-bold text-primary">{profilePct}%</span>
               </div>
 
+              {/* Progress bar */}
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-4">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${profilePct}%` }} transition={{ duration: 0.8, delay: 0.3 }} className="h-full bg-primary rounded-full" />
+              </div>
+
+              <div className="space-y-2.5">
+                {profileItems.map(item => (
+                  <div key={item.label} className="flex items-center gap-2.5 text-xs">
+                    {item.done
+                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      : <Circle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />}
+                    <span className={item.done ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {profilePct < 100 && (
+                <Link href="/onboarding" className="mt-4 flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity pt-3 border-t">
+                  Complete profile <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </motion.div>
+
+            {/* Ongoing loan */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">Ongoing Loan</h3>
+                <CreditCard className="w-4 h-4 text-muted-foreground" />
+              </div>
+
+              <p className="text-xs text-muted-foreground mb-1">{ongoingLoan.label}</p>
+              <p className="text-2xl font-bold mb-1">{ongoingLoan.remaining.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">JOD left</span></p>
+
+              {/* Repayment bar */}
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden mb-1.5">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((ongoingLoan.total - ongoingLoan.remaining) / ongoingLoan.total) * 100}%` }}
+                  transition={{ duration: 0.9, delay: 0.4 }}
+                  className="h-full bg-primary rounded-full"
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-muted-foreground mb-4">
+                <span>{ongoingLoan.installments.paid} of {ongoingLoan.installments.total} installments paid</span>
+                <span>{Math.round(((ongoingLoan.total - ongoingLoan.remaining) / ongoingLoan.total) * 100)}%</span>
+              </div>
+
+              <div className="bg-muted/40 rounded-xl p-3 flex items-center justify-between text-xs">
+                <div>
+                  <p className="text-muted-foreground">Next payment</p>
+                  <p className="font-semibold">{ongoingLoan.nextPayment.date}</p>
+                </div>
+                <p className="font-bold text-base">{ongoingLoan.nextPayment.amount} JOD</p>
+              </div>
+            </motion.div>
+
+            {/* Financing matches */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">Financing Matches</h3>
+                <TrendingUp className="w-4 h-4 text-primary" />
+              </div>
               <div className="space-y-3">
                 {matches.map((m, i) => (
-                  <motion.div
-                    key={m.label}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + i * 0.08 }}
-                    className="p-4 border rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-start justify-between mb-1.5">
+                  <motion.div key={m.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.07 }} className="p-3.5 border rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group">
+                    <div className="flex items-center justify-between mb-1">
                       <span className={`text-[10px] font-bold uppercase tracking-wider ${m.tagColor}`}>{m.tag}</span>
-                      <span className={`text-xs font-semibold ${m.matchColor}`}>{m.match}% match</span>
+                      <span className="text-[10px] font-semibold text-emerald-600">{m.match}% match</span>
                     </div>
-                    <h4 className="font-medium text-sm mb-0.5">{m.label}</h4>
-                    <p className="text-xs text-muted-foreground mb-3">{m.sub}</p>
+                    <h4 className="font-medium text-xs mb-0.5">{m.label}</h4>
+                    <p className="text-[10px] text-muted-foreground mb-2">{m.sub}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">{m.rate} / yr</span>
+                      <span className="text-xs font-bold">{m.rate} / yr</span>
                       <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                   </motion.div>
                 ))}
               </div>
+              <button className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors pt-3 border-t">
+                <Plus className="w-3.5 h-3.5" /> See all matches
+              </button>
             </motion.div>
 
             {/* Verification */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="bg-card border rounded-3xl p-6 shadow-sm"
-            >
-              <h3 className="font-semibold mb-4">Verification</h3>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+              <h3 className="font-semibold text-sm mb-4">Verification</h3>
               <div className="space-y-3 text-sm">
                 {[
-                  { label: "Identity", status: "Verified", Icon: CheckCircle2, color: "text-emerald-600" },
-                  { label: "Data Sources", status: "3 connected", Icon: CheckCircle2, color: "text-emerald-600" },
-                  { label: "Company Registry", status: "Pending", Icon: Clock, color: "text-muted-foreground" },
+                  { label: "Identity",         status: "Verified",      Icon: CheckCircle2, color: "text-emerald-600" },
+                  { label: "Data Sources",     status: "3 connected",   Icon: CheckCircle2, color: "text-emerald-600" },
+                  { label: "Company Registry", status: "Pending",       Icon: Clock,        color: "text-muted-foreground" },
                 ].map(v => (
                   <div key={v.label} className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{v.label}</span>
+                    <span className="text-muted-foreground text-xs">{v.label}</span>
                     <span className={`flex items-center gap-1.5 font-medium text-xs ${v.color}`}>
                       <v.Icon className="w-3.5 h-3.5" />{v.status}
                     </span>
