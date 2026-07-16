@@ -37,10 +37,6 @@ export default function Home() {
                 variants={stagger}
                 className="max-w-2xl"
               >
-                <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-medium text-sm mb-6 border border-primary/20">
-                  <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-                  The Digital Twin for MSMEs
-                </motion.div>
                 <motion.h1 variants={fadeIn} className="text-5xl lg:text-7xl font-bold text-foreground leading-[1.1] tracking-tight mb-6">
                   Turn your <span className="text-muted-foreground italic">invisible</span> business into a <span className="text-primary">fundable</span> one.
                 </motion.h1>

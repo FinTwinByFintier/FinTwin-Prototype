@@ -55,12 +55,6 @@ export default function GetStarted() {
               </div>
             </div>
             
-            <div className="mt-12 bg-muted/50 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-3 text-muted-foreground text-sm">
-                <CheckCircle2 className="text-green-500 w-5 h-5 flex-shrink-0" />
-                <p>Your data is securely encrypted. We never share your raw transactions with lenders without your explicit permission.</p>
-              </div>
-            </div>
           </div>
 
           <div className="text-center">
