@@ -9,7 +9,7 @@ import {
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
   Wallet, Timer, CreditCard, Plus, ChevronDown, ChevronUp,
-  Circle, FlaskConical, ReceiptText,
+  Circle, FlaskConical, ReceiptText, Landmark,
 } from "lucide-react";
 
 /* ─── Static mock data ─────────────────────────────────── */
@@ -29,9 +29,9 @@ const cashFlow = [
 ];
 
 const matches = [
-  { tag: "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",      sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87 },
-  { tag: "Green Loan",      tagColor: "text-emerald-600", label: "Energy Efficiency Fund",        sub: "CBJ · Up to 50,000 JOD",       rate: "2.75%", match: 62 },
-  { tag: "MSME Loan",       tagColor: "text-blue-600",    label: "Jordan Loan Guarantee Corp.",   sub: "JLGC · Up to 15,000 JOD",      rate: "7.0%",  match: 74 },
+  { tag: "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",      sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87, productId: "murabaha-arab-bank" },
+  { tag: "Green Loan",      tagColor: "text-emerald-600", label: "Energy Efficiency Fund",        sub: "CBJ · Up to 50,000 JOD",       rate: "2.75%", match: 62, productId: "energy-efficiency-cbj" },
+  { tag: "MSME Loan",       tagColor: "text-blue-600",    label: "Jordan Loan Guarantee Corp.",   sub: "JLGC · Up to 15,000 JOD",      rate: "7.0%",  match: 74, productId: "msme-jlgc" },
 ];
 
 const scoreBreakdown = [
@@ -170,6 +170,38 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
+
+        {/* Loan eligibility banner */}
+        {creditScore >= 55 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="mb-5 flex items-center justify-between gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-5 py-3.5"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                <Landmark className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">
+                  Your <span className="font-bold text-primary">{creditScore}</span> credit score likely qualifies you for{" "}
+                  <span className="font-semibold">Murabaha Working Capital</span> at{" "}
+                  <span className="font-semibold text-emerald-600">6.5%</span>
+                </p>
+                <p className="text-xs text-muted-foreground">Run a prescreening in under 3 minutes — no bank visit needed</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-primary/30 text-primary hover:bg-primary/5 gap-1.5"
+              onClick={() => navigate('/loan-prescreening?productId=murabaha-arab-bank')}
+            >
+              Check eligibility <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </motion.div>
+        )}
 
         {/* Top stat strip */}
         <div className="grid grid-cols-3 gap-4 mb-6">
@@ -520,16 +552,21 @@ export default function Dashboard() {
               </div>
               <div className="space-y-3">
                 {matches.map((m, i) => (
-                  <motion.div key={m.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.07 }} className="p-3.5 border rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group">
+                  <motion.div key={m.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.07 }} className="p-3.5 border rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all">
                     <div className="flex items-center justify-between mb-1">
                       <span className={`text-[10px] font-bold uppercase tracking-wider ${m.tagColor}`}>{m.tag}</span>
                       <span className="text-[10px] font-semibold text-emerald-600">{m.match}% match</span>
                     </div>
                     <h4 className="font-medium text-xs mb-0.5">{m.label}</h4>
-                    <p className="text-[10px] text-muted-foreground mb-2">{m.sub}</p>
+                    <p className="text-[10px] text-muted-foreground mb-2.5">{m.sub}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold">{m.rate} / yr</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <button
+                        onClick={() => navigate(`/loan-prescreening?productId=${m.productId}`)}
+                        className="text-[10px] font-semibold text-primary hover:opacity-80 flex items-center gap-0.5 transition-opacity"
+                      >
+                        Check eligibility <ArrowUpRight className="w-3 h-3" />
+                      </button>
                     </div>
                   </motion.div>
                 ))}

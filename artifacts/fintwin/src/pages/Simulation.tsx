@@ -410,16 +410,26 @@ export default function Simulation() {
                   </div>
                 </div>
                 {overrides.newLoanAmount > 0 && (
-                  <div className="bg-muted/40 rounded-xl px-3 py-2 space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Monthly repayment</span>
-                      <span className="font-bold">{fmt(result.newLoanMonthlyPayment)} JOD</span>
+                  <div className="space-y-2">
+                    <div className="bg-muted/40 rounded-xl px-3 py-2 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Monthly repayment</span>
+                        <span className="font-bold">{fmt(result.newLoanMonthlyPayment)} JOD</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Interest rate</span>
+                        <span className="font-semibold text-emerald-600">{result.interestRate}% / yr</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">Rate auto-set from green score. Raise green score to reduce it.</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Interest rate</span>
-                      <span className="font-semibold text-emerald-600">{result.interestRate}% / yr</span>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Rate auto-set from green score. Raise green score to reduce it.</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                      onClick={() => navigate(`/loan-prescreening?productId=new-loan&amount=${overrides.newLoanAmount}&term=${overrides.loanTermMonths}`)}
+                    >
+                      Apply for this loan <CreditCard className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 )}
               </div>
