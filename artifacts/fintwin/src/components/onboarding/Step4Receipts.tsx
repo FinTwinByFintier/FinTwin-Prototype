@@ -38,12 +38,9 @@ export function Step4Receipts() {
       className="max-w-xl mx-auto"
     >
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4 border border-primary/20">
-          <Sparkles className="w-3 h-3" /> Optional
-        </div>
-        <h2 className="text-3xl font-bold mb-2">Upload receipts</h2>
+        <h2 className="text-3xl font-bold mb-2">Go paperless.</h2>
         <p className="text-muted-foreground">
-          For cash-based businesses — our AI reads your receipts and extracts every transaction automatically.
+          Snap a photo of any receipt, invoice, or statement — we'll digitize it and turn it into a clean financial record instantly.
         </p>
       </div>
 
