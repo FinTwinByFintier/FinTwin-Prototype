@@ -2,10 +2,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, FileText, Landmark, CreditCard, UploadCloud, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Landmark, CreditCard, CheckCircle2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-type SourceKey = 'jofotara' | 'cliq' | 'pos' | 'receipts';
+type SourceKey = 'jofotara' | 'cliq' | 'pos';
 
 export function Step3Data() {
   const { state, updateState, setCurrentStep } = useOnboarding();
@@ -16,20 +16,20 @@ export function Step3Data() {
     {
       id: 'jofotara' as SourceKey,
       name: 'JoFotara',
-      description: 'Automatically import your invoice and billing data from Jordan\'s national e-invoicing system. Government-verified.',
+      description: 'Automatically import your invoice and billing data from Jordan\'s national e-invoicing system. Government-verified, instantly credible.',
       icon: FileText,
       color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
       actionText: 'Connect JoFotara',
-      successText: '124 invoices imported'
+      successText: '124 invoices imported',
     },
     {
       id: 'cliq' as SourceKey,
       name: 'CliQ & Open Banking',
-      description: 'Connect your bank account to import your Cliq payment history and transaction records through Jordan\'s open banking.',
+      description: 'Connect your bank account to import your Cliq payment history and transaction records through Jordan\'s open banking network.',
       icon: Landmark,
       color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
       actionText: 'Connect Bank',
-      successText: '847 transactions synced'
+      successText: '847 transactions synced',
     },
     {
       id: 'pos' as SourceKey,
@@ -38,18 +38,8 @@ export function Step3Data() {
       icon: CreditCard,
       color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
       actionText: 'Connect POS',
-      successText: 'Terminal synced'
+      successText: 'Terminal synced',
     },
-    {
-      id: 'receipts' as SourceKey,
-      name: 'Upload Receipts',
-      description: 'For cash-based businesses: upload photos of receipts, invoices, or statements. Our AI reads them automatically.',
-      icon: UploadCloud,
-      color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-      actionText: 'Upload Documents',
-      successText: '23 transactions extracted',
-      badge: 'Great for micro businesses'
-    }
   ];
 
   const handleConnect = (id: SourceKey) => {
@@ -66,8 +56,8 @@ export function Step3Data() {
           updateState({
             connectedSources: {
               ...state.connectedSources,
-              [activeModal]: true
-            }
+              [activeModal]: true,
+            },
           });
         }
         setActiveModal(null);
@@ -75,11 +65,13 @@ export function Step3Data() {
     }, 2000);
   };
 
-  const connectedCount = Object.values(state.connectedSources).filter(Boolean).length;
+  const connectedCount = (['jofotara', 'cliq', 'pos'] as SourceKey[]).filter(
+    (k) => state.connectedSources[k]
+  ).length;
   const isAnyConnected = connectedCount > 0;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
@@ -92,24 +84,18 @@ export function Step3Data() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         {sources.map((source) => {
           const isConnected = state.connectedSources[source.id];
           const Icon = source.icon;
-          
+
           return (
-            <div 
+            <div
               key={source.id}
               className={`relative bg-card border rounded-3xl p-6 transition-all duration-300 flex flex-col h-full ${
                 isConnected ? 'border-primary/50 shadow-md bg-primary/5' : 'hover:border-primary/30 hover:shadow-md'
               }`}
             >
-              {source.badge && (
-                <div className="absolute -top-3 right-6 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider py-1 px-3 rounded-full">
-                  {source.badge}
-                </div>
-              )}
-              
               <div className="flex items-start gap-4 mb-4">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${source.color}`}>
                   <Icon className="w-6 h-6" />
@@ -126,11 +112,11 @@ export function Step3Data() {
                   )}
                 </div>
               </div>
-              
+
               <p className="text-sm text-muted-foreground mb-6 flex-grow">{source.description}</p>
-              
-              <Button 
-                variant={isConnected ? "outline" : "secondary"} 
+
+              <Button
+                variant={isConnected ? 'outline' : 'secondary'}
                 className="w-full rounded-xl"
                 onClick={() => !isConnected && handleConnect(source.id)}
                 disabled={isConnected}
@@ -143,23 +129,23 @@ export function Step3Data() {
       </div>
 
       {isAnyConnected && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-card border rounded-2xl p-6 mb-8 flex items-center justify-between"
         >
           <div>
             <h4 className="font-semibold">Your data picture</h4>
-            <p className="text-sm text-muted-foreground">{connectedCount} of 4 sources connected</p>
+            <p className="text-sm text-muted-foreground">{connectedCount} of 3 sources connected</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-1000" 
-                style={{ width: `${(connectedCount / 4) * 100}%` }}
+              <div
+                className="h-full bg-primary transition-all duration-1000"
+                style={{ width: `${(connectedCount / 3) * 100}%` }}
               />
             </div>
-            <span className="text-sm font-medium">{Math.round((connectedCount / 4) * 100)}%</span>
+            <span className="text-sm font-medium">{Math.round((connectedCount / 3) * 100)}%</span>
           </div>
         </motion.div>
       )}
@@ -169,14 +155,9 @@ export function Step3Data() {
           <ArrowLeft className="mr-2 w-4 h-4" /> Back
         </Button>
         <div className="flex gap-4">
-          {!isAnyConnected && (
-            <Button variant="ghost" onClick={() => setCurrentStep(4)}>
-              Skip for now
-            </Button>
-          )}
-          <Button 
-            size="lg" 
-            className="rounded-full px-8" 
+          <Button
+            size="lg"
+            className="rounded-full px-8"
             onClick={() => setCurrentStep(4)}
           >
             {isAnyConnected ? 'Continue' : 'Skip & Continue'} <ArrowRight className="ml-2 w-4 h-4" />
@@ -192,12 +173,10 @@ export function Step3Data() {
               {activeModal === 'jofotara' && 'Connect JoFotara'}
               {activeModal === 'cliq' && 'Connect Bank Account'}
               {activeModal === 'pos' && 'Connect POS Terminal'}
-              {activeModal === 'receipts' && 'Upload Documents'}
             </DialogTitle>
             <DialogDescription>
               {activeModal === 'cliq' && 'Select your bank to authenticate securely via open banking.'}
               {activeModal === 'pos' && 'Select your point-of-sale provider.'}
-              {activeModal === 'receipts' && 'Drag and drop your receipts or invoices here.'}
               {activeModal === 'jofotara' && 'Authenticate with your Ministry of Finance portal credentials.'}
             </DialogDescription>
           </DialogHeader>
@@ -207,7 +186,7 @@ export function Step3Data() {
               <div className="space-y-4">
                 {activeModal === 'cliq' && (
                   <div className="grid grid-cols-2 gap-3">
-                    {['Arab Bank', 'Jordan Kuwait Bank', 'Cairo Amman Bank', 'Housing Bank'].map(bank => (
+                    {['Arab Bank', 'Jordan Kuwait Bank', 'Cairo Amman Bank', 'Housing Bank'].map((bank) => (
                       <Button key={bank} variant="outline" className="h-16 justify-start px-4" onClick={simulateConnection}>
                         <Landmark className="w-5 h-5 mr-3 text-muted-foreground" /> {bank}
                       </Button>
@@ -216,7 +195,7 @@ export function Step3Data() {
                 )}
                 {activeModal === 'pos' && (
                   <div className="grid grid-cols-1 gap-3">
-                    {['Network International', 'Areeba', 'Cashi'].map(pos => (
+                    {['Network International', 'Areeba', 'Cashi'].map((pos) => (
                       <Button key={pos} variant="outline" className="h-14 justify-start px-4" onClick={simulateConnection}>
                         <CreditCard className="w-5 h-5 mr-3 text-muted-foreground" /> {pos}
                       </Button>
@@ -228,25 +207,13 @@ export function Step3Data() {
                     Authenticate via Sanad
                   </Button>
                 )}
-                {activeModal === 'receipts' && (
-                  <div 
-                    className="border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={simulateConnection}
-                  >
-                    <UploadCloud className="w-10 h-10 text-muted-foreground mb-4" />
-                    <p className="font-medium mb-1">Click to browse or drag files here</p>
-                    <p className="text-sm text-muted-foreground">PDF, JPG, PNG up to 10MB</p>
-                  </div>
-                )}
               </div>
             )}
 
             {connectionState === 'connecting' && (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-6" />
-                <h3 className="text-xl font-medium mb-2">
-                  {activeModal === 'receipts' ? 'Processing with AI...' : 'Connecting securely...'}
-                </h3>
+                <h3 className="text-xl font-medium mb-2">Connecting securely...</h3>
                 <p className="text-muted-foreground">This will just take a moment</p>
               </div>
             )}
@@ -258,12 +225,12 @@ export function Step3Data() {
                 </div>
                 <h3 className="text-xl font-medium mb-2">Connected Successfully!</h3>
                 <p className="text-muted-foreground">
-                  {sources.find(s => s.id === activeModal)?.successText}
+                  {sources.find((s) => s.id === activeModal)?.successText}
                 </p>
               </div>
             )}
           </div>
-          
+
           {connectionState === 'idle' && (
             <DialogFooter>
               <Button variant="ghost" onClick={() => setActiveModal(null)}>Cancel</Button>

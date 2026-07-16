@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboarding, EnterpriseCategory } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2 } from "lucide-react";
@@ -10,18 +11,6 @@ export function Step2Size() {
   const { state, updateState, setCurrentStep } = useOnboarding();
   const [showReveal, setShowReveal] = useState(false);
 
-  const employeesOptions = [
-    { value: "1-4", label: "1 to 4 employees" },
-    { value: "5-19", label: "5 to 19 employees" },
-    { value: "20+", label: "20 or more employees" },
-  ];
-
-  const revenueOptions = [
-    { value: "<100k", label: "Under 100,000 JOD" },
-    { value: "100k-1M", label: "100,000 - 1,000,000 JOD" },
-    { value: ">1M", label: "Over 1,000,000 JOD" },
-  ];
-
   const yearsOptions = [
     { value: "<1", label: "Less than 1 year" },
     { value: "1-3", label: "1 to 3 years" },
@@ -29,11 +18,16 @@ export function Step2Size() {
     { value: ">5", label: "More than 5 years" },
   ];
 
-  const isFormComplete = state.employees && state.annualRevenue && state.yearsInOperation;
+  const isFormComplete =
+    state.employees.trim() !== "" &&
+    state.annualRevenue.trim() !== "" &&
+    state.yearsInOperation !== "";
 
   const determineCategory = (): EnterpriseCategory => {
-    if (state.employees === "20+" || state.annualRevenue === ">1M") return "Medium Enterprise";
-    if (state.employees === "5-19" || state.annualRevenue === "100k-1M") return "Small Enterprise";
+    const empCount = parseInt(state.employees) || 0;
+    const revenue = parseFloat(state.annualRevenue) || 0;
+    if (empCount >= 20 || revenue >= 1_000_000) return "Medium Enterprise";
+    if (empCount >= 5 || revenue >= 100_000) return "Small Enterprise";
     return "Micro Enterprise";
   };
 
@@ -44,7 +38,7 @@ export function Step2Size() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
@@ -57,79 +51,83 @@ export function Step2Size() {
 
       <AnimatePresence mode="wait">
         {!showReveal ? (
-          <motion.div 
+          <motion.div
             key="form"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="space-y-8 bg-card border p-8 rounded-3xl shadow-sm"
           >
+            {/* Employees */}
             <div className="space-y-3">
-              <Label className="text-base font-medium">Number of Employees</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {employeesOptions.map((opt) => (
-                  <div
-                    key={opt.value}
-                    onClick={() => updateState({ employees: opt.value })}
-                    className={`cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${
-                      state.employees === opt.value 
-                        ? 'border-primary bg-primary/5 text-primary' 
-                        : 'border-transparent bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    <div className="font-medium">{opt.label.split(' ')[0]} {opt.label.split(' ')[1]}</div>
-                    <div className="text-xs mt-1 opacity-70">employees</div>
-                  </div>
-                ))}
+              <Label htmlFor="employees" className="text-base font-medium">
+                Number of Employees
+              </Label>
+              <div className="relative">
+                <Input
+                  id="employees"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 4"
+                  value={state.employees}
+                  onChange={(e) => updateState({ employees: e.target.value })}
+                  className="h-12 text-lg pr-24"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                  employees
+                </span>
               </div>
             </div>
 
+            {/* Years in Operation */}
             <div className="space-y-3">
               <Label className="text-base font-medium">Years in Operation</Label>
-              <Select 
-                value={state.yearsInOperation} 
+              <Select
+                value={state.yearsInOperation}
                 onValueChange={(val) => updateState({ yearsInOperation: val })}
               >
                 <SelectTrigger className="h-12 text-lg">
                   <SelectValue placeholder="Select years active" />
                 </SelectTrigger>
                 <SelectContent>
-                  {yearsOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  {yearsOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Annual Revenue */}
             <div className="space-y-3">
-              <Label className="text-base font-medium">Annual Revenue (JOD)</Label>
-              <div className="grid grid-cols-1 gap-3">
-                {revenueOptions.map((opt) => (
-                  <div
-                    key={opt.value}
-                    onClick={() => updateState({ annualRevenue: opt.value })}
-                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between ${
-                      state.annualRevenue === opt.value 
-                        ? 'border-primary bg-primary/5' 
-                        : 'border-border bg-transparent hover:border-primary/30'
-                    }`}
-                  >
-                    <span className="font-medium">{opt.label}</span>
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${state.annualRevenue === opt.value ? 'border-primary' : 'border-muted-foreground'}`}>
-                      {state.annualRevenue === opt.value && <div className="w-3 h-3 rounded-full bg-primary" />}
-                    </div>
-                  </div>
-                ))}
+              <Label htmlFor="revenue" className="text-base font-medium">
+                Annual Revenue
+              </Label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
+                  JOD
+                </span>
+                <Input
+                  id="revenue"
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 75000"
+                  value={state.annualRevenue}
+                  onChange={(e) => updateState({ annualRevenue: e.target.value })}
+                  className="h-12 text-lg pl-14"
+                />
               </div>
+              <p className="text-xs text-muted-foreground">Enter your approximate yearly revenue in Jordanian Dinars</p>
             </div>
 
             <div className="pt-6 flex justify-between">
               <Button variant="ghost" onClick={() => setCurrentStep(1)}>
                 <ArrowLeft className="mr-2 w-4 h-4" /> Back
               </Button>
-              <Button 
-                size="lg" 
-                className="rounded-full px-8 h-12" 
+              <Button
+                size="lg"
+                className="rounded-full px-8 h-12"
                 disabled={!isFormComplete}
                 onClick={handleReveal}
               >
@@ -138,7 +136,7 @@ export function Step2Size() {
             </div>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="reveal"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -146,9 +144,9 @@ export function Step2Size() {
           >
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl" />
-            
+
             <div className="relative z-10">
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
@@ -156,18 +154,20 @@ export function Step2Size() {
               >
                 <Building2 className="w-10 h-10 text-primary" />
               </motion.div>
-              
+
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Business Classification</h3>
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">
+                  Business Classification
+                </h3>
                 <h2 className="text-4xl font-bold mb-4">{state.category}</h2>
                 <p className="text-muted-foreground mb-10 max-w-sm mx-auto">
                   Based on Central Bank of Jordan guidelines. This unlocks specific financing tiers suited for your size.
                 </p>
-                
+
                 <div className="flex justify-center gap-4">
                   <Button variant="outline" className="rounded-full" onClick={() => setShowReveal(false)}>
                     Change Details
