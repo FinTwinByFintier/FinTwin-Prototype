@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
@@ -16,8 +16,10 @@ import {
   Bell, X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle,
   XCircle, Leaf, BarChart3, FileText, Users, Globe, Target,
   Landmark, ArrowRight, Clock, Loader2, Sparkles, ExternalLink,
-  Building, Banknote,
+  Building, Banknote, Upload, Download, Paperclip,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import { storageAuthHeaders } from "@/lib/storageToken";
 
 /* ── Constants ───────────────────────────────────────────── */
 const CREDIT_SCORE = 74;
@@ -34,8 +36,12 @@ const LOAN_PURPOSES = [
   { value: 'other',           label: 'Other', icon: Target },
 ];
 
+const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
 /* ── Helpers ─────────────────────────────────────────────── */
-function statusBadge(status: 'complete' | 'partial' | 'missing') {
+function statusBadge(status: 'complete' | 'partial' | 'missing' | 'uploaded') {
+  if (status === 'uploaded') return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Uploaded ✓</span>;
   if (status === 'complete') return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Complete</span>;
   if (status === 'partial')  return <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1"><Clock className="w-3 h-3" />Partial</span>;
   return                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1"><XCircle className="w-3 h-3" />Missing</span>;
@@ -51,6 +57,346 @@ function verdictColor(v: Verdict) {
   if (v === 'pass') return 'border-emerald-200 bg-emerald-50';
   if (v === 'marginal') return 'border-amber-200 bg-amber-50';
   return 'border-red-200 bg-red-50';
+}
+
+/* ── Document upload row ─────────────────────────────────── */
+function DocUploadRow({ label, status }: { label: string; status: 'complete' | 'partial' | 'missing' }) {
+  const { uploadedDocs, setUploadedDoc } = usePrescreening();
+  const uploaded = uploadedDocs[label];
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setUploadError(null);
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Only PDF, JPG, or PNG files are accepted.');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError('File must be under 5 MB.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Step 1: Request presigned URL (requires session token)
+      const authHeaders = await storageAuthHeaders();
+      const metaRes = await fetch('/api/storage/uploads/request-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!metaRes.ok) throw new Error('Could not get upload URL');
+      const { uploadURL, objectPath } = await metaRes.json() as { uploadURL: string; objectPath: string };
+
+      // Step 2: Upload directly to GCS (presigned URL — no auth header needed)
+      const putRes = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!putRes.ok) throw new Error('Upload to storage failed');
+
+      setUploadedDoc(label, { fileName: file.name, objectPath });
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const effectiveStatus = uploaded ? 'uploaded' : status;
+
+  return (
+    <div className="flex items-center justify-between text-xs gap-3">
+      <div className="flex-grow min-w-0">
+        <span className={effectiveStatus === 'missing' && !uploaded ? 'text-muted-foreground' : ''}>{label}</span>
+        {uploaded && (
+          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+            <Paperclip className="w-3 h-3" />{uploaded.fileName}
+          </p>
+        )}
+        {uploadError && (
+          <p className="text-[10px] text-red-500 mt-0.5">{uploadError}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {statusBadge(effectiveStatus)}
+        {(status === 'missing' || status === 'partial') && !uploaded && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 border border-primary/30 rounded-full px-2 py-0.5 transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── PDF generator ───────────────────────────────────────── */
+function generateApplicationPDF(params: {
+  businessName: string;
+  product: BankProduct;
+  referenceNumber: string;
+  result: ReturnType<typeof evaluateReadiness>;
+  uploadedDocs: Record<string, { fileName: string; objectPath: string }>;
+  manualInputs: ReturnType<typeof import('@/lib/prescreeningEngine')['emptyManualInputs']>;
+}) {
+  const { businessName, product, referenceNumber, result, uploadedDocs, manualInputs } = params;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210;
+  const margin = 20;
+  const col2 = 110;
+  let y = 0;
+
+  // ── Helpers ──
+  const nl = (extra = 6) => { y += extra; };
+  const line = (x1: number, y1: number, x2: number, y2: number, r = 0, g = 0, b = 0) => {
+    doc.setDrawColor(r, g, b);
+    doc.line(x1, y1, x2, y2);
+  };
+  const text = (str: string, x: number, bold = false, size = 10, r = 40, g = 40, b = 40) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(size);
+    doc.setTextColor(r, g, b);
+    doc.text(str, x, y);
+  };
+  const kv = (key: string, value: string) => {
+    text(key, margin, false, 9, 100, 100, 100);
+    text(value, col2, true, 9, 40, 40, 40);
+    nl(6);
+  };
+  const sectionTitle = (title: string) => {
+    nl(4);
+    doc.setFillColor(245, 247, 250);
+    doc.rect(margin - 2, y - 4, W - (margin * 2) + 4, 8, 'F');
+    text(title, margin, true, 10, 30, 30, 30);
+    nl(7);
+    line(margin, y, W - margin, y, 220, 220, 220);
+    nl(4);
+  };
+  const ensurePage = (needed = 14) => {
+    if (y + needed > 270) { doc.addPage(); y = 20; }
+  };
+
+  // ─── Cover Page ───────────────────────────────────────────
+  // Header bar
+  doc.setFillColor(15, 98, 254);
+  doc.rect(0, 0, W, 40, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(255, 255, 255);
+  doc.text('FinTwin', margin, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('AI-Powered MSME Finance Platform', margin, 26);
+  doc.setFontSize(9);
+  doc.text('Jordan — Built for Jordanian Small Business Owners', margin, 33);
+
+  y = 55;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(20, 20, 20);
+  doc.text('Pre-Screened Application Package', margin, y);
+  nl(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(80, 80, 80);
+  doc.text('This package contains your FinTwin prescreening results and profile summary.', margin, y);
+  nl(5);
+  doc.text('Present it to your bank to fast-track your loan application.', margin, y);
+
+  nl(12);
+  line(margin, y, W - margin, y, 200, 200, 200);
+  nl(8);
+
+  // Application summary box
+  doc.setFillColor(248, 255, 252);
+  doc.setDrawColor(180, 220, 180);
+  doc.roundedRect(margin, y - 2, W - (margin * 2), 58, 3, 3, 'FD');
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(60, 130, 60);
+  doc.text('APPLICATION DETAILS', margin + 4, y);
+  nl(6);
+
+  kv('Business Name', businessName);
+  kv('Reference', referenceNumber);
+  kv('Product', `${product.name} — ${product.bank}`);
+  kv('Amount', `Up to ${product.maxAmountJOD.toLocaleString()} JOD`);
+  kv('Rate', `${product.rate} per year`);
+  kv('Status', result.overallVerdict === 'ready' ? '✓ All Criteria Met' : '✓ Ready with Minor Caveats');
+  kv('Application Score', `${result.applicationScore} / 100`);
+  kv('Generated', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
+
+  nl(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text('FinTwin does not submit to the bank on your behalf. This is a reference document only.', margin, y);
+
+  // ─── Page 2: Prescreening Results ────────────────────────
+  doc.addPage();
+  y = 20;
+
+  sectionTitle('PRESCREENING RESULTS — CREDIT CRITERIA');
+
+  const verdictLabel = (v: Verdict) => v === 'pass' ? '✓ Pass' : v === 'marginal' ? '~ Marginal' : '✗ Fail';
+  const verdictColors: Record<Verdict, [number, number, number]> = {
+    pass: [34, 139, 34],
+    marginal: [184, 134, 11],
+    fail: [200, 50, 50],
+  };
+
+  for (const c of result.creditCriteria) {
+    ensurePage(18);
+    const [r, g, b] = verdictColors[c.verdict];
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.text(c.label, margin, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(r, g, b);
+    doc.text(verdictLabel(c.verdict), W - margin, y, { align: 'right' });
+    nl(5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Actual: ${c.actual}   Required: ${c.required}`, margin, y);
+    nl(4);
+    if (c.fix && c.verdict !== 'pass') {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(150, 100, 20);
+      doc.text(`Note: ${c.fix}`, margin, y);
+      nl(4);
+    }
+    line(margin, y, W - margin, y, 235, 235, 235);
+    nl(5);
+  }
+
+  if (result.greenCriteria.length > 0) {
+    ensurePage(20);
+    sectionTitle('GREEN TAXONOMY CRITERIA');
+    for (const c of result.greenCriteria) {
+      ensurePage(18);
+      const [r, g, b] = verdictColors[c.verdict];
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text(c.label, margin, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(r, g, b);
+      doc.text(verdictLabel(c.verdict), W - margin, y, { align: 'right' });
+      nl(5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Actual: ${c.actual}   Required: ${c.required}`, margin, y);
+      nl(4);
+      line(margin, y, W - margin, y, 235, 235, 235);
+      nl(5);
+    }
+  }
+
+  // ─── Business Plan & Loan Purpose ────────────────────────
+  if (manualInputs.businessPlan || manualInputs.loanPurposeDescription) {
+    ensurePage(30);
+    sectionTitle('APPLICANT-PROVIDED INFORMATION');
+    if (manualInputs.businessPlan) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Business Plan', margin, y);
+      nl(5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 60);
+      const bpLines = doc.splitTextToSize(manualInputs.businessPlan, W - margin * 2);
+      for (const l of bpLines.slice(0, 10)) {
+        ensurePage(6);
+        doc.text(l, margin, y);
+        nl(5);
+      }
+      nl(2);
+    }
+    if (manualInputs.loanPurposeDescription) {
+      ensurePage(20);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Loan Purpose', margin, y);
+      nl(5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 60);
+      const lpLines = doc.splitTextToSize(manualInputs.loanPurposeDescription, W - margin * 2);
+      for (const l of lpLines.slice(0, 6)) {
+        ensurePage(6);
+        doc.text(l, margin, y);
+        nl(5);
+      }
+    }
+  }
+
+  // ─── Uploaded Documents ───────────────────────────────────
+  const uploadedEntries = Object.entries(uploadedDocs);
+  if (uploadedEntries.length > 0) {
+    ensurePage(30);
+    sectionTitle('UPLOADED SUPPORTING DOCUMENTS');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    doc.text('The following documents have been uploaded to FinTwin Object Storage:', margin, y);
+    nl(7);
+    for (const [label, info] of uploadedEntries) {
+      ensurePage(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`• ${label}`, margin, y);
+      nl(5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`  File: ${info.fileName}`, margin, y);
+      nl(5);
+    }
+    nl(3);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Original files are securely stored and available on request via your FinTwin reference number.', margin, y);
+  }
+
+  // ─── Footer on last page ──────────────────────────────────
+  nl(10);
+  line(margin, y, W - margin, y, 200, 200, 200);
+  nl(5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(150, 150, 150);
+  doc.text(`FinTwin — AI-Powered MSME Finance Platform, Jordan  |  Ref: ${referenceNumber}  |  ${new Date().toLocaleDateString('en-GB')}`, margin, y);
+
+  doc.save(`FinTwin-Application-${referenceNumber}.pdf`);
 }
 
 /* ── Step indicator ──────────────────────────────────────── */
@@ -94,7 +440,6 @@ function StepSelectProduct() {
     if (preselect && BANK_PRODUCTS.find(p => p.id === preselect)) {
       setSelectedProductId(preselect);
     } else if (preselect === 'new-loan') {
-      // default to JLGC for new loan amounts ≤ 15000, else murabaha
       const amount = parseInt(params.get('amount') ?? '0', 10);
       setSelectedProductId(amount <= 15000 ? 'msme-jlgc' : 'murabaha-arab-bank');
     }
@@ -194,11 +539,14 @@ function StepSelectProduct() {
 /* ── Step 2: Auto-generated profile ──────────────────────── */
 function StepAutoProfile({ product }: { product: BankProduct }) {
   const { state } = useOnboarding();
-  const { nextStep, prevStep } = usePrescreening();
+  const { nextStep, prevStep, uploadedDocs } = usePrescreening();
   const [openSection, setOpenSection] = useState<string | null>('identity');
 
   const profile = buildAutoProfile(state, CREDIT_SCORE, GREEN_SCORE);
   const docs = profile.documents(product);
+
+  const uploadCount = Object.keys(uploadedDocs).length;
+  const uploadableDocs = docs.filter(d => d.status === 'missing' || d.status === 'partial');
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -250,23 +598,38 @@ function StepAutoProfile({ product }: { product: BankProduct }) {
         ))}
       </div>
 
-      {/* Document readiness */}
+      {/* Document readiness with upload */}
       <div className="bg-muted/30 border rounded-2xl p-5 mb-6">
-        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-muted-foreground" />
-          Document readiness — {product.bank}
-        </h3>
-        <div className="space-y-2">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <FileText className="w-4 h-4 text-muted-foreground" />
+            Document readiness — {product.bank}
+          </h3>
+          {uploadCount > 0 && (
+            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+              {uploadCount} uploaded
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-3">
           {docs.map(doc => (
-            <div key={doc.label} className="flex items-center justify-between text-xs">
-              <span className={doc.status === 'missing' ? 'text-muted-foreground' : ''}>{doc.label}</span>
-              {statusBadge(doc.status)}
-            </div>
+            <DocUploadRow key={doc.label} label={doc.label} status={doc.status} />
           ))}
         </div>
-        <p className="text-[10px] text-muted-foreground mt-3">
-          Missing documents won't block your prescreening but will be required at the bank.
-        </p>
+
+        {uploadableDocs.length > 0 ? (
+          <div className="mt-3 pt-3 border-t border-muted">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+              <Upload className="w-3 h-3 shrink-0" />
+              Upload missing documents now to include them in your bank application package. PDF, JPG, or PNG · max 5 MB each.
+            </p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground mt-3">
+            Missing documents won't block your prescreening but will be required at the bank.
+          </p>
+        )}
       </div>
 
       <div className="flex justify-between">
@@ -590,7 +953,19 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
   submitting: boolean;
 }) {
   const { state } = useOnboarding();
+  const { uploadedDocs, manualInputs, referenceNumber } = usePrescreening();
   const businessName = state.businessName || 'Amman Coffee Roasters';
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const uploadCount = Object.keys(uploadedDocs).length;
+
+  const handleDownloadPdf = useCallback(async () => {
+    setGeneratingPdf(true);
+    try {
+      generateApplicationPDF({ businessName, product, referenceNumber, result, uploadedDocs, manualInputs });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }, [businessName, product, referenceNumber, result, uploadedDocs, manualInputs]);
 
   return (
     <div className="border-2 border-emerald-300 bg-emerald-50 rounded-2xl p-5">
@@ -624,6 +999,7 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
             ...(product.requiresGreenScore ? [{ label: 'Green score', value: `${GREEN_SCORE} / 100 — CBJ eligible` }] : []),
             { label: 'Prescreening status', value: result.overallVerdict === 'ready' ? '✓ All criteria met' : '✓ Ready with minor caveats' },
             { label: 'Profile completeness', value: `${result.applicationScore}%` },
+            ...(uploadCount > 0 ? [{ label: 'Documents uploaded', value: `${uploadCount} file${uploadCount > 1 ? 's' : ''} attached` }] : []),
           ].map(r => (
             <div key={r.label} className="flex justify-between text-xs py-1 border-b border-emerald-100 last:border-0">
               <span className="text-muted-foreground">{r.label}</span>
@@ -636,6 +1012,24 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
         </p>
       </div>
 
+      {/* Download PDF button */}
+      <Button
+        onClick={handleDownloadPdf}
+        disabled={generatingPdf}
+        variant="outline"
+        className="w-full gap-2 h-10 mb-3 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+      >
+        {generatingPdf
+          ? <><Loader2 className="w-4 h-4 animate-spin" />Generating PDF…</>
+          : <><Download className="w-4 h-4" />Download Application Package (PDF)</>
+        }
+      </Button>
+      {uploadCount > 0 && (
+        <p className="text-[10px] text-emerald-700 text-center mb-3">
+          ✓ {uploadCount} uploaded document{uploadCount > 1 ? 's' : ''} will be referenced in the PDF
+        </p>
+      )}
+
       <Button onClick={onSubmit} disabled={submitting} className="w-full gap-2 h-11 bg-emerald-600 hover:bg-emerald-700 text-white">
         {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Finalising…</> : <><CheckCircle2 className="w-4 h-4" />Confirm Pre-screened Application</>}
       </Button>
@@ -646,6 +1040,21 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
 /* ── Submission success ───────────────────────────────────── */
 function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: string }) {
   const [, navigate] = useLocation();
+  const { uploadedDocs, manualInputs } = usePrescreening();
+  const { state } = useOnboarding();
+  const businessName = state.businessName || 'Amman Coffee Roasters';
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const result = evaluateReadiness(product, state, CREDIT_SCORE, GREEN_SCORE, manualInputs);
+
+  const handleDownloadPdf = useCallback(async () => {
+    setGeneratingPdf(true);
+    try {
+      generateApplicationPDF({ businessName, product, referenceNumber: refNum, result, uploadedDocs, manualInputs });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }, [businessName, product, refNum, result, uploadedDocs, manualInputs]);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
@@ -657,13 +1066,24 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
       </div>
       <h2 className="text-2xl font-bold mb-2">Pre-screening complete</h2>
       <p className="text-muted-foreground mb-6">Your pre-screened application package for <strong>{product.name}</strong> is ready. Bring it to {product.bank} to fast-track your application.</p>
-      <div className="bg-card border rounded-2xl p-4 mb-6 text-left space-y-2">
+      <div className="bg-card border rounded-2xl p-4 mb-4 text-left space-y-2">
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">Reference</span><span className="font-bold font-mono">{refNum}</span></div>
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">Product</span><span className="font-semibold">{product.name}</span></div>
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">Bank</span><span className="font-semibold">{product.bank}</span></div>
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">Rate</span><span className="font-semibold">{product.rate} / yr</span></div>
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">Expected response</span><span className="font-semibold">3–5 business days</span></div>
       </div>
+      <Button
+        onClick={handleDownloadPdf}
+        disabled={generatingPdf}
+        variant="outline"
+        className="w-full gap-2 mb-3"
+      >
+        {generatingPdf
+          ? <><Loader2 className="w-4 h-4 animate-spin" />Generating…</>
+          : <><Download className="w-4 h-4" />Download Application Package (PDF)</>
+        }
+      </Button>
       <Button onClick={() => navigate('/dashboard')} className="w-full gap-2">
         Back to Dashboard <ArrowRight className="w-4 h-4" />
       </Button>

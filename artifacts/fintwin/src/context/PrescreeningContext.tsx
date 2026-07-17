@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type { ManualInputs } from '@/lib/prescreeningEngine';
 import { emptyManualInputs } from '@/lib/prescreeningEngine';
 
+export interface UploadedDoc {
+  fileName: string;
+  objectPath: string;
+}
+
 interface PrescreeningContextType {
   selectedProductId: string | null;
   setSelectedProductId: (id: string | null) => void;
@@ -14,6 +19,8 @@ interface PrescreeningContextType {
   submitted: boolean;
   setSubmitted: (v: boolean) => void;
   referenceNumber: string;
+  uploadedDocs: Record<string, UploadedDoc>;
+  setUploadedDoc: (label: string, doc: UploadedDoc) => void;
   reset: () => void;
 }
 
@@ -32,9 +39,14 @@ export function PrescreeningProvider({ children }: { children: ReactNode }) {
   const [manualInputs, setManualInputs] = useState<ManualInputs>(emptyManualInputs());
   const [submitted, setSubmitted] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState(generateRef);
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDoc>>({});
 
   const setManualInput = <K extends keyof ManualInputs>(key: K, value: ManualInputs[K]) => {
     setManualInputs(prev => ({ ...prev, [key]: value }));
+  };
+
+  const setUploadedDoc = (label: string, doc: UploadedDoc) => {
+    setUploadedDocs(prev => ({ ...prev, [label]: doc }));
   };
 
   const goToStep = (step: number) => setCurrentStep(Math.max(1, Math.min(4, step)));
@@ -47,6 +59,7 @@ export function PrescreeningProvider({ children }: { children: ReactNode }) {
     setManualInputs(emptyManualInputs());
     setSubmitted(false);
     setReferenceNumber(generateRef()); // fresh ref for each new prescreening session
+    setUploadedDocs({});
   };
 
   return (
@@ -56,6 +69,7 @@ export function PrescreeningProvider({ children }: { children: ReactNode }) {
       manualInputs, setManualInput,
       submitted, setSubmitted,
       referenceNumber,
+      uploadedDocs, setUploadedDoc,
       reset,
     }}>
       {children}
