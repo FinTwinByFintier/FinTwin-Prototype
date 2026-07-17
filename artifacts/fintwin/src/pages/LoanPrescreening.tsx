@@ -914,6 +914,7 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
 }
 
 function CriterionRow({ criterion: c }: { criterion: CriterionResult }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start gap-2 text-xs">
       {verdictIcon(c.verdict)}
