@@ -12,27 +12,34 @@ import {
   Home, Users, Zap, Truck, CreditCard, RefreshCw, Shield, Package,
   Trash2, Plus, X,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /* ── Category config ──────────────────────────────────────── */
-const CATEGORIES: {
-  value: Commitment['category'];
-  label: string;
-  icon: React.ElementType;
-  color: string;
-}[] = [
-  { value: 'rent',         label: 'Rent & Lease',     icon: Home,      color: 'text-blue-600 bg-blue-500/10' },
-  { value: 'payroll',      label: 'Payroll',           icon: Users,     color: 'text-violet-600 bg-violet-500/10' },
-  { value: 'utilities',    label: 'Utilities',         icon: Zap,       color: 'text-amber-500 bg-amber-400/10' },
-  { value: 'supplier',     label: 'Supplier / Goods',  icon: Truck,     color: 'text-orange-500 bg-orange-400/10' },
-  { value: 'loan',         label: 'Loan Repayment',    icon: CreditCard,color: 'text-primary bg-primary/10' },
-  { value: 'subscription', label: 'Subscriptions',     icon: RefreshCw, color: 'text-teal-600 bg-teal-500/10' },
-  { value: 'insurance',    label: 'Insurance',         icon: Shield,    color: 'text-emerald-600 bg-emerald-500/10' },
-  { value: 'other',        label: 'Other',             icon: Package,   color: 'text-muted-foreground bg-muted' },
-];
+const CATEGORY_ICONS: Record<Commitment['category'], React.ElementType> = {
+  rent: Home,
+  payroll: Users,
+  utilities: Zap,
+  supplier: Truck,
+  loan: CreditCard,
+  subscription: RefreshCw,
+  insurance: Shield,
+  other: Package,
+};
 
-function getCat(v: Commitment['category']) {
-  return CATEGORIES.find(c => c.value === v) ?? CATEGORIES[CATEGORIES.length - 1];
-}
+const CATEGORY_COLORS: Record<Commitment['category'], string> = {
+  rent: 'text-blue-600 bg-blue-500/10',
+  payroll: 'text-violet-600 bg-violet-500/10',
+  utilities: 'text-amber-500 bg-amber-400/10',
+  supplier: 'text-orange-500 bg-orange-400/10',
+  loan: 'text-primary bg-primary/10',
+  subscription: 'text-teal-600 bg-teal-500/10',
+  insurance: 'text-emerald-600 bg-emerald-500/10',
+  other: 'text-muted-foreground bg-muted',
+};
+
+const ALL_CATEGORIES: Commitment['category'][] = [
+  'rent', 'payroll', 'utilities', 'supplier', 'loan', 'subscription', 'insurance', 'other',
+];
 
 /* ── Component ────────────────────────────────────────────── */
 interface CommitmentsSheetProps {
@@ -42,6 +49,7 @@ interface CommitmentsSheetProps {
 
 export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) {
   const { state, addCommitment, removeCommitment } = useOnboarding();
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<{
     category: Commitment['category'];
@@ -63,9 +71,9 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0 overflow-hidden">
         <SheetHeader className="px-6 pt-6 pb-4 border-b">
-          <SheetTitle className="text-lg">Monthly Commitments</SheetTitle>
+          <SheetTitle className="text-lg">{t('commitments.title')}</SheetTitle>
           <SheetDescription>
-            Fixed obligations that affect your cash flow and simulation baseline.
+            {t('commitments.subtitle')}
           </SheetDescription>
         </SheetHeader>
 
@@ -73,8 +81,8 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
         <div className="flex-grow overflow-y-auto px-6 py-4 space-y-2.5">
           <AnimatePresence initial={false}>
             {state.commitments.map(c => {
-              const cat = getCat(c.category);
-              const Icon = cat.icon;
+              const Icon = CATEGORY_ICONS[c.category] ?? Package;
+              const color = CATEGORY_COLORS[c.category] ?? CATEGORY_COLORS.other;
               return (
                 <motion.div
                   key={c.id}
@@ -84,15 +92,15 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
                   transition={{ duration: 0.18 }}
                   className="flex items-center gap-3 p-3.5 border rounded-2xl bg-card group"
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${cat.color}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex-grow min-w-0">
                     <p className="text-sm font-medium truncate">{c.label}</p>
-                    <p className="text-xs text-muted-foreground">{cat.label}</p>
+                    <p className="text-xs text-muted-foreground">{t(`commitments.categories.${c.category}`)}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-semibold text-sm">{c.amountJOD.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">JOD</span></span>
+                    <span className="font-semibold text-sm">{c.amountJOD.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">{t('common.jod')}</span></span>
                     <button
                       onClick={() => removeCommitment(c.id)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
@@ -108,8 +116,8 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
           {state.commitments.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No commitments yet.</p>
-              <p className="text-xs mt-1">Add your fixed monthly obligations below.</p>
+              <p className="text-sm">{t('commitments.noCommitments')}</p>
+              <p className="text-xs mt-1">{t('commitments.noCommitmentsHint')}</p>
             </div>
           )}
 
@@ -124,7 +132,7 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
               >
                 <div className="border rounded-2xl p-4 bg-muted/30 space-y-3 mt-2">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium">New commitment</p>
+                    <p className="text-sm font-medium">{t('commitments.newCommitment')}</p>
                     <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground transition-colors">
                       <X className="w-4 h-4" />
                     </button>
@@ -132,15 +140,16 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
 
                   {/* Category picker */}
                   <div>
-                    <Label className="text-xs mb-2 block">Category</Label>
+                    <Label className="text-xs mb-2 block">{t('commitments.category')}</Label>
                     <div className="grid grid-cols-4 gap-1.5">
-                      {CATEGORIES.map(cat => {
-                        const Icon = cat.icon;
-                        const selected = form.category === cat.value;
+                      {ALL_CATEGORIES.map(catKey => {
+                        const Icon = CATEGORY_ICONS[catKey];
+                        const selected = form.category === catKey;
+                        const label = t(`commitments.categories.${catKey}`);
                         return (
                           <button
-                            key={cat.value}
-                            onClick={() => setForm(f => ({ ...f, category: cat.value }))}
+                            key={catKey}
+                            onClick={() => setForm(f => ({ ...f, category: catKey }))}
                             className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${
                               selected
                                 ? 'border-primary bg-primary/5 text-primary'
@@ -148,7 +157,7 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
                             }`}
                           >
                             <Icon className="w-4 h-4" />
-                            <span className="text-[9px] leading-tight">{cat.label.split(' ')[0]}</span>
+                            <span className="text-[9px] leading-tight">{label.split(' ')[0]}</span>
                           </button>
                         );
                       })}
@@ -156,10 +165,10 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
                   </div>
 
                   <div>
-                    <Label htmlFor="commit-label" className="text-xs mb-1.5 block">Description</Label>
+                    <Label htmlFor="commit-label" className="text-xs mb-1.5 block">{t('commitments.description')}</Label>
                     <Input
                       id="commit-label"
-                      placeholder="e.g. Office Rent — Downtown"
+                      placeholder={t('commitments.descriptionPlaceholder')}
                       value={form.label}
                       onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
                       className="h-10"
@@ -167,18 +176,18 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
                   </div>
 
                   <div>
-                    <Label htmlFor="commit-amount" className="text-xs mb-1.5 block">Monthly amount (JOD)</Label>
+                    <Label htmlFor="commit-amount" className="text-xs mb-1.5 block">{t('commitments.monthlyAmount')}</Label>
                     <div className="relative">
                       <Input
                         id="commit-amount"
                         type="number"
                         min={1}
-                        placeholder="e.g. 800"
+                        placeholder={t('commitments.amountPlaceholder')}
                         value={form.amount}
                         onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                        className="h-10 pr-12"
+                        className="h-10 pe-12"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">JOD</span>
+                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{t('common.jod')}</span>
                     </div>
                   </div>
 
@@ -187,7 +196,7 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
                     disabled={!form.label.trim() || !form.amount}
                     className="w-full h-10"
                   >
-                    <Plus className="w-4 h-4 mr-2" />Add Commitment
+                    <Plus className="w-4 h-4 me-2" />{t('commitments.addButton')}
                   </Button>
                 </div>
               </motion.div>
@@ -199,7 +208,7 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
               onClick={() => setShowForm(true)}
               className="w-full flex items-center justify-center gap-2 h-11 border border-dashed rounded-2xl text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors mt-1"
             >
-              <Plus className="w-4 h-4" /> Add commitment
+              <Plus className="w-4 h-4" /> {t('commitments.addCommitment')}
             </button>
           )}
         </div>
@@ -207,10 +216,10 @@ export function CommitmentsSheet({ open, onOpenChange }: CommitmentsSheetProps) 
         {/* Footer total */}
         <div className="border-t px-6 py-4 bg-muted/20">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-muted-foreground">Total monthly obligations</span>
-            <span className="font-bold text-lg">{total.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">JOD</span></span>
+            <span className="text-sm text-muted-foreground">{t('commitments.totalObligations')}</span>
+            <span className="font-bold text-lg">{total.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">{t('common.jod')}</span></span>
           </div>
-          <p className="text-xs text-muted-foreground">Used as the expense baseline in your simulation.</p>
+          <p className="text-xs text-muted-foreground">{t('commitments.usedAsBaseline')}</p>
         </div>
       </SheetContent>
     </Sheet>

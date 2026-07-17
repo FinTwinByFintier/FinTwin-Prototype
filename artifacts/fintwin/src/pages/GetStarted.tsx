@@ -4,8 +4,11 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { useTranslation } from "react-i18next";
 
 export default function GetStarted() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
       <Navbar />
@@ -18,22 +21,22 @@ export default function GetStarted() {
           className="max-w-xl w-full text-center"
         >
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Let's build your financial profile.
+            {t('getStarted.title')}
           </h1>
           <p className="text-lg text-muted-foreground mb-10">
-            Five minutes. No paperwork. No accountant.
+            {t('getStarted.subtitle')}
           </p>
 
           <Button size="lg" className="h-14 px-10 text-lg rounded-full" asChild>
             <Link href="/onboarding">
-              Start <ArrowRight className="ml-2 w-5 h-5" />
+              {t('getStarted.startButton')} <ArrowRight className="ms-2 w-5 h-5 rtl:rotate-180" />
             </Link>
           </Button>
 
           <p className="mt-6 text-sm text-muted-foreground">
-            Already have a profile?{" "}
+            {t('getStarted.alreadyHaveProfile')}{" "}
             <Link href="/dashboard" className="text-primary hover:underline font-medium">
-              Go to dashboard
+              {t('getStarted.goToDashboard')}
             </Link>
           </p>
         </motion.div>

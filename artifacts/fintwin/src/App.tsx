@@ -12,6 +12,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { SimulationProvider } from '@/context/SimulationContext';
 import { PrescreeningProvider } from '@/context/PrescreeningContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <LanguageProvider>
         <OnboardingProvider>
           <SimulationProvider>
             <PrescreeningProvider>
@@ -42,6 +44,7 @@ function App() {
             </PrescreeningProvider>
           </SimulationProvider>
         </OnboardingProvider>
+        </LanguageProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

@@ -1,5 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
+
+/* ── Arabic / RTL overrides ─────────────────────────────── */
+[dir="rtl"] {
+  font-family: 'Cairo', 'Inter', sans-serif;
+}
+
+/* Numbers stay LTR in RTL context */
+[dir="rtl"] input[type="number"] {
+  direction: ltr;
+  text-align: end;
+}
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { usePrescreening } from "@/context/PrescreeningContext";
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -25,27 +27,28 @@ import { storageAuthHeaders } from "@/lib/storageToken";
 const CREDIT_SCORE = 74;
 const GREEN_SCORE  = 62;
 
-const STEP_LABELS = ['Select Loan', 'Review Profile', 'Your Details', 'Readiness Check'];
-
-const LOAN_PURPOSES = [
-  { value: 'working-capital', label: 'Working Capital', icon: Banknote },
-  { value: 'equipment',       label: 'Equipment Purchase', icon: Building },
-  { value: 'expansion',       label: 'Expansion / New Location', icon: Globe },
-  { value: 'green',           label: 'Green Investment', icon: Leaf },
-  { value: 'inventory',       label: 'Inventory / Stock', icon: FileText },
-  { value: 'other',           label: 'Other', icon: Target },
-];
+const LOAN_PURPOSE_ICONS: Record<string, React.ElementType> = {
+  'working-capital': Banknote,
+  'equipment': Building,
+  'expansion': Globe,
+  'green': Leaf,
+  'inventory': FileText,
+  'other': Target,
+};
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 /* ── Helpers ─────────────────────────────────────────────── */
-function statusBadge(status: 'complete' | 'partial' | 'missing' | 'uploaded') {
-  if (status === 'uploaded') return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Uploaded ✓</span>;
-  if (status === 'complete') return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Complete</span>;
-  if (status === 'partial')  return <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1"><Clock className="w-3 h-3" />Partial</span>;
-  return                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1"><XCircle className="w-3 h-3" />Missing</span>;
+function StatusBadge({ status }: { status: 'complete' | 'partial' | 'missing' | 'uploaded' }) {
+  const { t } = useTranslation();
+  if (status === 'uploaded') return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />{t('prescreening.step2.docStatus.uploaded')}</span>;
+  if (status === 'complete') return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />{t('prescreening.step2.docStatus.complete')}</span>;
+  if (status === 'partial')  return <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1"><Clock className="w-3 h-3" />{t('prescreening.step2.docStatus.partial')}</span>;
+  return                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1"><XCircle className="w-3 h-3" />{t('prescreening.step2.docStatus.missing')}</span>;
 }
+// legacy alias
+const statusBadge = (status: 'complete' | 'partial' | 'missing' | 'uploaded') => <StatusBadge status={status} />;
 
 function verdictIcon(v: Verdict) {
   if (v === 'pass')     return <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />;
@@ -62,6 +65,7 @@ function verdictColor(v: Verdict) {
 /* ── Document upload row ─────────────────────────────────── */
 function DocUploadRow({ label, status }: { label: string; status: 'complete' | 'partial' | 'missing' }) {
   const { uploadedDocs, setUploadedDoc } = usePrescreening();
+  const { t } = useTranslation();
   const uploaded = uploadedDocs[label];
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -70,12 +74,13 @@ function DocUploadRow({ label, status }: { label: string; status: 'complete' | '
   const handleFile = async (file: File) => {
     setUploadError(null);
 
+    const tUpload = (key: string) => { /* resolved in component via hook */ return key; };
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setUploadError('Only PDF, JPG, or PNG files are accepted.');
+      setUploadError('file-type-error');
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setUploadError('File must be under 5 MB.');
+      setUploadError('file-size-error');
       return;
     }
 
@@ -119,7 +124,10 @@ function DocUploadRow({ label, status }: { label: string; status: 'complete' | '
           </p>
         )}
         {uploadError && (
-          <p className="text-[10px] text-red-500 mt-0.5">{uploadError}</p>
+          <p className="text-[10px] text-red-500 mt-0.5">
+            {uploadError === 'file-type-error' ? t('prescreening.step2.fileErrors.type') :
+             uploadError === 'file-size-error' ? t('prescreening.step2.fileErrors.size') : uploadError}
+          </p>
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -139,7 +147,7 @@ function DocUploadRow({ label, status }: { label: string; status: 'complete' | '
               className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 border border-primary/30 rounded-full px-2 py-0.5 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-              {uploading ? 'Uploading…' : 'Upload'}
+              {uploading ? t('common.uploading') : t('common.upload')}
             </button>
           </>
         )}
@@ -401,6 +409,13 @@ function generateApplicationPDF(params: {
 
 /* ── Step indicator ──────────────────────────────────────── */
 function StepIndicator({ current }: { current: number }) {
+  const { t } = useTranslation();
+  const STEP_LABELS = [
+    t('prescreening.steps.selectLoan'),
+    t('prescreening.steps.reviewProfile'),
+    t('prescreening.steps.yourDetails'),
+    t('prescreening.steps.readinessCheck'),
+  ];
   return (
     <div className="flex items-center justify-center gap-0 py-5">
       {STEP_LABELS.map((label, i) => {
@@ -432,6 +447,7 @@ function StepIndicator({ current }: { current: number }) {
 /* ── Step 1: Product selector ─────────────────────────────── */
 function StepSelectProduct() {
   const { selectedProductId, setSelectedProductId, nextStep } = usePrescreening();
+  const { t } = useTranslation();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const preselect = params.get('productId');
@@ -449,8 +465,8 @@ function StepSelectProduct() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-xl font-bold mb-1">Which loan are you applying for?</h2>
-        <p className="text-sm text-muted-foreground">Select the product that best fits your needs. We'll tailor the prescreening to that bank's criteria.</p>
+        <h2 className="text-xl font-bold mb-1">{t('prescreening.step1.heading')}</h2>
+        <p className="text-sm text-muted-foreground">{t('prescreening.step1.sub')}</p>
       </div>
 
       <div className="space-y-4">
@@ -480,7 +496,7 @@ function StepSelectProduct() {
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${p.tagColor}`}>{p.tag}</span>
                     <span className="text-[10px] text-muted-foreground">{p.bank}</span>
                     <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${qualified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {p.matchPct}% match
+                      {t('prescreening.matchPct', { pct: p.matchPct })}
                     </span>
                   </div>
                   <h3 className="font-semibold text-sm mb-0.5">{p.name}</h3>
@@ -490,7 +506,7 @@ function StepSelectProduct() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="flex justify-between text-[10px] mb-1">
-                        <span className="text-muted-foreground">Your credit score</span>
+                        <span className="text-muted-foreground">{t('dashboard.creditReadiness')}</span>
                         <span className={`font-bold ${CREDIT_SCORE >= p.minCreditScore ? 'text-emerald-600' : 'text-red-500'}`}>{CREDIT_SCORE} / min {p.minCreditScore}</span>
                       </div>
                       <div className="h-1.5 bg-muted rounded-full overflow-hidden relative">
@@ -501,7 +517,7 @@ function StepSelectProduct() {
                     {p.requiresGreenScore ? (
                       <div>
                         <div className="flex justify-between text-[10px] mb-1">
-                          <span className="text-muted-foreground">Your green score</span>
+                          <span className="text-muted-foreground">{t('dashboard.greenFinanceScore')}</span>
                           <span className={`font-bold ${GREEN_SCORE >= p.minGreenScore ? 'text-emerald-600' : 'text-amber-500'}`}>{GREEN_SCORE} / min {p.minGreenScore}</span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden relative">
@@ -511,9 +527,9 @@ function StepSelectProduct() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        <div className="text-[10px] text-muted-foreground">Rate</div>
+                        <div className="text-[10px] text-muted-foreground">{t('prescreening.step4.productSub').split('·')[1]?.trim() || 'Rate'}</div>
                         <div className="font-bold text-sm text-primary">{p.rate} / yr</div>
-                        <div className="text-[10px] text-muted-foreground ml-1">· Up to {p.maxAmountJOD.toLocaleString()} JOD</div>
+                        <div className="text-[10px] text-muted-foreground ml-1">· {t('prescreening.upTo', { amount: p.maxAmountJOD.toLocaleString() })}</div>
                       </div>
                     )}
                   </div>
@@ -529,7 +545,7 @@ function StepSelectProduct() {
 
       <div className="flex justify-end mt-6">
         <Button disabled={!selectedProductId} onClick={nextStep} className="gap-2">
-          Continue to Profile Review <ChevronRight className="w-4 h-4" />
+          {t('prescreening.step1.continueBtn')} <ChevronRight className="w-4 h-4 rtl:rotate-180" />
         </Button>
       </div>
     </div>
@@ -540,6 +556,7 @@ function StepSelectProduct() {
 function StepAutoProfile({ product }: { product: BankProduct }) {
   const { state } = useOnboarding();
   const { nextStep, prevStep, uploadedDocs } = usePrescreening();
+  const { t } = useTranslation();
   const [openSection, setOpenSection] = useState<string | null>('identity');
 
   const profile = buildAutoProfile(state, CREDIT_SCORE, GREEN_SCORE);
@@ -552,10 +569,10 @@ function StepAutoProfile({ product }: { product: BankProduct }) {
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <h2 className="text-xl font-bold">Your auto-generated profile</h2>
+          <h2 className="text-xl font-bold">{t('prescreening.step2.heading')}</h2>
           <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${product.tagColor} bg-current/10`}>{product.bank}</span>
         </div>
-        <p className="text-sm text-muted-foreground">This is what FinTwin has gathered from your connected data sources. Review it before continuing — you don't need to re-enter any of this.</p>
+        <p className="text-sm text-muted-foreground">{t('prescreening.step2.sub')}</p>
       </div>
 
       <div className="space-y-3 mb-6">
@@ -603,11 +620,11 @@ function StepAutoProfile({ product }: { product: BankProduct }) {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-sm flex items-center gap-2">
             <FileText className="w-4 h-4 text-muted-foreground" />
-            Document readiness — {product.bank}
+            {t('prescreening.step2.docReadiness', { bank: product.bank })}
           </h3>
           {uploadCount > 0 && (
             <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-              {uploadCount} uploaded
+              {t('prescreening.step2.uploaded', { count: uploadCount })}
             </span>
           )}
         </div>
@@ -622,19 +639,19 @@ function StepAutoProfile({ product }: { product: BankProduct }) {
           <div className="mt-3 pt-3 border-t border-muted">
             <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
               <Upload className="w-3 h-3 shrink-0" />
-              Upload missing documents now to include them in your bank application package. PDF, JPG, or PNG · max 5 MB each.
+              {t('prescreening.step2.uploadHint')}
             </p>
           </div>
         ) : (
           <p className="text-[10px] text-muted-foreground mt-3">
-            Missing documents won't block your prescreening but will be required at the bank.
+            {t('prescreening.step2.missingDocNote')}
           </p>
         )}
       </div>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={prevStep} className="gap-2"><ChevronLeft className="w-4 h-4" />Back</Button>
-        <Button onClick={nextStep} className="gap-2">Looks good — continue <ChevronRight className="w-4 h-4" /></Button>
+        <Button variant="outline" onClick={prevStep} className="gap-2"><ChevronLeft className="w-4 h-4 rtl:rotate-180" />{t('common.back')}</Button>
+        <Button onClick={nextStep} className="gap-2">{t('prescreening.step2.continueBtn')} <ChevronRight className="w-4 h-4 rtl:rotate-180" /></Button>
       </div>
     </div>
   );
@@ -643,7 +660,16 @@ function StepAutoProfile({ product }: { product: BankProduct }) {
 /* ── Step 3: Manual inputs ────────────────────────────────── */
 function StepManualInputs({ product }: { product: BankProduct }) {
   const { manualInputs, setManualInput, nextStep, prevStep } = usePrescreening();
+  const { t } = useTranslation();
   const completion = calcManualCompletion(manualInputs);
+  const LOAN_PURPOSES = [
+    { value: 'working-capital', label: t('prescreening.step3.loanPurposes.workingCapital'), icon: Banknote },
+    { value: 'equipment',       label: t('prescreening.step3.loanPurposes.equipment'),      icon: Building },
+    { value: 'expansion',       label: t('prescreening.step3.loanPurposes.expansion'),      icon: Globe },
+    { value: 'green',           label: t('prescreening.step3.loanPurposes.green'),          icon: Leaf },
+    { value: 'inventory',       label: t('prescreening.step3.loanPurposes.inventory'),      icon: FileText },
+    { value: 'other',           label: t('prescreening.step3.loanPurposes.other'),          icon: Target },
+  ];
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -651,7 +677,7 @@ function StepManualInputs({ product }: { product: BankProduct }) {
       <div className="sticky top-[112px] z-10 bg-background/95 backdrop-blur border rounded-2xl px-5 py-3 mb-5 flex items-center gap-4">
         <div className="flex-grow">
           <div className="flex justify-between text-xs mb-1.5">
-            <span className="font-medium">Application completeness</span>
+            <span className="font-medium">{t('prescreening.step3.completeness')}</span>
             <span className={`font-bold ${completion >= 60 ? 'text-emerald-600' : 'text-amber-500'}`}>{completion}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -663,13 +689,13 @@ function StepManualInputs({ product }: { product: BankProduct }) {
           </div>
         </div>
         <span className="text-xs text-muted-foreground shrink-0 w-24 text-right">
-          {completion < 60 ? 'Fill more to strengthen your application' : 'Looking strong ✓'}
+          {completion < 60 ? t('prescreening.step3.fillMore') : t('prescreening.step3.lookingStrong')}
         </span>
       </div>
 
       <div className="mb-4">
-        <h2 className="text-xl font-bold mb-1">Complete your application</h2>
-        <p className="text-sm text-muted-foreground">This is what only you can tell us. It shapes the readiness gate and goes directly into your application package.</p>
+        <h2 className="text-xl font-bold mb-1">{t('prescreening.step3.heading')}</h2>
+        <p className="text-sm text-muted-foreground">{t('prescreening.step3.sub')}</p>
       </div>
 
       <div className="space-y-4">
@@ -677,56 +703,56 @@ function StepManualInputs({ product }: { product: BankProduct }) {
         <div className="bg-card border rounded-2xl p-5">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground" />Business Plan</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Describe what your business does, your competitive advantage, and your growth plan.</p>
+              <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground" />{t('prescreening.step3.businessPlanTitle')}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('prescreening.step3.businessPlanDesc')}</p>
             </div>
-            <span className="text-[10px] text-muted-foreground italic shrink-0 ml-3">Why we ask: Banks assess viability before lending.</span>
+            <span className="text-[10px] text-muted-foreground italic shrink-0 ml-3">{t('prescreening.step3.businessPlanWhy')}</span>
           </div>
           <Textarea
             value={manualInputs.businessPlan}
             onChange={e => setManualInput('businessPlan', e.target.value)}
-            placeholder="Amman Coffee Roasters is a specialty coffee business serving premium roasted beans to retail and hospitality customers across Amman. We differentiate through direct sourcing relationships with Ethiopian and Colombian farms..."
+            placeholder={t('prescreening.step3.businessPlanPlaceholder')}
             className="min-h-[100px] text-sm resize-none"
           />
-          <p className="text-[10px] text-muted-foreground mt-2">{manualInputs.businessPlan.length} characters · aim for 150+</p>
+          <p className="text-[10px] text-muted-foreground mt-2">{t('prescreening.step3.charCount', { count: manualInputs.businessPlan.length })}</p>
         </div>
 
         {/* Management quality */}
         <div className="bg-card border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><Users className="w-4 h-4 text-muted-foreground" />Management Quality</h3>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><Users className="w-4 h-4 text-muted-foreground" />{t('prescreening.step3.mgmtTitle')}</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs mb-1.5 block">Years of business experience</Label>
-              <Input value={manualInputs.mgmtYearsExperience} onChange={e => setManualInput('mgmtYearsExperience', e.target.value)} placeholder="e.g. 7 years" className="h-10 text-sm" />
+              <Label className="text-xs mb-1.5 block">{t('prescreening.step3.yearsExperience')}</Label>
+              <Input value={manualInputs.mgmtYearsExperience} onChange={e => setManualInput('mgmtYearsExperience', e.target.value)} placeholder={t('prescreening.step3.yearsExperiencePlaceholder')} className="h-10 text-sm" />
             </div>
             <div>
-              <Label className="text-xs mb-1.5 block">Management team size</Label>
-              <Input value={manualInputs.mgmtTeamSize} onChange={e => setManualInput('mgmtTeamSize', e.target.value)} placeholder="e.g. 2 people" className="h-10 text-sm" />
+              <Label className="text-xs mb-1.5 block">{t('prescreening.step3.teamSize')}</Label>
+              <Input value={manualInputs.mgmtTeamSize} onChange={e => setManualInput('mgmtTeamSize', e.target.value)} placeholder={t('prescreening.step3.teamSizePlaceholder')} className="h-10 text-sm" />
             </div>
             <div>
-              <Label className="text-xs mb-1.5 block">Prior loans successfully repaid</Label>
-              <Input value={manualInputs.mgmtPriorLoansRepaid} onChange={e => setManualInput('mgmtPriorLoansRepaid', e.target.value)} placeholder="e.g. 1 loan, fully repaid" className="h-10 text-sm" />
+              <Label className="text-xs mb-1.5 block">{t('prescreening.step3.priorLoans')}</Label>
+              <Input value={manualInputs.mgmtPriorLoansRepaid} onChange={e => setManualInput('mgmtPriorLoansRepaid', e.target.value)} placeholder={t('prescreening.step3.priorLoansPlaceholder')} className="h-10 text-sm" />
             </div>
             <div>
-              <Label className="text-xs mb-1.5 block">Background / qualifications</Label>
-              <Input value={manualInputs.mgmtBackground} onChange={e => setManualInput('mgmtBackground', e.target.value)} placeholder="e.g. MBA, 10 yrs F&B sector" className="h-10 text-sm" />
+              <Label className="text-xs mb-1.5 block">{t('prescreening.step3.background')}</Label>
+              <Input value={manualInputs.mgmtBackground} onChange={e => setManualInput('mgmtBackground', e.target.value)} placeholder={t('prescreening.step3.backgroundPlaceholder')} className="h-10 text-sm" />
             </div>
           </div>
         </div>
 
         {/* Industry & market */}
         <div className="bg-card border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><Globe className="w-4 h-4 text-muted-foreground" />Industry & Market</h3>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><Globe className="w-4 h-4 text-muted-foreground" />{t('prescreening.step3.industryTitle')}</h3>
           <div className="mb-3">
-            <Label className="text-xs mb-1.5 block">Target market & customer segment</Label>
-            <Input value={manualInputs.industrySector} onChange={e => setManualInput('industrySector', e.target.value)} placeholder="e.g. Specialty coffee shops, hotels, and corporate clients in Amman" className="h-10 text-sm" />
+            <Label className="text-xs mb-1.5 block">{t('prescreening.step3.targetMarket')}</Label>
+            <Input value={manualInputs.industrySector} onChange={e => setManualInput('industrySector', e.target.value)} placeholder={t('prescreening.step3.targetMarketPlaceholder')} className="h-10 text-sm" />
           </div>
           <div>
-            <Label className="text-xs mb-1.5 block">Market context & growth potential</Label>
+            <Label className="text-xs mb-1.5 block">{t('prescreening.step3.marketContext')}</Label>
             <Textarea
               value={manualInputs.industryDescription}
               onChange={e => setManualInput('industryDescription', e.target.value)}
-              placeholder="The specialty coffee market in Jordan is growing at ~15% annually. We serve 40+ B2B accounts and are expanding to Aqaba..."
+              placeholder={t('prescreening.step3.marketContextPlaceholder')}
               className="min-h-[80px] text-sm resize-none"
             />
           </div>
@@ -734,7 +760,7 @@ function StepManualInputs({ product }: { product: BankProduct }) {
 
         {/* Loan purpose */}
         <div className="bg-card border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><Target className="w-4 h-4 text-muted-foreground" />Loan Purpose</h3>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><Target className="w-4 h-4 text-muted-foreground" />{t('prescreening.step3.loanPurposeTitle')}</h3>
           <div className="grid grid-cols-3 gap-2 mb-4">
             {LOAN_PURPOSES.map(lp => {
               const Icon = lp.icon;
@@ -756,22 +782,22 @@ function StepManualInputs({ product }: { product: BankProduct }) {
           {product.requiresGreenScore && manualInputs.loanPurposeCategory !== 'green' && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-center gap-2 mb-3">
               <Leaf className="w-3.5 h-3.5 shrink-0" />
-              <span>Selecting <strong>Green Investment</strong> strengthens your CBJ green loan eligibility.</span>
+              <span>{t('prescreening.step3.greenPurposeHint')}</span>
             </div>
           )}
           <Textarea
             value={manualInputs.loanPurposeDescription}
             onChange={e => setManualInput('loanPurposeDescription', e.target.value)}
-            placeholder="Describe specifically how you'll use the funds and the expected impact on your business..."
+            placeholder={t('prescreening.step3.loanPurposeDescPlaceholder')}
             className="min-h-[80px] text-sm resize-none"
           />
         </div>
       </div>
 
       <div className="flex justify-between mt-6">
-        <Button variant="outline" onClick={prevStep} className="gap-2"><ChevronLeft className="w-4 h-4" />Back</Button>
+        <Button variant="outline" onClick={prevStep} className="gap-2"><ChevronLeft className="w-4 h-4 rtl:rotate-180" />{t('common.back')}</Button>
         <Button onClick={nextStep} className="gap-2">
-          Run Readiness Check <Sparkles className="w-4 h-4" />
+          {t('prescreening.step3.runReadinessBtn')} <Sparkles className="w-4 h-4" />
         </Button>
       </div>
     </div>
@@ -782,6 +808,7 @@ function StepManualInputs({ product }: { product: BankProduct }) {
 function StepReadinessGate({ product }: { product: BankProduct }) {
   const { state } = useOnboarding();
   const { manualInputs, prevStep, submitted, setSubmitted, referenceNumber } = usePrescreening();
+  const { t } = useTranslation();
   const [analysing, setAnalysing] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -808,14 +835,14 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
         {analysing ? (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
-            <h2 className="text-lg font-semibold mb-1">Analysing your profile…</h2>
-            <p className="text-sm text-muted-foreground">Checking {product.name} criteria</p>
+            <h2 className="text-lg font-semibold mb-1">{t('prescreening.step4.analysingTitle')}</h2>
+            <p className="text-sm text-muted-foreground">{t('prescreening.step4.analysingChecking', { product: product.name })}</p>
           </motion.div>
         ) : (
           <motion.div key="results" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="mb-5">
-              <h2 className="text-xl font-bold mb-1">Readiness Check — {product.name}</h2>
-              <p className="text-sm text-muted-foreground">{product.bank} · {product.rate} / yr · Up to {product.maxAmountJOD.toLocaleString()} JOD</p>
+              <h2 className="text-xl font-bold mb-1">{t('prescreening.step4.headingReady', { product: product.name })}</h2>
+              <p className="text-sm text-muted-foreground">{t('prescreening.step4.productSub', { bank: product.bank, rate: product.rate, max: product.maxAmountJOD.toLocaleString() })}</p>
             </div>
 
             {/* Dual panels */}
@@ -841,13 +868,13 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
               {result.greenCriteria.length > 0 && (
                 <div className={`border rounded-2xl p-4 ${verdictColor(result.greenVerdict)}`}>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-sm flex items-center gap-2"><Leaf className="w-4 h-4" />Green Taxonomy</h3>
+                    <h3 className="font-semibold text-sm flex items-center gap-2"><Leaf className="w-4 h-4" />{t('prescreening.step4.greenTaxonomy')}</h3>
                     <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       result.greenVerdict === 'pass' ? 'bg-emerald-200 text-emerald-800' :
                       result.greenVerdict === 'marginal' ? 'bg-amber-200 text-amber-800' :
                       'bg-red-200 text-red-800'
                     }`}>
-                      {result.greenVerdict === 'pass' ? 'Eligible' : result.greenVerdict === 'marginal' ? 'Marginal' : 'Not Eligible'}
+                      {result.greenVerdict === 'pass' ? t('prescreening.step4.verdictEligible') : result.greenVerdict === 'marginal' ? t('prescreening.step4.verdictMarginal') : t('prescreening.step4.verdictNotEligible')}
                     </div>
                   </div>
                   <div className="space-y-2.5">
@@ -860,7 +887,7 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
             {/* Application score bar */}
             <div className="bg-card border rounded-2xl p-4 mb-5">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Overall application strength</span>
+                <span className="text-sm font-medium">{t('prescreening.step4.overallStrength')}</span>
                 <span className="font-bold text-lg">{result.applicationScore}<span className="text-sm font-normal text-muted-foreground"> / 100</span></span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
@@ -895,7 +922,7 @@ function CriterionRow({ criterion: c }: { criterion: CriterionResult }) {
           <span className="font-medium truncate">{c.label}</span>
           <span className="text-muted-foreground shrink-0">{c.actual}</span>
         </div>
-        <span className="text-muted-foreground text-[10px]">Required: {c.required}</span>
+        <span className="text-muted-foreground text-[10px]">{t('prescreening.step4.required', { val: c.required })}</span>
         {c.fix && c.verdict !== 'pass' && (
           <p className="text-[10px] text-amber-700 mt-0.5">{c.fix}</p>
         )}
@@ -905,6 +932,7 @@ function CriterionRow({ criterion: c }: { criterion: CriterionResult }) {
 }
 
 function NotReadyPanel({ result, onBack }: { result: ReturnType<typeof evaluateReadiness>; onBack: () => void }) {
+  const { t } = useTranslation();
   const allFixes = [
     ...result.creditCriteria,
     ...result.greenCriteria,
@@ -917,8 +945,8 @@ function NotReadyPanel({ result, onBack }: { result: ReturnType<typeof evaluateR
           <XCircle className="w-5 h-5 text-red-500" />
         </div>
         <div>
-          <h3 className="font-semibold text-red-800">Not ready to apply yet</h3>
-          <p className="text-xs text-red-600">{result.blockers} blocker{result.blockers > 1 ? 's' : ''} to resolve before your application will pass</p>
+          <h3 className="font-semibold text-red-800">{t('prescreening.step4.notReady.title')}</h3>
+          <p className="text-xs text-red-600">{result.blockers > 1 ? t('prescreening.step4.notReady.blockersPlural', { count: result.blockers }) : t('prescreening.step4.notReady.blockers', { count: result.blockers })}</p>
         </div>
       </div>
       <div className="space-y-2.5 mb-4">
@@ -939,8 +967,8 @@ function NotReadyPanel({ result, onBack }: { result: ReturnType<typeof evaluateR
         ))}
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onBack} className="gap-2 flex-1"><ChevronLeft className="w-4 h-4" />Edit Details</Button>
-        <Button variant="outline" onClick={onBack} className="gap-2 flex-1">Re-check Eligibility <ArrowRight className="w-4 h-4" /></Button>
+        <Button variant="outline" onClick={onBack} className="gap-2 flex-1"><ChevronLeft className="w-4 h-4 rtl:rotate-180" />{t('prescreening.step4.notReady.editDetails')}</Button>
+        <Button variant="outline" onClick={onBack} className="gap-2 flex-1">{t('prescreening.step4.notReady.recheck')} <ArrowRight className="w-4 h-4 rtl:rotate-180" /></Button>
       </div>
     </div>
   );
@@ -954,6 +982,7 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
 }) {
   const { state } = useOnboarding();
   const { uploadedDocs, manualInputs, referenceNumber } = usePrescreening();
+  const { t } = useTranslation();
   const businessName = state.businessName || 'Amman Coffee Roasters';
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const uploadCount = Object.keys(uploadedDocs).length;
@@ -975,7 +1004,7 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
         </div>
         <div>
           <h3 className="font-semibold text-emerald-800">
-            {result.overallVerdict === 'ready' ? 'Ready to apply!' : 'Likely to qualify — apply with confidence'}
+            {result.overallVerdict === 'ready' ? t('prescreening.step4.ready.readyTitle') : t('prescreening.step4.ready.likelyTitle')}
           </h3>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">{result.rateTier}</span>
@@ -988,18 +1017,18 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
 
       {/* Application summary */}
       <div className="bg-white rounded-xl border border-emerald-200 p-4 mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Pre-screened Application Package</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t('prescreening.step4.ready.packageTitle')}</p>
         <div className="space-y-2">
           {[
-            { label: 'Applicant', value: businessName },
-            { label: 'Product', value: `${product.name} — ${product.bank}` },
-            { label: 'Amount requested', value: `Up to ${product.maxAmountJOD.toLocaleString()} JOD` },
-            { label: 'Rate tier', value: `${product.rate} / yr (${result.rateTier})` },
-            { label: 'Credit score', value: `${CREDIT_SCORE} / 100` },
-            ...(product.requiresGreenScore ? [{ label: 'Green score', value: `${GREEN_SCORE} / 100 — CBJ eligible` }] : []),
-            { label: 'Prescreening status', value: result.overallVerdict === 'ready' ? '✓ All criteria met' : '✓ Ready with minor caveats' },
-            { label: 'Profile completeness', value: `${result.applicationScore}%` },
-            ...(uploadCount > 0 ? [{ label: 'Documents uploaded', value: `${uploadCount} file${uploadCount > 1 ? 's' : ''} attached` }] : []),
+            { label: t('prescreening.step4.ready.applicant'), value: businessName },
+            { label: t('prescreening.step4.ready.product'), value: `${product.name} — ${product.bank}` },
+            { label: t('prescreening.step4.ready.amountRequested'), value: t('prescreening.upTo', { amount: product.maxAmountJOD.toLocaleString() }) },
+            { label: t('prescreening.step4.ready.rateTier'), value: `${product.rate} / yr (${result.rateTier})` },
+            { label: t('prescreening.step4.ready.creditScore'), value: `${CREDIT_SCORE} / 100` },
+            ...(product.requiresGreenScore ? [{ label: t('prescreening.step4.ready.greenScore'), value: `${GREEN_SCORE} / 100 — ${t('prescreening.step4.ready.cbgEligible')}` }] : []),
+            { label: t('prescreening.step4.ready.prescreeningStatus'), value: result.overallVerdict === 'ready' ? t('prescreening.step4.ready.allCriteriaMet') : t('prescreening.step4.ready.readyWithCaveats') },
+            { label: t('prescreening.step4.ready.profileCompleteness'), value: `${result.applicationScore}%` },
+            ...(uploadCount > 0 ? [{ label: t('prescreening.step4.ready.docsUploaded'), value: uploadCount > 1 ? t('prescreening.step4.ready.filesAttachedPlural', { count: uploadCount }) : t('prescreening.step4.ready.filesAttached', { count: uploadCount }) }] : []),
           ].map(r => (
             <div key={r.label} className="flex justify-between text-xs py-1 border-b border-emerald-100 last:border-0">
               <span className="text-muted-foreground">{r.label}</span>
@@ -1008,7 +1037,7 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground mt-3 italic">
-          FinTwin does not submit to the bank on your behalf. This package is generated for your reference and to accompany your bank visit.
+          {t('prescreening.step4.ready.disclaimer')}
         </p>
       </div>
 
@@ -1020,18 +1049,18 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
         className="w-full gap-2 h-10 mb-3 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
       >
         {generatingPdf
-          ? <><Loader2 className="w-4 h-4 animate-spin" />Generating PDF…</>
-          : <><Download className="w-4 h-4" />Download Application Package (PDF)</>
+          ? <><Loader2 className="w-4 h-4 animate-spin" />{t('prescreening.step4.ready.generatingPdf')}</>
+          : <><Download className="w-4 h-4" />{t('prescreening.step4.ready.downloadPdf')}</>
         }
       </Button>
       {uploadCount > 0 && (
         <p className="text-[10px] text-emerald-700 text-center mb-3">
-          ✓ {uploadCount} uploaded document{uploadCount > 1 ? 's' : ''} will be referenced in the PDF
+          {uploadCount > 1 ? t('prescreening.step4.ready.docsInPdfPlural', { count: uploadCount }) : t('prescreening.step4.ready.docsInPdf', { count: uploadCount })}
         </p>
       )}
 
       <Button onClick={onSubmit} disabled={submitting} className="w-full gap-2 h-11 bg-emerald-600 hover:bg-emerald-700 text-white">
-        {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Finalising…</> : <><CheckCircle2 className="w-4 h-4" />Confirm Pre-screened Application</>}
+        {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />{t('prescreening.step4.ready.finalising')}</> : <><CheckCircle2 className="w-4 h-4" />{t('prescreening.step4.ready.confirmBtn')}</>}
       </Button>
     </div>
   );
@@ -1042,6 +1071,7 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
   const [, navigate] = useLocation();
   const { uploadedDocs, manualInputs } = usePrescreening();
   const { state } = useOnboarding();
+  const { t } = useTranslation();
   const businessName = state.businessName || 'Amman Coffee Roasters';
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const result = evaluateReadiness(product, state, CREDIT_SCORE, GREEN_SCORE, manualInputs);
@@ -1064,14 +1094,14 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
       <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
       </div>
-      <h2 className="text-2xl font-bold mb-2">Pre-screening complete</h2>
-      <p className="text-muted-foreground mb-6">Your pre-screened application package for <strong>{product.name}</strong> is ready. Bring it to {product.bank} to fast-track your application.</p>
+      <h2 className="text-2xl font-bold mb-2">{t('prescreening.success.title')}</h2>
+      <p className="text-muted-foreground mb-6">{t('prescreening.success.sub', { product: product.name, bank: product.bank })}</p>
       <div className="bg-card border rounded-2xl p-4 mb-4 text-left space-y-2">
-        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Reference</span><span className="font-bold font-mono">{refNum}</span></div>
-        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Product</span><span className="font-semibold">{product.name}</span></div>
-        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Bank</span><span className="font-semibold">{product.bank}</span></div>
-        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Rate</span><span className="font-semibold">{product.rate} / yr</span></div>
-        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Expected response</span><span className="font-semibold">3–5 business days</span></div>
+        <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.reference')}</span><span className="font-bold font-mono">{refNum}</span></div>
+        <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.product')}</span><span className="font-semibold">{product.name}</span></div>
+        <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.bank')}</span><span className="font-semibold">{product.bank}</span></div>
+        <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.rate')}</span><span className="font-semibold">{product.rate} / yr</span></div>
+        <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.expectedResponse')}</span><span className="font-semibold">{t('prescreening.success.responseTime')}</span></div>
       </div>
       <Button
         onClick={handleDownloadPdf}
@@ -1080,12 +1110,12 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
         className="w-full gap-2 mb-3"
       >
         {generatingPdf
-          ? <><Loader2 className="w-4 h-4 animate-spin" />Generating…</>
-          : <><Download className="w-4 h-4" />Download Application Package (PDF)</>
+          ? <><Loader2 className="w-4 h-4 animate-spin" />{t('prescreening.success.generating')}</>
+          : <><Download className="w-4 h-4" />{t('prescreening.success.downloadPdf')}</>
         }
       </Button>
       <Button onClick={() => navigate('/dashboard')} className="w-full gap-2">
-        Back to Dashboard <ArrowRight className="w-4 h-4" />
+        {t('prescreening.success.backToDashboard')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
       </Button>
     </motion.div>
   );
@@ -1096,6 +1126,8 @@ export default function LoanPrescreening() {
   const [, navigate] = useLocation();
   const { state } = useOnboarding();
   const { currentStep, selectedProductId, reset } = usePrescreening();
+  const { t } = useTranslation();
+  const { toggleLanguage } = useLanguage();
 
   // Reset flow state on every entry so repeat visits always start fresh
   useEffect(() => {
@@ -1115,6 +1147,12 @@ export default function LoanPrescreening() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleLanguage}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('lang.switch')}
+            </button>
             <Button variant="ghost" size="icon" className="text-muted-foreground"><Bell className="w-5 h-5" /></Button>
             <button className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm border border-primary/30">
               {businessName.substring(0, 2).toUpperCase()}
@@ -1128,10 +1166,10 @@ export default function LoanPrescreening() {
         <div className="container mx-auto px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={handleExit} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-4">
-              <X className="w-3.5 h-3.5" /> Exit
+              <X className="w-3.5 h-3.5" /> {t('common.exit')}
             </button>
             <span className="text-muted-foreground text-xs">·</span>
-            <span className="text-xs font-medium">Loan Prescreening</span>
+            <span className="text-xs font-medium">{t('prescreening.title')}</span>
             {product && <><span className="text-muted-foreground text-xs">·</span><span className={`text-xs font-semibold ${product.tagColor}`}>{product.name}</span></>}
           </div>
           <StepIndicator current={currentStep} />

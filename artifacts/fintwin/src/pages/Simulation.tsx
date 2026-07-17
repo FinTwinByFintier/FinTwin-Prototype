@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { useSimulation, SCENARIOS } from "@/context/SimulationContext";
 import { useOnboarding } from "@/context/OnboardingContext";
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/context/LanguageContext";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
@@ -16,8 +18,9 @@ import {
 function Delta({ sim, base, higherBetter = true, unit = '' }: {
   sim: number; base: number; higherBetter?: boolean; unit?: string;
 }) {
+  const { t } = useTranslation();
   const diff = sim - base;
-  if (Math.abs(diff) < 0.05) return <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">no change</span>;
+  if (Math.abs(diff) < 0.05) return <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{t('common.noChange')}</span>;
   const positive = higherBetter ? diff > 0 : diff < 0;
   const sign = diff > 0 ? '+' : '';
   const display = Number.isInteger(diff) ? diff : diff.toFixed(1);
@@ -30,10 +33,11 @@ function Delta({ sim, base, higherBetter = true, unit = '' }: {
 }
 
 /* ── Green color helper ─────────────────────────────────────── */
-function greenColor(score: number) {
-  if (score >= 75) return { text: "text-emerald-600", label: "Strong" };
-  if (score >= 50) return { text: "text-amber-500", label: "Developing" };
-  return { text: "text-red-500", label: "Low" };
+function useGreenColor(score: number) {
+  const { t } = useTranslation();
+  if (score >= 75) return { text: "text-emerald-600", label: t('simulation.creditScore.strong') };
+  if (score >= 50) return { text: "text-amber-500",   label: t('simulation.creditScore.developing') };
+  return                 { text: "text-red-500",      label: t('simulation.creditScore.low') };
 }
 
 /* ── Section wrapper ────────────────────────────────────────── */
@@ -102,8 +106,9 @@ function ToggleRow({ label, sub, value, onChange, icon: Icon }: {
         <p className="text-xs font-medium">{label}</p>
         {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
       </div>
-      <div className={`w-8 h-4 rounded-full transition-colors relative ${value ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}>
-        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      {/* Toggle track */}
+      <div className={`w-8 h-4 rounded-full transition-colors relative shrink-0 ${value ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}>
+        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
       </div>
     </div>
   );
@@ -142,10 +147,22 @@ function MiniChart({ data, baseline }: {
   );
 }
 
+/* ── Scenario key → translation key mapping ─────────────────── */
+const SCENARIO_T_KEYS: Record<string, string> = {
+  'New Hire':          'simulation.scenarios.newHire',
+  'New Loan':          'simulation.scenarios.newLoan',
+  'Sales Shock −20%':  'simulation.scenarios.salesShock',
+  'Energy Cost +20%':  'simulation.scenarios.energyCost',
+  'Solar Panels':      'simulation.scenarios.solarPanels',
+  'Late Payment 60d':  'simulation.scenarios.latePayment',
+};
+
 /* ── Main page ───────────────────────────────────────────────── */
 export default function Simulation() {
   const [, navigate] = useLocation();
   const { state } = useOnboarding();
+  const { t } = useTranslation();
+  const { toggleLanguage } = useLanguage();
   const {
     overrides, setOverride, resetOverrides, applyScenario, activeScenario,
     result, baseline, baseState,
@@ -155,8 +172,8 @@ export default function Simulation() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const businessName = state.businessName || "Amman Coffee Roasters";
-  const gc = greenColor(result.greenScore);
-  const baseGc = greenColor(baseline.greenScore);
+  const gc = useGreenColor(result.greenScore);
+  const baseGc = useGreenColor(baseline.greenScore);
 
   const hasNoCommitments = state.commitments.length === 0;
 
@@ -170,10 +187,16 @@ export default function Simulation() {
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
             <span className="text-[10px] font-bold uppercase tracking-widest bg-primary text-white px-2.5 py-1 rounded-full">
-              Simulation Mode
+              {t('simulation.simulationMode')}
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={toggleLanguage}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              {t('lang.switch')}
+            </button>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground">
               <Bell className="w-5 h-5" />
             </Button>
@@ -191,16 +214,16 @@ export default function Simulation() {
       <div className="border-b bg-primary/5">
         <div className="container mx-auto px-4 h-12 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Digital Twin</span>
-            {' · '}Simulating: <span className="font-medium">{businessName}</span>
-            {' · '}Jul 2026 baseline
+            <span className="font-semibold text-foreground">{t('simulation.digitalTwin')}</span>
+            {' · '}{t('simulation.simulating', { name: businessName })}
+            {' · '}{t('simulation.baseline')}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5" onClick={resetOverrides}>
-              <RotateCcw className="w-3.5 h-3.5" />Reset
+              <RotateCcw className="w-3.5 h-3.5" />{t('simulation.resetButton')}
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => navigate('/dashboard')}>
-              <X className="w-3.5 h-3.5" />Exit
+              <X className="w-3.5 h-3.5" />{t('simulation.exitButton')}
             </Button>
           </div>
         </div>
@@ -218,11 +241,11 @@ export default function Simulation() {
             <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-4 container mx-auto">
               <div className="flex items-center gap-2 text-amber-700">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <p className="text-xs">Add monthly commitments to make the simulation meaningful — your expenses are currently zero.</p>
+                <p className="text-xs">{t('simulation.addCommitmentsNudge')}</p>
               </div>
               <Button size="sm" variant="outline" className="h-7 text-xs shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100"
                 onClick={() => setCommitmentsOpen(true)}>
-                Add commitments
+                {t('simulation.addCommitments')}
               </Button>
             </div>
           </motion.div>
@@ -236,7 +259,7 @@ export default function Simulation() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Scenario cards */}
-            <Section title="Scenarios">
+            <Section title={t('simulation.scenariosTitle')}>
               <div className="grid grid-cols-2 gap-2">
                 {(Object.keys(SCENARIOS) as Array<keyof typeof SCENARIOS>).map(s => {
                   const icons: Record<string, React.ElementType> = {
@@ -249,18 +272,19 @@ export default function Simulation() {
                   };
                   const Icon = icons[s] ?? Package;
                   const active = activeScenario === s;
+                  const displayLabel = SCENARIO_T_KEYS[s] ? t(SCENARIO_T_KEYS[s]) : s;
                   return (
                     <button
                       key={s}
                       onClick={() => applyScenario(s)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-medium ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-start transition-all text-xs font-medium ${
                         active
                           ? 'border-primary bg-primary/8 text-primary shadow-sm'
                           : 'hover:border-primary/30 hover:bg-muted/40'
                       }`}
                     >
                       <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className="leading-tight">{s}</span>
+                      <span className="leading-tight">{displayLabel}</span>
                     </button>
                   );
                 })}
@@ -268,17 +292,17 @@ export default function Simulation() {
             </Section>
 
             {/* Revenue */}
-            <Section title="Revenue">
+            <Section title={t('simulation.revenueTitle')}>
               <div className="bg-card border rounded-2xl p-4 space-y-4">
                 <SliderRow
-                  label="Monthly revenue"
+                  label={t('simulation.monthlyRevenue')}
                   value={overrides.revenueMultiplier}
                   min={50} max={200} unit="%"
                   displayVal={`${fmt(Math.round(baseState.monthlyRevenue * overrides.revenueMultiplier / 100))} JOD (${overrides.revenueMultiplier}%)`}
                   onValueChange={v => setOverride('revenueMultiplier', v)}
                 />
                 <div className="space-y-2">
-                  <p className="text-xs text-foreground">Client late payment</p>
+                  <p className="text-xs text-foreground">{t('simulation.clientLatePayment')}</p>
                   <div className="grid grid-cols-4 gap-1.5">
                     {[0, 30, 60, 90].map(d => (
                       <button
@@ -290,14 +314,14 @@ export default function Simulation() {
                             : 'border-muted text-muted-foreground hover:border-primary/30'
                         }`}
                       >
-                        {d === 0 ? 'On time' : `${d}d`}
+                        {d === 0 ? t('common.onTime') : `${d}d`}
                       </button>
                     ))}
                   </div>
                   {overrides.latePaymentDays > 0 && (
                     <p className="text-[10px] text-amber-600 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
-                      {fmt(overrides.latePaymentAmount)} JOD delayed by {overrides.latePaymentDays} days
+                      {t('simulation.lateDelayed', { amount: fmt(overrides.latePaymentAmount), days: overrides.latePaymentDays })}
                     </p>
                   )}
                 </div>
@@ -305,15 +329,15 @@ export default function Simulation() {
             </Section>
 
             {/* People */}
-            <Section title="People">
+            <Section title={t('simulation.peopleTitle')}>
               <div className="bg-card border rounded-2xl p-4 space-y-4">
                 <Stepper
-                  label="Additional employees"
+                  label={t('simulation.additionalEmployees')}
                   value={overrides.extraEmployees}
                   onChange={v => setOverride('extraEmployees', v)}
                 />
                 <SliderRow
-                  label="Avg monthly salary"
+                  label={t('simulation.avgMonthlySalary')}
                   value={overrides.avgSalaryJOD}
                   min={200} max={2000} step={50} unit=" JOD"
                   displayVal={`${fmt(overrides.avgSalaryJOD)} JOD`}
@@ -321,33 +345,30 @@ export default function Simulation() {
                 />
                 {overrides.extraEmployees > 0 && (
                   <div className="bg-muted/40 rounded-xl px-3 py-2 text-xs text-muted-foreground">
-                    Additional monthly payroll:{' '}
-                    <span className="font-semibold text-foreground">
-                      {fmt(overrides.extraEmployees * overrides.avgSalaryJOD)} JOD
-                    </span>
+                    {t('simulation.additionalPayroll', { amount: fmt(overrides.extraEmployees * overrides.avgSalaryJOD) })}
                   </div>
                 )}
               </div>
             </Section>
 
             {/* Expenses */}
-            <Section title="Expenses">
+            <Section title={t('simulation.expensesTitle')}>
               <div className="bg-card border rounded-2xl p-4 space-y-4">
                 <SliderRow
-                  label="Rent adjustment"
+                  label={t('simulation.rentAdjustment')}
                   value={overrides.rentMultiplier}
                   min={50} max={200} unit="%"
                   onValueChange={v => setOverride('rentMultiplier', v)}
                 />
                 <SliderRow
-                  label="Utilities adjustment"
+                  label={t('simulation.utilitiesAdjustment')}
                   value={overrides.utilitiesMultiplier}
                   min={50} max={200} unit="%"
                   onValueChange={v => setOverride('utilitiesMultiplier', v)}
                 />
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-xs">One-off equipment purchase</span>
+                    <span className="text-xs">{t('simulation.oneOffEquipment')}</span>
                     <span className="text-xs font-semibold">{fmt(overrides.oneOffPurchaseJOD)} JOD</span>
                   </div>
                   <Slider
@@ -360,7 +381,7 @@ export default function Simulation() {
                   </div>
                   {overrides.oneOffPurchaseJOD > 0 && (
                     <p className="text-[10px] text-muted-foreground">
-                      Spread over 12 months = <span className="font-medium text-foreground">{fmt(Math.round(overrides.oneOffPurchaseJOD / 12))} JOD/mo</span>
+                      {t('simulation.spreadOverMonths', { amount: fmt(Math.round(overrides.oneOffPurchaseJOD / 12)) })}
                     </p>
                   )}
                 </div>
@@ -369,17 +390,20 @@ export default function Simulation() {
                   className="w-full flex items-center gap-2 text-xs text-primary hover:opacity-80 pt-2 border-t"
                 >
                   <ReceiptText className="w-3.5 h-3.5" />
-                  Edit monthly commitments ({state.commitments.length} items · {fmt(state.commitments.reduce((s, c) => s + c.amountJOD, 0))} JOD/mo)
+                  {t('simulation.editCommitments', {
+                    count: state.commitments.length,
+                    total: fmt(state.commitments.reduce((s, c) => s + c.amountJOD, 0)),
+                  })}
                 </button>
               </div>
             </Section>
 
             {/* Financing */}
-            <Section title="Financing">
+            <Section title={t('simulation.financingTitle')}>
               <div className="bg-card border rounded-2xl p-4 space-y-4">
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-xs">New loan amount</span>
+                    <span className="text-xs">{t('simulation.newLoanAmount')}</span>
                     <span className="text-xs font-semibold">{fmt(overrides.newLoanAmount)} JOD</span>
                   </div>
                   <Slider
@@ -392,19 +416,19 @@ export default function Simulation() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs">Loan term</p>
+                  <p className="text-xs">{t('simulation.loanTerm')}</p>
                   <div className="grid grid-cols-4 gap-1.5">
-                    {[12, 24, 36, 48].map(t => (
+                    {[12, 24, 36, 48].map(t_mo => (
                       <button
-                        key={t}
-                        onClick={() => setOverride('loanTermMonths', t)}
+                        key={t_mo}
+                        onClick={() => setOverride('loanTermMonths', t_mo)}
                         className={`py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                          overrides.loanTermMonths === t
+                          overrides.loanTermMonths === t_mo
                             ? 'bg-primary text-white border-primary'
                             : 'border-muted text-muted-foreground hover:border-primary/30'
                         }`}
                       >
-                        {t}mo
+                        {t_mo}mo
                       </button>
                     ))}
                   </div>
@@ -413,14 +437,14 @@ export default function Simulation() {
                   <div className="space-y-2">
                     <div className="bg-muted/40 rounded-xl px-3 py-2 space-y-1 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Monthly repayment</span>
+                        <span className="text-muted-foreground">{t('simulation.monthlyRepayment')}</span>
                         <span className="font-bold">{fmt(result.newLoanMonthlyPayment)} JOD</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Interest rate</span>
+                        <span className="text-muted-foreground">{t('simulation.interestRate')}</span>
                         <span className="font-semibold text-emerald-600">{result.interestRate}% / yr</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">Rate auto-set from green score. Raise green score to reduce it.</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{t('simulation.rateAutoSet')}</p>
                     </div>
                     <Button
                       size="sm"
@@ -428,7 +452,7 @@ export default function Simulation() {
                       className="w-full h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
                       onClick={() => navigate(`/loan-prescreening?productId=new-loan&amount=${overrides.newLoanAmount}&term=${overrides.loanTermMonths}`)}
                     >
-                      Apply for this loan <CreditCard className="w-3.5 h-3.5" />
+                      {t('simulation.applyForLoan')} <CreditCard className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 )}
@@ -436,18 +460,18 @@ export default function Simulation() {
             </Section>
 
             {/* Green */}
-            <Section title="Green Investments">
+            <Section title={t('simulation.greenTitle')}>
               <div className="bg-card border rounded-2xl p-4 space-y-3">
                 <ToggleRow
-                  label="Solar panels"
-                  sub="8,000 JOD · saves 15% utilities · +8 green pts"
+                  label={t('simulation.solarPanels')}
+                  sub={t('simulation.solarPanelsSub')}
                   value={overrides.solarPanels}
                   onChange={v => setOverride('solarPanels', v)}
                   icon={Sun}
                 />
                 <ToggleRow
-                  label="Energy efficiency upgrade"
-                  sub="Saves 5% utilities · +5 green pts"
+                  label={t('simulation.energyEfficiency')}
+                  sub={t('simulation.energyEfficiencySub')}
                   value={overrides.energyEfficiency}
                   onChange={v => setOverride('energyEfficiency', v)}
                   icon={Cpu}
@@ -463,21 +487,21 @@ export default function Simulation() {
             <div className="grid grid-cols-3 gap-3">
               {[
                 {
-                  icon: Wallet, label: "Net this month",
+                  icon: Wallet, label: t('simulation.netThisMonth'),
                   val: `${result.netCash >= 0 ? '+' : '−'}${fmt(Math.abs(result.netCash))} JOD`,
                   delta: <Delta sim={result.netCash} base={baseline.netCash} unit=" JOD" />,
                   alert: result.netCash < 0,
                 },
                 {
-                  icon: Timer, label: "Runway",
-                  val: result.runwayMonths === null ? '∞ runway' : `${result.runwayMonths} months`,
+                  icon: Timer, label: t('simulation.runway'),
+                  val: result.runwayMonths === null ? t('simulation.runwayInfinity') : t('simulation.months', { n: result.runwayMonths }),
                   delta: result.runwayMonths !== null && baseline.runwayMonths !== null
                     ? <Delta sim={result.runwayMonths} base={baseline.runwayMonths} unit=" mo" />
                     : null,
                   alert: result.runwayMonths !== null && result.runwayMonths < 2,
                 },
                 {
-                  icon: CreditCard, label: "Monthly expenses",
+                  icon: CreditCard, label: t('simulation.monthlyExpenses'),
                   val: `${fmt(result.monthlyExpenses)} JOD`,
                   delta: <Delta sim={result.monthlyExpenses} base={baseline.monthlyExpenses} higherBetter={false} unit=" JOD" />,
                   alert: false,
@@ -509,14 +533,14 @@ export default function Simulation() {
               <motion.div layout className="bg-card border rounded-3xl p-5 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">Credit Readiness</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('simulation.creditReadiness')}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-4xl font-bold">{result.creditScore}</span>
                       <span className="text-muted-foreground text-sm">/100</span>
                       <Delta sim={result.creditScore} base={baseline.creditScore} unit=" pts" />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Baseline: <span className="font-medium">{baseline.creditScore}</span>
+                      {t('simulation.baselineLabel', { score: baseline.creditScore })}
                     </p>
                   </div>
                   <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center">
@@ -531,7 +555,7 @@ export default function Simulation() {
                     <div className="h-full bg-muted-foreground/20 rounded-full" style={{ width: `${baseline.creditScore}%` }} />
                   </div>
                   <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>0</span><span className="text-muted-foreground/60">▲ baseline</span><span>100</span>
+                    <span>0</span><span className="text-muted-foreground/60">{t('simulation.baselineMarker')}</span><span>100</span>
                   </div>
                 </div>
               </motion.div>
@@ -540,7 +564,7 @@ export default function Simulation() {
               <motion.div layout className="bg-card border rounded-3xl p-5 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">Green Score</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('simulation.greenScore')}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-4xl font-bold">{result.greenScore}</span>
                       <span className="text-muted-foreground text-sm">/100</span>
@@ -570,8 +594,8 @@ export default function Simulation() {
                 </div>
                 {result.interestRate !== baseline.interestRate && (
                   <div className={`rounded-lg px-3 py-2 text-xs ${result.interestRate < baseline.interestRate ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                    Loan rate: <span className="font-bold">{result.interestRate}%</span>
-                    {' '}vs baseline {baseline.interestRate}%
+                    {t('simulation.loanRate', { rate: result.interestRate })}
+                    {' '}{t('simulation.vsBaseline', { rate: baseline.interestRate })}
                   </div>
                 )}
               </motion.div>
@@ -581,117 +605,79 @@ export default function Simulation() {
             <motion.div layout className="bg-card border rounded-3xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="font-semibold text-sm">Projected Cash Flow</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Simulated · Aug–Nov 2026</p>
+                  <h3 className="font-semibold text-sm">{t('simulation.projectedCashFlow')}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('simulation.projectedCashFlowSub')}</p>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary inline-block" />Income</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted-foreground/30 inline-block" />Expenses</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary inline-block" />{t('dashboard.income')}</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted-foreground/40 inline-block" />{t('dashboard.expenses')}</span>
                 </div>
               </div>
               <MiniChart data={result.projectedCashFlow} baseline={baseline.projectedCashFlow} />
-              <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t">
-                {[
-                  { label: 'Avg income/mo',   val: `+${fmt(Math.round(result.projectedCashFlow.reduce((s,d)=>s+d.income,0)/4))} JOD`, color: 'text-emerald-600' },
-                  { label: 'Avg expenses/mo', val: `−${fmt(Math.round(result.projectedCashFlow.reduce((s,d)=>s+d.expense,0)/4))} JOD`, color: 'text-foreground' },
-                  { label: 'Avg net/mo',      val: `${result.netCash >= 0 ? '+' : '−'}${fmt(Math.abs(result.netCash))} JOD`, color: result.netCash >= 0 ? 'text-primary' : 'text-red-500' },
-                ].map(s => (
-                  <div key={s.label} className="text-center">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">{s.label}</p>
-                    <p className={`font-bold text-xs ${s.color}`}>{s.val}</p>
-                  </div>
-                ))}
-              </div>
             </motion.div>
 
-            {/* Insights */}
-            <motion.div layout className="bg-card border rounded-3xl p-5 shadow-sm">
-              <h3 className="font-semibold text-sm mb-4">Simulation Insights</h3>
-              <div className="space-y-3">
-                {result.netCash < 0 && (
-                  <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-2xl">
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                    <div className="text-xs">
-                      <p className="font-semibold text-red-700">Negative cash flow</p>
-                      <p className="text-red-600 mt-0.5">Under this scenario the business burns {fmt(Math.abs(result.netCash))} JOD/month. Runway: {result.runwayMonths} months at current cash balance.</p>
-                    </div>
-                  </div>
-                )}
-                {result.creditScore > baseline.creditScore && (
-                  <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                    <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div className="text-xs">
-                      <p className="font-semibold text-emerald-700">Credit score improves</p>
-                      <p className="text-emerald-600 mt-0.5">Score rises by {result.creditScore - baseline.creditScore} pts — could unlock better loan terms.</p>
-                    </div>
-                  </div>
-                )}
-                {result.greenScore >= 75 && baseline.greenScore < 75 && (
-                  <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                    <Leaf className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div className="text-xs">
-                      <p className="font-semibold text-emerald-700">Green Finance unlocked</p>
-                      <p className="text-emerald-600 mt-0.5">Score crossed 75 — now eligible for CBJ top-tier green loans at the lowest available rate.</p>
-                    </div>
-                  </div>
-                )}
-                {overrides.solarPanels && (
-                  <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl">
-                    <Sun className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="text-xs">
-                      <p className="font-semibold text-amber-700">Solar payback period</p>
-                      <p className="text-amber-600 mt-0.5">
-                        At {fmt(Math.round((state.commitments.find(c=>c.category==='utilities')?.amountJOD ?? 300) * 0.15))} JOD/month saved,
-                        the 8,000 JOD investment pays back in ~{Math.ceil(8000 / ((state.commitments.find(c=>c.category==='utilities')?.amountJOD ?? 300) * 0.15))} months.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {result.netCash >= 0 && result.netCash === baseline.netCash && (
-                  <div className="flex items-start gap-3 p-3 bg-muted/40 rounded-2xl">
-                    <BarChart3 className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">Adjust the controls on the left to model different scenarios. All metrics update in real time.</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Financing impact (only when new loan selected) */}
+            {/* Loan affordability */}
             {overrides.newLoanAmount > 0 && (
-              <motion.div
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-card border rounded-3xl p-5 shadow-sm"
-              >
-                <h3 className="font-semibold text-sm mb-4">Loan Affordability</h3>
-                <div className="space-y-2">
-                  {[
-                    { label: 'Loan amount', val: `${fmt(overrides.newLoanAmount)} JOD` },
-                    { label: 'Term', val: `${overrides.loanTermMonths} months` },
-                    { label: 'Interest rate', val: `${result.interestRate}% / yr` },
-                    { label: 'Monthly repayment', val: `${fmt(result.newLoanMonthlyPayment)} JOD` },
-                    { label: 'Total repayable', val: `${fmt(Math.round(result.newLoanMonthlyPayment * overrides.loanTermMonths))} JOD` },
-                    { label: 'Debt-to-income ratio', val: `${Math.round((result.newLoanMonthlyPayment / Math.max(1, result.monthlyIncome)) * 100)}%` },
-                  ].map(r => (
-                    <div key={r.label} className="flex justify-between text-xs py-1.5 border-b last:border-0">
-                      <span className="text-muted-foreground">{r.label}</span>
-                      <span className="font-semibold">{r.val}</span>
-                    </div>
-                  ))}
+              <motion.div layout className="bg-card border rounded-3xl p-5 shadow-sm">
+                <h3 className="font-semibold text-sm mb-1">{t('simulation.loanAffordability')}</h3>
+                <p className="text-xs text-muted-foreground mb-4">{t('simulation.loanAffordabilitySub')}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-muted/40 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground mb-1">{t('simulation.monthlyInstalment')}</p>
+                    <p className="font-bold text-lg">{fmt(result.newLoanMonthlyPayment)}</p>
+                    <p className="text-[10px] text-muted-foreground">JOD/mo</p>
+                  </div>
+                  <div className={`rounded-xl p-3 text-center ${result.netCash > 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                    <p className="text-[10px] text-muted-foreground mb-1">{t('simulation.loanCoverage')}</p>
+                    <p className={`font-bold text-lg ${result.netCash > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {result.netCash > 0
+                        ? `${Math.round((result.netCash / result.newLoanMonthlyPayment) * 10) / 10}×`
+                        : '—'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{t('simulation.loanCoverageSub')}</p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-3">
-                  {result.newLoanMonthlyPayment / Math.max(1, result.monthlyIncome) < 0.3
-                    ? '✅ Debt-to-income below 30% — affordable range.'
-                    : '⚠️ Debt-to-income above 30% — may strain cash flow.'}
-                </p>
+                <div className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium text-center ${result.netCash > result.newLoanMonthlyPayment ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {result.netCash > result.newLoanMonthlyPayment ? t('simulation.affordable') : t('simulation.tightCashFlow')}
+                </div>
               </motion.div>
             )}
+
+            {/* Green impact */}
+            <motion.div layout className="bg-card border rounded-3xl p-5 shadow-sm">
+              <h3 className="font-semibold text-sm mb-1">{t('simulation.greenImpact')}</h3>
+              <p className="text-xs text-muted-foreground mb-4">{t('simulation.greenImpactSub')}</p>
+              {(overrides.solarPanels || overrides.energyEfficiency) ? (
+                <div className="space-y-2.5">
+                  {overrides.solarPanels && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5"><Sun className="w-3.5 h-3.5 text-amber-500" />{t('simulation.solarPanels')}</span>
+                      <span className="font-bold text-emerald-600">+8 pts</span>
+                    </div>
+                  )}
+                  {overrides.energyEfficiency && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-teal-500" />{t('simulation.energyEfficiency')}</span>
+                      <span className="font-bold text-emerald-600">+5 pts</span>
+                    </div>
+                  )}
+                  <div className="border-t pt-2.5 flex items-center justify-between text-sm font-semibold">
+                    <span>{t('simulation.greenScore')}</span>
+                    <span className="text-emerald-600">{t('simulation.greenPoints', { pts: (overrides.solarPanels ? 8 : 0) + (overrides.energyEfficiency ? 5 : 0) })}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Leaf className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">{t('simulation.noGreenActive')}</p>
+                  <p className="text-[10px] mt-1">{t('simulation.selectGreenHint')}</p>
+                </div>
+              )}
+            </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Commitments sheet */}
       <CommitmentsSheet open={commitmentsOpen} onOpenChange={setCommitmentsOpen} />
     </div>
   );

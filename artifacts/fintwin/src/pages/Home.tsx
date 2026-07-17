@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, BarChart3, Leaf, Landmark } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { useTranslation } from "react-i18next";
 import heroDataImage from "@assets/Pasted--svg-viewBox-0-0-1200-720-fill-none-xmlns-http-www-w3-o_1784229700790.svg";
 
 const fadeIn = {
@@ -17,6 +18,15 @@ const stagger = {
 };
 
 export default function Home() {
+  const { t } = useTranslation();
+
+  const steps = [
+    { n: "1", title: t('home.step1Title'), desc: t('home.step1Desc') },
+    { n: "2", title: t('home.step2Title'), desc: t('home.step2Desc') },
+    { n: "3", title: t('home.step3Title'), desc: t('home.step3Desc') },
+    { n: "4", title: t('home.step4Title'), desc: t('home.step4Desc'), highlight: true },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col font-sans">
       <Navbar />
@@ -37,16 +47,17 @@ export default function Home() {
                   variants={fadeIn}
                   className="text-5xl lg:text-7xl font-bold text-foreground leading-[1.1] tracking-tight mb-6"
                 >
-                  Turn your business into a{" "}
-                  <span className="text-primary">fundable</span> one.
+                  {t('home.heroTitle1')}{" "}
+                  <span className="text-primary">{t('home.heroTitleHighlight')}</span>
+                  {t('home.heroTitle2')}
                 </motion.h1>
                 <motion.p variants={fadeIn} className="text-lg text-muted-foreground mb-8">
-                  Real transaction data. One financial profile. Access to funding you've never had before.
+                  {t('home.heroSubtitle')}
                 </motion.p>
                 <motion.div variants={fadeIn}>
                   <Button size="lg" className="h-14 px-8 text-lg rounded-full" asChild>
                     <Link href="/get-started">
-                      Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                      {t('home.getStarted')} <ArrowRight className="ms-2 h-5 w-5 rtl:rotate-180" />
                     </Link>
                   </Button>
                 </motion.div>
@@ -73,24 +84,24 @@ export default function Home() {
         <section className="py-20 bg-foreground text-background">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl lg:text-4xl font-bold text-center mb-16">
-              Most Jordanian businesses can't access formal finance.
+              {t('home.whyTitle')}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="p-7 rounded-2xl bg-card/5 border border-white/10">
                 <BarChart3 className="h-8 w-8 text-primary mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Live Data Connection</h3>
-                <p className="text-muted/70 text-sm">Connect JoFotara, CliQ, or your POS. We pull the numbers automatically.</p>
+                <h3 className="text-lg font-semibold mb-2">{t('home.feature1Title')}</h3>
+                <p className="text-muted/70 text-sm">{t('home.feature1Desc')}</p>
               </div>
               <div className="p-7 rounded-2xl bg-card/5 border border-white/10">
                 <Landmark className="h-8 w-8 text-primary mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Instant Credit Profile</h3>
-                <p className="text-muted/70 text-sm">A verified score lenders actually trust — built from your real activity.</p>
+                <h3 className="text-lg font-semibold mb-2">{t('home.feature2Title')}</h3>
+                <p className="text-muted/70 text-sm">{t('home.feature2Desc')}</p>
               </div>
               <div className="p-7 rounded-2xl bg-card/5 border border-white/10">
                 <Leaf className="h-8 w-8 text-primary mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Green Financing Access</h3>
-                <p className="text-muted/70 text-sm">Qualify for CBJ-backed green loans at 2.5%–3.5% — automatically matched.</p>
+                <h3 className="text-lg font-semibold mb-2">{t('home.feature3Title')}</h3>
+                <p className="text-muted/70 text-sm">{t('home.feature3Desc')}</p>
               </div>
             </div>
           </div>
@@ -99,15 +110,10 @@ export default function Home() {
         {/* How it works */}
         <section className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl lg:text-4xl font-bold text-center mb-14">How it works</h2>
+            <h2 className="text-3xl lg:text-4xl font-bold text-center mb-14">{t('home.howItWorksTitle')}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              {[
-                { n: "1", title: "Register", desc: "Basic business details. Takes two minutes." },
-                { n: "2", title: "Connect", desc: "Link JoFotara, your bank, or POS terminal." },
-                { n: "3", title: "Twin Builds", desc: "We model your finances into a live digital twin." },
-                { n: "4", title: "Get Funded", desc: "Match with lenders and apply in one click.", highlight: true },
-              ].map(({ n, title, desc, highlight }) => (
+              {steps.map(({ n, title, desc, highlight }) => (
                 <div
                   key={n}
                   className={`p-6 rounded-3xl border shadow-sm flex flex-col ${
@@ -134,9 +140,9 @@ export default function Home() {
         {/* CTA */}
         <section className="py-24 bg-primary text-primary-foreground">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">Ready to get funded?</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">{t('home.ctaTitle')}</h2>
             <p className="text-lg mb-10 opacity-80 max-w-lg mx-auto">
-              Build your FinTwin profile in 5 minutes. Free to start.
+              {t('home.ctaSubtitle')}
             </p>
             <Button
               size="lg"
@@ -144,7 +150,7 @@ export default function Home() {
               className="h-14 px-10 text-lg rounded-full text-foreground"
               asChild
             >
-              <Link href="/get-started">Get Started</Link>
+              <Link href="/get-started">{t('home.ctaButton')}</Link>
             </Button>
           </div>
         </section>

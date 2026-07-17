@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
+import { useTranslation } from "react-i18next";
 import { Step1Identity } from "@/components/onboarding/Step1Identity";
 import { Step2Size } from "@/components/onboarding/Step2Size";
 import { Step3Data } from "@/components/onboarding/Step3Data";
@@ -9,13 +10,14 @@ import { Navbar } from "@/components/layout/Navbar";
 
 export default function Onboarding() {
   const { currentStep } = useOnboarding();
+  const { t } = useTranslation();
 
   const steps = [
-    { num: 1, label: "Identity" },
-    { num: 2, label: "Size & Scale" },
-    { num: 3, label: "Data Sources" },
-    { num: 4, label: "Receipts" },
-    { num: 5, label: "Complete" },
+    { num: 1, label: t('onboarding.steps.identity') },
+    { num: 2, label: t('onboarding.steps.size') },
+    { num: 3, label: t('onboarding.steps.data') },
+    { num: 4, label: t('onboarding.steps.receipts') },
+    { num: 5, label: t('onboarding.steps.complete') },
   ];
 
   const totalSteps = steps.length;
@@ -52,7 +54,7 @@ export default function Onboarding() {
                 >
                   {step.label}
                   {step.num === 4 && (
-                    <span className="ml-1 text-primary opacity-70">(optional)</span>
+                    <span className="ms-1 text-primary opacity-70">{t('common.optional')}</span>
                   )}
                 </span>
               </div>

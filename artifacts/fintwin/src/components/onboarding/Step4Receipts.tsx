@@ -2,12 +2,14 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, UploadCloud, CheckCircle2, Loader2, Sparkles, FileImage, FileText, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, UploadCloud, CheckCircle2, Loader2, FileImage, FileText, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type UploadedFile = { name: string; size: string };
 
 export function Step4Receipts() {
   const { state, updateState, setCurrentStep } = useOnboarding();
+  const { t } = useTranslation();
   const [processingState, setProcessingState] = useState<'idle' | 'processing' | 'done'>('idle');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -38,10 +40,8 @@ export function Step4Receipts() {
       className="max-w-xl mx-auto"
     >
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold mb-2">Go paperless.</h2>
-        <p className="text-muted-foreground">
-          Snap a photo of any receipt, invoice, or statement — we'll digitize it and turn it into a clean financial record instantly.
-        </p>
+        <h2 className="text-3xl font-bold mb-2">{t('onboarding.step4.heading')}</h2>
+        <p className="text-muted-foreground">{t('onboarding.step4.sub')}</p>
       </div>
 
       <AnimatePresence mode="wait">
@@ -57,8 +57,8 @@ export function Step4Receipts() {
               }`}
             >
               <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
-              <p className="font-medium mb-1">Drop files here or click to browse</p>
-              <p className="text-sm text-muted-foreground">PDF, JPG, PNG — up to 20MB</p>
+              <p className="font-medium mb-1">{t('onboarding.step4.dropzone')}</p>
+              <p className="text-sm text-muted-foreground">{t('onboarding.step4.fileTypes')}</p>
             </div>
           </motion.div>
         )}
@@ -81,7 +81,7 @@ export function Step4Receipts() {
             </div>
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-              <p className="font-medium">Reading documents with AI...</p>
+              <p className="font-medium">{t('onboarding.step4.reading')}</p>
             </div>
           </motion.div>
         )}
@@ -109,8 +109,8 @@ export function Step4Receipts() {
               <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-6 h-6 text-primary" />
               </div>
-              <p className="font-semibold">23 transactions extracted</p>
-              <p className="text-sm text-muted-foreground">Added to your profile</p>
+              <p className="font-semibold">{t('onboarding.step4.extracted')}</p>
+              <p className="text-sm text-muted-foreground">{t('onboarding.step4.addedToProfile')}</p>
             </div>
           </motion.div>
         )}
@@ -118,12 +118,12 @@ export function Step4Receipts() {
 
       <div className="flex items-center justify-between pt-8 mt-8 border-t">
         <Button variant="ghost" onClick={() => setCurrentStep(3)}>
-          <ArrowLeft className="mr-2 w-4 h-4" /> Back
+          <ArrowLeft className="me-2 w-4 h-4 rtl:rotate-180" /> {t('common.back')}
         </Button>
         <div className="flex items-center gap-3">
           {processingState === 'idle' && (
             <Button variant="ghost" className="text-muted-foreground text-sm" onClick={() => setCurrentStep(5)}>
-              Skip
+              {t('common.skip')}
             </Button>
           )}
           <Button
@@ -132,7 +132,7 @@ export function Step4Receipts() {
             onClick={() => setCurrentStep(5)}
             disabled={processingState === 'processing'}
           >
-            {processingState === 'done' ? 'Continue' : 'Skip & Continue'} <ArrowRight className="ml-2 w-4 h-4" />
+            {processingState === 'done' ? t('common.continue') : t('onboarding.step4.skipContinue')} <ArrowRight className="ms-2 w-4 h-4 rtl:rotate-180" />
           </Button>
         </div>
       </div>

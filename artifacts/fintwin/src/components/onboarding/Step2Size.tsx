@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function Step2Size() {
   const { state, updateState, setCurrentStep } = useOnboarding();
+  const { t } = useTranslation();
   const [showReveal, setShowReveal] = useState(false);
 
   const isFormComplete =
@@ -37,8 +39,8 @@ export function Step2Size() {
       className="max-w-xl mx-auto"
     >
       <div className="mb-10 text-center">
-        <h2 className="text-3xl font-bold mb-3">Understanding your scale</h2>
-        <p className="text-muted-foreground">This helps us match you with the right financing tier.</p>
+        <h2 className="text-3xl font-bold mb-3">{t('onboarding.step2.heading')}</h2>
+        <p className="text-muted-foreground">{t('onboarding.step2.sub')}</p>
       </div>
 
       <AnimatePresence mode="wait">
@@ -53,39 +55,39 @@ export function Step2Size() {
             {/* Employees */}
             <div className="space-y-3">
               <Label htmlFor="employees" className="text-base font-medium">
-                Number of Employees
+                {t('onboarding.step2.employees')}
               </Label>
               <div className="relative">
                 <Input
                   id="employees"
                   type="number"
                   min={1}
-                  placeholder="e.g. 4"
+                  placeholder={t('onboarding.step2.employeesPlaceholder')}
                   value={state.employees}
                   onChange={(e) => updateState({ employees: e.target.value })}
-                  className="h-12 text-lg pr-24"
+                  className="h-12 text-lg pe-24"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
-                  employees
+                <span className="absolute end-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                  {t('onboarding.step2.employeeUnit')}
                 </span>
               </div>
             </div>
 
             {/* Years in Operation */}
             <div className="space-y-3">
-              <Label htmlFor="years" className="text-base font-medium">Years in Operation</Label>
+              <Label htmlFor="years" className="text-base font-medium">{t('onboarding.step2.yearsInOperation')}</Label>
               <div className="relative">
                 <Input
                   id="years"
                   type="number"
                   min={0}
-                  placeholder="e.g. 3"
+                  placeholder={t('onboarding.step2.yearsPlaceholder')}
                   value={state.yearsInOperation}
                   onChange={(e) => updateState({ yearsInOperation: e.target.value })}
-                  className="h-12 text-lg pr-16"
+                  className="h-12 text-lg pe-16"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
-                  years
+                <span className="absolute end-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                  {t('onboarding.step2.yearUnit')}
                 </span>
               </div>
             </div>
@@ -93,28 +95,28 @@ export function Step2Size() {
             {/* Annual Revenue */}
             <div className="space-y-3">
               <Label htmlFor="revenue" className="text-base font-medium">
-                Annual Revenue
+                {t('onboarding.step2.annualRevenue')}
               </Label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
-                  JOD
+                <span className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
+                  {t('common.jod')}
                 </span>
                 <Input
                   id="revenue"
                   type="number"
                   min={0}
-                  placeholder="e.g. 75000"
+                  placeholder={t('onboarding.step2.revenuePlaceholder')}
                   value={state.annualRevenue}
                   onChange={(e) => updateState({ annualRevenue: e.target.value })}
-                  className="h-12 text-lg pl-14"
+                  className="h-12 text-lg ps-14"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Enter your approximate yearly revenue in Jordanian Dinars</p>
+              <p className="text-xs text-muted-foreground">{t('onboarding.step2.revenueSub')}</p>
             </div>
 
             <div className="pt-6 flex justify-between">
               <Button variant="ghost" onClick={() => setCurrentStep(1)}>
-                <ArrowLeft className="mr-2 w-4 h-4" /> Back
+                <ArrowLeft className="me-2 w-4 h-4 rtl:rotate-180" /> {t('common.back')}
               </Button>
               <Button
                 size="lg"
@@ -122,7 +124,7 @@ export function Step2Size() {
                 disabled={!isFormComplete}
                 onClick={handleReveal}
               >
-                Calculate Tier <ArrowRight className="ml-2 w-4 h-4" />
+                {t('onboarding.step2.calculateTier')} <ArrowRight className="ms-2 w-4 h-4 rtl:rotate-180" />
               </Button>
             </div>
           </motion.div>
@@ -152,19 +154,19 @@ export function Step2Size() {
                 transition={{ delay: 0.4 }}
               >
                 <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">
-                  Business Classification
+                  {t('onboarding.step2.classificationTitle')}
                 </h3>
                 <h2 className="text-4xl font-bold mb-4">{state.category}</h2>
                 <p className="text-muted-foreground mb-10 max-w-sm mx-auto">
-                  Based on Central Bank of Jordan guidelines. This unlocks specific financing tiers suited for your size.
+                  {t('onboarding.step2.classificationSub')}
                 </p>
 
                 <div className="flex justify-center gap-4">
                   <Button variant="outline" className="rounded-full" onClick={() => setShowReveal(false)}>
-                    Change Details
+                    {t('onboarding.step2.changeDetails')}
                   </Button>
                   <Button size="lg" className="rounded-full px-8" onClick={() => setCurrentStep(3)}>
-                    <CheckCircle2 className="mr-2 w-5 h-5" /> This looks right
+                    <CheckCircle2 className="me-2 w-5 h-5" /> {t('onboarding.step2.thisLooksRight')}
                   </Button>
                 </div>
               </motion.div>

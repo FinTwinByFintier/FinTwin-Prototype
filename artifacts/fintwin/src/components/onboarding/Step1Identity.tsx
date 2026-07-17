@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Info, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-const sectors: BusinessSector[] = [
+const SECTOR_VALUES: BusinessSector[] = [
   'Retail & Trade',
   'Food & Hospitality',
   'Small Manufacturing',
@@ -19,14 +20,26 @@ const sectors: BusinessSector[] = [
   'Other'
 ];
 
+const SECTOR_KEYS: Record<BusinessSector, string> = {
+  'Retail & Trade':      'onboarding.step1.sectors.retail',
+  'Food & Hospitality':  'onboarding.step1.sectors.food',
+  'Small Manufacturing': 'onboarding.step1.sectors.manufacturing',
+  'Services':            'onboarding.step1.sectors.services',
+  'Professional Services':'onboarding.step1.sectors.professional',
+  'Agriculture':         'onboarding.step1.sectors.agriculture',
+  'Crafts & Trades':     'onboarding.step1.sectors.crafts',
+  'Other':               'onboarding.step1.sectors.other',
+};
+
 export function Step1Identity() {
   const { state, updateState, setCurrentStep } = useOnboarding();
+  const { t } = useTranslation();
   const [errors, setErrors] = useState<{ name?: string; sector?: string }>({});
 
   const handleNext = () => {
     const newErrors: { name?: string; sector?: string } = {};
-    if (!state.businessName.trim()) newErrors.name = "Required";
-    if (!state.businessSector) newErrors.sector = "Required";
+    if (!state.businessName.trim()) newErrors.name = t('common.required');
+    if (!state.businessSector) newErrors.sector = t('common.required');
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
     setCurrentStep(2);
   };
@@ -39,18 +52,18 @@ export function Step1Identity() {
       className="max-w-xl mx-auto"
     >
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold mb-2">Your business</h2>
-        <p className="text-muted-foreground">Basic details to get started.</p>
+        <h2 className="text-3xl font-bold mb-2">{t('onboarding.step1.heading')}</h2>
+        <p className="text-muted-foreground">{t('onboarding.step1.sub')}</p>
       </div>
 
       <div className="space-y-6 bg-card border p-8 rounded-3xl shadow-sm">
         <div className="space-y-2">
           <Label htmlFor="businessName" className="font-medium">
-            Business Name <span className="text-destructive">*</span>
+            {t('onboarding.step1.businessName')} <span className="text-destructive">*</span>
           </Label>
           <Input
             id="businessName"
-            placeholder="e.g. Amman Coffee Roasters"
+            placeholder={t('onboarding.step1.businessNamePlaceholder')}
             className={`h-12 text-base ${errors.name ? 'border-destructive' : ''}`}
             value={state.businessName}
             onChange={(e) => { updateState({ businessName: e.target.value }); if (errors.name) setErrors({ ...errors, name: undefined }); }}
@@ -60,18 +73,18 @@ export function Step1Identity() {
 
         <div className="space-y-2">
           <Label htmlFor="sector" className="font-medium">
-            Sector <span className="text-destructive">*</span>
+            {t('onboarding.step1.sector')} <span className="text-destructive">*</span>
           </Label>
           <Select
             value={state.businessSector}
             onValueChange={(value: BusinessSector) => { updateState({ businessSector: value }); if (errors.sector) setErrors({ ...errors, sector: undefined }); }}
           >
             <SelectTrigger id="sector" className={`h-12 text-base ${errors.sector ? 'border-destructive' : ''}`}>
-              <SelectValue placeholder="Select your industry" />
+              <SelectValue placeholder={t('onboarding.step1.sectorPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
-              {sectors.map(sector => (
-                <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+              {SECTOR_VALUES.map(sector => (
+                <SelectItem key={sector} value={sector}>{t(SECTOR_KEYS[sector])}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -81,8 +94,8 @@ export function Step1Identity() {
         <div className="pt-2 border-t space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <Label className="font-medium">Registration Number</Label>
-              <p className="text-sm text-muted-foreground">Do you have one?</p>
+              <Label className="font-medium">{t('onboarding.step1.registrationNumber')}</Label>
+              <p className="text-sm text-muted-foreground">{t('onboarding.step1.doYouHaveOne')}</p>
             </div>
             <Switch
               checked={state.hasRegistrationNumber}
@@ -100,7 +113,7 @@ export function Step1Identity() {
               >
                 <Input
                   id="regNumber"
-                  placeholder="e.g. 1002394"
+                  placeholder={t('onboarding.step1.registrationNumberPlaceholder')}
                   className="h-12 text-base"
                   value={state.registrationNumber}
                   onChange={(e) => updateState({ registrationNumber: e.target.value })}
@@ -115,7 +128,7 @@ export function Step1Identity() {
               >
                 <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-xl p-4 flex gap-3 text-blue-800 dark:text-blue-300">
                   <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm">No problem. You can still build a full FinTwin profile. Add it later as your business grows.</p>
+                  <p className="text-sm">{t('onboarding.step1.noRegNote')}</p>
                 </div>
               </motion.div>
             )}
@@ -124,7 +137,7 @@ export function Step1Identity() {
 
         <div className="pt-2 flex justify-end">
           <Button size="lg" className="rounded-full px-8 h-12" onClick={handleNext}>
-            Continue <ArrowRight className="ml-2 w-4 h-4" />
+            {t('onboarding.step1.continueBtn')} <ArrowRight className="ms-2 w-4 h-4 rtl:rotate-180" />
           </Button>
         </div>
       </div>

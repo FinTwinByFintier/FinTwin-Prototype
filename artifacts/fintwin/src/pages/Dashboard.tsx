@@ -2,6 +2,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
@@ -12,40 +14,12 @@ import {
   Circle, FlaskConical, ReceiptText, Landmark,
 } from "lucide-react";
 
-/* ─── Static mock data ─────────────────────────────────── */
-const transactions = [
-  { icon: ShoppingBag, label: "Retail Sale — CliQ",        sub: "Today, 10:42 AM",       amount: "+340 JOD",   positive: true,  color: "bg-emerald-500/10 text-emerald-600" },
-  { icon: Truck,       label: "Supplier Payment",           sub: "Yesterday, 3:15 PM",    amount: "−1,200 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
-  { icon: Coffee,      label: "Daily POS Sales",            sub: "Yesterday, 8:00 PM",    amount: "+820 JOD",   positive: true,  color: "bg-primary/10 text-primary" },
-  { icon: Zap,         label: "Electricity Bill",           sub: "Jul 14, 9:00 AM",       amount: "−95 JOD",    positive: false, color: "bg-red-500/10 text-red-500" },
-  { icon: ShoppingBag, label: "JoFotara Invoice #2041",     sub: "Jul 13, 11:30 AM",      amount: "+1,540 JOD", positive: true,  color: "bg-blue-500/10 text-blue-600" },
-];
-
+/* ── Static mock data ─────────────────────────────────────── */
 const cashFlow = [
   { month: "Apr", income: 5200, expense: 3800 },
   { month: "May", income: 6100, expense: 4200 },
   { month: "Jun", income: 5700, expense: 3600 },
   { month: "Jul", income: 4800, expense: 2900 },
-];
-
-const matches = [
-  { tag: "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",      sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87, productId: "murabaha-arab-bank" },
-  { tag: "Green Loan",      tagColor: "text-emerald-600", label: "Energy Efficiency Fund",        sub: "CBJ · Up to 50,000 JOD",       rate: "2.75%", match: 62, productId: "energy-efficiency-cbj" },
-  { tag: "MSME Loan",       tagColor: "text-blue-600",    label: "Jordan Loan Guarantee Corp.",   sub: "JLGC · Up to 15,000 JOD",      rate: "7.0%",  match: 74, productId: "msme-jlgc" },
-];
-
-const scoreBreakdown = [
-  { label: "Payment History", value: 82, color: "bg-emerald-500" },
-  { label: "Cash Flow",       value: 70, color: "bg-primary" },
-  { label: "Business Age",    value: 65, color: "bg-blue-500" },
-  { label: "Data Coverage",   value: 55, color: "bg-amber-400" },
-];
-
-const nextSteps = [
-  { label: "Connect your bank account via CliQ",     impact: "+8 pts",  done: true },
-  { label: "Verify company registration number",     impact: "+12 pts", done: false },
-  { label: "Upload 3 months of bank statements",     impact: "+6 pts",  done: false },
-  { label: "Add tax identification number",          impact: "+5 pts",  done: false },
 ];
 
 const ongoingLoan = {
@@ -56,43 +30,76 @@ const ongoingLoan = {
   installments: { paid: 8, total: 24 },
 };
 
-/* ─── Helpers ───────────────────────────────────────────── */
-function greenColor(score: number) {
-  if (score >= 75) return { bar: "bg-emerald-500", text: "text-emerald-600", label: "Strong" };
-  if (score >= 50) return { bar: "bg-amber-400",   text: "text-amber-500",   label: "Developing" };
-  return               { bar: "bg-red-500",        text: "text-red-500",     label: "Low" };
-}
-
 const maxIncome = Math.max(...cashFlow.map(d => d.income));
 
-/* ─── Component ─────────────────────────────────────────── */
+/* ── Component ─────────────────────────────────────────────── */
 export default function Dashboard() {
   const { state, resetState } = useOnboarding();
   const [, navigate] = useLocation();
-  const [menuOpen, setMenuOpen]             = useState(false);
-  const [stepsOpen, setStepsOpen]           = useState(false);
+  const { t } = useTranslation();
+  const { toggleLanguage } = useLanguage();
+  const [menuOpen, setMenuOpen]               = useState(false);
+  const [stepsOpen, setStepsOpen]             = useState(false);
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
 
   const businessName = state.businessName   || "Amman Coffee Roasters";
-  const category     = state.category       || "Micro Enterprise";
+  const category     = state.category       || t('dashboard.microEnterprise');
   const sector       = state.businessSector || "Food & Hospitality";
   const creditScore  = 74;
   const greenScore   = 62;
-  const gc           = greenColor(greenScore);
+
+  function greenLabel(score: number) {
+    if (score >= 75) return t('dashboard.greenScoreLabels.strong');
+    if (score >= 50) return t('dashboard.greenScoreLabels.developing');
+    return t('dashboard.greenScoreLabels.low');
+  }
+  function greenColors(score: number) {
+    if (score >= 75) return { bar: "bg-emerald-500", text: "text-emerald-600" };
+    if (score >= 50) return { bar: "bg-amber-400",   text: "text-amber-500" };
+    return               { bar: "bg-red-500",        text: "text-red-500" };
+  }
+  const gc = { ...greenColors(greenScore), label: greenLabel(greenScore) };
 
   const hasCommitments = (state.commitments ?? []).length > 0;
 
-  // Profile completion — commitments replaces company registry as the most impactful next step
   const profileItems = [
-    { label: "Business identity",     done: true },
-    { label: "Size & scale",          done: true },
-    { label: "Bank connected",        done: state.connectedSources.cliq },
-    { label: "JoFotara connected",    done: state.connectedSources.jofotara },
-    { label: "Receipts uploaded",     done: state.connectedSources.receipts },
-    { label: "Monthly commitments",   done: hasCommitments, action: () => setCommitmentsOpen(true) },
+    { label: t('dashboard.businessIdentity'),   done: true },
+    { label: t('dashboard.sizeAndScale'),        done: true },
+    { label: t('dashboard.bankConnected'),       done: state.connectedSources.cliq },
+    { label: t('dashboard.jofotaraConnected'),   done: state.connectedSources.jofotara },
+    { label: t('dashboard.receiptsUploaded'),    done: state.connectedSources.receipts },
+    { label: t('dashboard.monthlyCommitments'),  done: hasCommitments, action: () => setCommitmentsOpen(true) },
   ];
   const completedCount = profileItems.filter(p => p.done).length;
   const profilePct     = Math.round((completedCount / profileItems.length) * 100);
+
+  const transactions = [
+    { icon: ShoppingBag, label: t('dashboard.tx1Label'), sub: t('dashboard.tx1Sub'), amount: "+340 JOD",   positive: true,  color: "bg-emerald-500/10 text-emerald-600" },
+    { icon: Truck,       label: t('dashboard.tx2Label'), sub: t('dashboard.tx2Sub'), amount: "−1,200 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
+    { icon: Coffee,      label: t('dashboard.tx3Label'), sub: t('dashboard.tx3Sub'), amount: "+820 JOD",   positive: true,  color: "bg-primary/10 text-primary" },
+    { icon: Zap,         label: t('dashboard.tx4Label'), sub: t('dashboard.tx4Sub'), amount: "−95 JOD",    positive: false, color: "bg-red-500/10 text-red-500" },
+    { icon: ShoppingBag, label: t('dashboard.tx5Label'), sub: t('dashboard.tx5Sub'), amount: "+1,540 JOD", positive: true,  color: "bg-blue-500/10 text-blue-600" },
+  ];
+
+  const matches = [
+    { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "تمويل إسلامي" : "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",    sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87, productId: "murabaha-arab-bank" },
+    { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "قرض أخضر"   : "Green Loan",      tagColor: "text-emerald-600", label: "Energy Efficiency Fund",      sub: "CBJ · Up to 50,000 JOD",       rate: "2.75%", match: 62, productId: "energy-efficiency-cbj" },
+    { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "قرض MSME"   : "MSME Loan",       tagColor: "text-blue-600",    label: "Jordan Loan Guarantee Corp.", sub: "JLGC · Up to 15,000 JOD",      rate: "7.0%",  match: 74, productId: "msme-jlgc" },
+  ];
+
+  const scoreBreakdown = [
+    { label: t('dashboard.scoreLabelPaymentHistory'), value: 82, color: "bg-emerald-500" },
+    { label: t('dashboard.scoreLabelCashFlow'),       value: 70, color: "bg-primary" },
+    { label: t('dashboard.scoreLabelBusinessAge'),    value: 65, color: "bg-blue-500" },
+    { label: t('dashboard.scoreLabelDataCoverage'),   value: 55, color: "bg-amber-400" },
+  ];
+
+  const nextSteps = [
+    { label: t('dashboard.nextStep1'), impact: "+8 pts",  done: true },
+    { label: t('dashboard.nextStep2'), impact: "+12 pts", done: false },
+    { label: t('dashboard.nextStep3'), impact: "+6 pts",  done: false },
+    { label: t('dashboard.nextStep4'), impact: "+5 pts",  done: false },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
@@ -101,9 +108,15 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleLanguage}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              {t('lang.switch')}
+            </button>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground">
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+              <span className="absolute top-1 end-1 w-2 h-2 bg-primary rounded-full" />
             </Button>
             <div className="relative">
               <button
@@ -121,18 +134,18 @@ export default function Dashboard() {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -4 }}
                       transition={{ duration: 0.12 }}
-                      className="absolute right-0 top-11 z-20 w-44 bg-card border rounded-2xl shadow-lg overflow-hidden"
+                      className="absolute end-0 top-11 z-20 w-44 bg-card border rounded-2xl shadow-lg overflow-hidden"
                     >
                       <div className="px-4 py-3 border-b">
                         <p className="text-xs font-medium truncate">{businessName}</p>
-                        <p className="text-xs text-muted-foreground">Free plan</p>
+                        <p className="text-xs text-muted-foreground">{t('nav.freePlan')}</p>
                       </div>
                       <Link
                         href="/"
                         onClick={() => { resetState(); setMenuOpen(false); }}
                         className="flex items-center gap-2.5 px-4 py-3 text-sm text-destructive hover:bg-destructive/5 transition-colors w-full"
                       >
-                        <LogOut className="w-4 h-4" /> Sign out
+                        <LogOut className="w-4 h-4" /> {t('nav.signOut')}
                       </Link>
                     </motion.div>
                   </>
@@ -154,19 +167,19 @@ export default function Dashboard() {
               <span>·</span>
               <span>{sector}</span>
               <span>·</span>
-              <span className="flex items-center text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5 mr-1" />Profile active</span>
+              <span className="flex items-center text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5 me-1" />{t('dashboard.profileActive')}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm">
-              <FileText className="w-4 h-4 mr-2" />Export Report
+              <FileText className="w-4 h-4 me-2" />{t('dashboard.exportReport')}
             </Button>
             <Button
               size="sm"
               className="bg-primary hover:bg-primary/90 gap-2"
               onClick={() => navigate('/simulation')}
             >
-              <FlaskConical className="w-4 h-4" />Run Simulation
+              <FlaskConical className="w-4 h-4" />{t('dashboard.runSimulation')}
             </Button>
           </div>
         </div>
@@ -185,11 +198,13 @@ export default function Dashboard() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">
-                  Your <span className="font-bold text-primary">{creditScore}</span> credit score likely qualifies you for{" "}
-                  <span className="font-semibold">Murabaha Working Capital</span> at{" "}
-                  <span className="font-semibold text-emerald-600">6.5%</span>
+                  {t('dashboard.loanBannerText', {
+                    score: creditScore,
+                    product: 'Murabaha Working Capital',
+                    rate: '6.5%',
+                  })}
                 </p>
-                <p className="text-xs text-muted-foreground">Run a prescreening in under 3 minutes — no bank visit needed</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.loanBannerSub')}</p>
               </div>
             </div>
             <Button
@@ -198,7 +213,7 @@ export default function Dashboard() {
               className="shrink-0 border-primary/30 text-primary hover:bg-primary/5 gap-1.5"
               onClick={() => navigate('/loan-prescreening?productId=murabaha-arab-bank')}
             >
-              Check eligibility <ArrowRight className="w-3.5 h-3.5" />
+              {t('dashboard.loanBannerCta')} <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
             </Button>
           </motion.div>
         )}
@@ -206,9 +221,9 @@ export default function Dashboard() {
         {/* Top stat strip */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { icon: Wallet,     label: "Net this month",  value: "+2,305 JOD",  sub: "↑ 14% vs last month",     subColor: "text-emerald-600" },
-            { icon: Timer,      label: "Runway",           value: "4.2 months",  sub: "Based on current burn rate", subColor: "text-muted-foreground" },
-            { icon: CreditCard, label: "Active loans",     value: "1 loan",      sub: "Next payment Aug 1",        subColor: "text-muted-foreground" },
+            { icon: Wallet,     label: t('dashboard.netThisMonth'),  value: "+2,305 JOD",  sub: t('dashboard.vsLastMonth', { pct: 14 }),       subColor: "text-emerald-600" },
+            { icon: Timer,      label: t('dashboard.runway'),         value: "4.2 months",  sub: t('dashboard.basedOnBurn'),                    subColor: "text-muted-foreground" },
+            { icon: CreditCard, label: t('dashboard.activeLoans'),    value: t('dashboard.loanLabel', { count: 1 }), sub: t('dashboard.nextPaymentDate', { date: 'Aug 1' }), subColor: "text-muted-foreground" },
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
@@ -242,13 +257,13 @@ export default function Dashboard() {
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card border rounded-3xl p-6 shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Credit Readiness</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('dashboard.creditReadiness')}</p>
                     <div className="flex items-end gap-1.5">
                       <span className="text-4xl font-bold">{creditScore}</span>
-                      <span className="text-muted-foreground text-base mb-1">/100</span>
+                      <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
                     </div>
                     <p className="text-xs text-amber-500 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />Moderate — room to grow
+                      <AlertCircle className="w-3 h-3" />{t('dashboard.moderate')}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -270,7 +285,7 @@ export default function Dashboard() {
                       <div className="flex-grow h-1.5 bg-muted rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: `${item.value}%` }} transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }} className={`h-full rounded-full ${item.color}`} />
                       </div>
-                      <span className="text-xs font-medium w-8 text-right">{item.value}</span>
+                      <span className="text-xs font-medium w-8 text-end">{item.value}</span>
                     </div>
                   ))}
                 </div>
@@ -280,7 +295,7 @@ export default function Dashboard() {
                   onClick={() => setStepsOpen(o => !o)}
                   className="mt-5 w-full flex items-center justify-between text-xs font-medium text-primary hover:opacity-80 transition-opacity pt-4 border-t"
                 >
-                  How to improve your score
+                  {t('dashboard.howToImprove')}
                   {stepsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
                 <AnimatePresence>
@@ -311,10 +326,10 @@ export default function Dashboard() {
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border rounded-3xl p-6 shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Green Finance Score</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('dashboard.greenFinanceScore')}</p>
                     <div className="flex items-end gap-1.5">
                       <span className="text-4xl font-bold">{greenScore}</span>
-                      <span className="text-muted-foreground text-base mb-1">/100</span>
+                      <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
                     </div>
                     <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${gc.text}`}>
                       <Leaf className="w-3 h-3" />{gc.label}
@@ -325,7 +340,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Color-coded bar */}
                 <div className="mb-5">
                   <div className="relative h-3 rounded-full overflow-hidden flex">
                     <div className="h-full bg-red-400/70" style={{ width: "50%" }} />
@@ -343,18 +357,18 @@ export default function Dashboard() {
                     </motion.div>
                   </div>
                   <div className="flex justify-between text-[10px] text-muted-foreground mt-3">
-                    <span>0 · Low</span><span>50 · Mid</span><span>75 · High</span>
+                    <span>{t('dashboard.lowHigh')}</span><span>{t('dashboard.midLabel')}</span><span>{t('dashboard.highLabel')}</span>
                   </div>
                 </div>
 
                 <div className={`rounded-xl p-3 text-xs border ${gc.text}`} style={{ backgroundColor: greenScore >= 75 ? 'rgb(240 253 244)' : greenScore >= 50 ? 'rgb(255 251 235)' : 'rgb(254 242 242)' }}>
-                  <p className="font-semibold mb-0.5">CBJ Green Finance eligible</p>
-                  <p className="text-muted-foreground">Qualifies for Energy Efficiency Fund at <strong>2.75% fixed rate</strong>. Raise score to 75 to unlock top-tier green products.</p>
+                  <p className="font-semibold mb-0.5">{t('dashboard.cbgEligible')}</p>
+                  <p className="text-muted-foreground">{t('dashboard.cbgEligibleDesc', { rate: '2.75%' })}</p>
                 </div>
 
                 <div className="mt-4 flex justify-between text-xs text-muted-foreground border-t pt-4">
-                  <span>Matched green products</span>
-                  <span className="font-semibold text-foreground">2 available</span>
+                  <span>{t('dashboard.matchedGreenProducts')}</span>
+                  <span className="font-semibold text-foreground">{t('dashboard.available', { count: 2 })}</span>
                 </div>
               </motion.div>
             </div>
@@ -363,12 +377,12 @@ export default function Dashboard() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card border rounded-3xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h3 className="font-semibold">Cash Flow</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Income vs. expenses · Last 4 months</p>
+                  <h3 className="font-semibold">{t('dashboard.cashFlow')}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.cashFlowSub')}</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" />Income</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40 inline-block" />Expenses</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" />{t('dashboard.income')}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40 inline-block" />{t('dashboard.expenses')}</span>
                 </div>
               </div>
 
@@ -396,9 +410,9 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t">
                 {[
-                  { label: "Total income",   value: "+4,800 JOD", color: "text-emerald-600" },
-                  { label: "Total expenses", value: "−2,900 JOD", color: "text-foreground" },
-                  { label: "Net",            value: "+1,900 JOD", color: "text-primary" },
+                  { label: t('dashboard.totalIncome'),   value: "+4,800 JOD", color: "text-emerald-600" },
+                  { label: t('dashboard.totalExpenses'), value: "−2,900 JOD", color: "text-foreground" },
+                  { label: t('dashboard.net'),           value: "+1,900 JOD", color: "text-primary" },
                 ].map(s => (
                   <div key={s.label} className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
@@ -412,10 +426,10 @@ export default function Dashboard() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border rounded-3xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h3 className="font-semibold">Recent Transactions</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Last 7 days · 5 entries</p>
+                  <h3 className="font-semibold">{t('dashboard.recentTransactions')}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.transactionsSub')}</p>
                 </div>
-                <Button variant="ghost" size="sm" className="text-primary text-xs">View All <ChevronRight className="w-4 h-4 ml-1" /></Button>
+                <Button variant="ghost" size="sm" className="text-primary text-xs">{t('common.viewAll')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></Button>
               </div>
               <div className="space-y-1">
                 {transactions.map((tx, i) => {
@@ -446,10 +460,10 @@ export default function Dashboard() {
                   <FlaskConical className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-grow">
-                  <h3 className="font-semibold mb-1">Model your next decision</h3>
-                  <p className="text-sm text-muted-foreground mb-4">What happens if you hire, take a loan, or go green? The digital twin updates every score in real time.</p>
+                  <h3 className="font-semibold mb-1">{t('dashboard.modelNextDecision')}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('dashboard.modelNextDecisionDesc')}</p>
                   <Button size="sm" onClick={() => navigate('/simulation')} className="gap-2">
-                    <FlaskConical className="w-4 h-4" />Open Simulation
+                    <FlaskConical className="w-4 h-4" />{t('dashboard.openSimulation')}
                   </Button>
                 </div>
               </div>
@@ -462,7 +476,7 @@ export default function Dashboard() {
             {/* Profile completion */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border rounded-3xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">Profile completion</h3>
+                <h3 className="font-semibold text-sm">{t('dashboard.profileCompletion')}</h3>
                 <span className="text-xs font-bold text-primary">{profilePct}%</span>
               </div>
 
@@ -484,7 +498,7 @@ export default function Dashboard() {
                       {item.label}
                     </span>
                     {item.action && !item.done && (
-                      <span className="ml-auto text-primary text-[10px] font-medium">Add →</span>
+                      <span className="ms-auto text-primary text-[10px] font-medium">{t('dashboard.addAction')}</span>
                     )}
                   </div>
                 ))}
@@ -497,7 +511,7 @@ export default function Dashboard() {
                   className="mt-4 w-full flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity pt-3 border-t"
                 >
                   <ReceiptText className="w-3.5 h-3.5" />
-                  Add monthly commitments
+                  {t('dashboard.addMonthlyCommitments')}
                 </button>
               )}
               {hasCommitments && profilePct < 100 && (
@@ -506,8 +520,11 @@ export default function Dashboard() {
                   className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-3 border-t"
                 >
                   <ReceiptText className="w-3 h-3" />
-                  {(state.commitments ?? []).length} commitments · {(state.commitments ?? []).reduce((s, c) => s + c.amountJOD, 0).toLocaleString()} JOD/mo
-                  <ArrowRight className="w-3 h-3 ml-auto" />
+                  {t('dashboard.commitmentsSummary', {
+                    count: (state.commitments ?? []).length,
+                    total: (state.commitments ?? []).reduce((s, c) => s + c.amountJOD, 0).toLocaleString(),
+                  })}
+                  <ArrowRight className="w-3 h-3 ms-auto rtl:rotate-180" />
                 </button>
               )}
             </motion.div>
@@ -515,12 +532,12 @@ export default function Dashboard() {
             {/* Ongoing loan */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="bg-card border rounded-3xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">Ongoing Loan</h3>
+                <h3 className="font-semibold text-sm">{t('dashboard.ongoingLoan')}</h3>
                 <CreditCard className="w-4 h-4 text-muted-foreground" />
               </div>
 
               <p className="text-xs text-muted-foreground mb-1">{ongoingLoan.label}</p>
-              <p className="text-2xl font-bold mb-1">{ongoingLoan.remaining.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">JOD left</span></p>
+              <p className="text-2xl font-bold mb-1">{ongoingLoan.remaining.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">{t('dashboard.jodLeft')}</span></p>
 
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden mb-1.5">
                 <motion.div
@@ -531,65 +548,48 @@ export default function Dashboard() {
                 />
               </div>
               <div className="flex justify-between text-[10px] text-muted-foreground mb-4">
-                <span>{ongoingLoan.installments.paid} of {ongoingLoan.installments.total} installments paid</span>
-                <span>{Math.round(((ongoingLoan.total - ongoingLoan.remaining) / ongoingLoan.total) * 100)}%</span>
+                <span>{t('dashboard.installmentsPaid', { paid: ongoingLoan.installments.paid, total: ongoingLoan.installments.total })}</span>
+                <span>{t('dashboard.paidOff')}</span>
               </div>
 
-              <div className="bg-muted/40 rounded-xl p-3 flex items-center justify-between text-xs">
+              <div className="bg-primary/5 rounded-2xl p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground">Next payment</p>
-                  <p className="font-semibold">{ongoingLoan.nextPayment.date}</p>
+                  <p className="text-[10px] text-muted-foreground">{t('dashboard.nextPayment')}</p>
+                  <p className="text-sm font-bold">{ongoingLoan.nextPayment.amount.toLocaleString()} JOD</p>
                 </div>
-                <p className="font-bold text-base">{ongoingLoan.nextPayment.amount} JOD</p>
+                <div className="text-end">
+                  <p className="text-[10px] text-muted-foreground">{ongoingLoan.nextPayment.date}</p>
+                  <Clock className="w-4 h-4 text-primary ms-auto mt-0.5" />
+                </div>
               </div>
             </motion.div>
 
             {/* Financing matches */}
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-card border rounded-3xl p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">Financing Matches</h3>
-                <TrendingUp className="w-4 h-4 text-primary" />
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+              <div className="mb-4">
+                <h3 className="font-semibold text-sm">{t('dashboard.financingMatches')}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.matchesSub')}</p>
               </div>
               <div className="space-y-3">
-                {matches.map((m, i) => (
-                  <motion.div key={m.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.07 }} className="p-3.5 border rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${m.tagColor}`}>{m.tag}</span>
-                      <span className="text-[10px] font-semibold text-emerald-600">{m.match}% match</span>
-                    </div>
-                    <h4 className="font-medium text-xs mb-0.5">{m.label}</h4>
-                    <p className="text-[10px] text-muted-foreground mb-2.5">{m.sub}</p>
+                {matches.map(m => (
+                  <div key={m.productId} className="border rounded-2xl p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold">{m.rate} / yr</span>
-                      <button
-                        onClick={() => navigate(`/loan-prescreening?productId=${m.productId}`)}
-                        className="text-[10px] font-semibold text-primary hover:opacity-80 flex items-center gap-0.5 transition-opacity"
-                      >
-                        Check eligibility <ArrowUpRight className="w-3 h-3" />
-                      </button>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${m.tagColor}`}>{m.tag}</span>
+                      <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{t('dashboard.matchPct', { pct: m.match })}</span>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-              <button className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors pt-3 border-t">
-                <Plus className="w-3.5 h-3.5" /> See all matches
-              </button>
-            </motion.div>
-
-            {/* Verification */}
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }} className="bg-card border rounded-3xl p-5 shadow-sm">
-              <h3 className="font-semibold text-sm mb-4">Verification</h3>
-              <div className="space-y-3 text-sm">
-                {[
-                  { label: "Identity",           status: "Verified",    Icon: CheckCircle2, color: "text-emerald-600" },
-                  { label: "Data Sources",       status: "3 connected", Icon: CheckCircle2, color: "text-emerald-600" },
-                  { label: "Company Registry",   status: "Pending",     Icon: Clock,        color: "text-muted-foreground" },
-                ].map(v => (
-                  <div key={v.label} className="flex items-center justify-between">
-                    <span className="text-muted-foreground text-xs">{v.label}</span>
-                    <span className={`flex items-center gap-1.5 font-medium text-xs ${v.color}`}>
-                      <v.Icon className="w-3.5 h-3.5" />{v.status}
-                    </span>
+                    <p className="text-sm font-semibold leading-snug">{m.label}</p>
+                    <p className="text-xs text-muted-foreground">{m.sub}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-primary">{t('dashboard.rateLabel', { rate: m.rate })}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                        onClick={() => navigate(`/loan-prescreening?productId=${m.productId}`)}
+                      >
+                        {t('dashboard.checkEligibility')} <ArrowUpRight className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -598,7 +598,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Commitments sheet */}
       <CommitmentsSheet open={commitmentsOpen} onOpenChange={setCommitmentsOpen} />
     </div>
   );
