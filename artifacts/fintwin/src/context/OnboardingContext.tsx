@@ -3,7 +3,9 @@ import type { Commitment } from '@/lib/simulationEngine';
 
 export type { Commitment };
 
-export type BusinessSector = 
+export type BusinessType = 'LLC' | 'Sole Proprietorship' | 'Partnership' | 'Other';
+
+export type BusinessSector =
   | 'Retail & Trade'
   | 'Food & Hospitality'
   | 'Small Manufacturing'
@@ -16,16 +18,30 @@ export type BusinessSector =
 export type EnterpriseCategory = 'Micro Enterprise' | 'Small Enterprise' | 'Medium Enterprise';
 
 export interface OnboardingState {
+  // Auth
+  authMethod: 'sanad' | 'email' | null;
+
+  // Business Identity
+  businessType: BusinessType | '';
+  isOfficiallyRegistered: boolean | null;
+  registrationNumber: string;
+
+  // Auto-filled after verification
   businessName: string;
   businessSector: BusinessSector | '';
-  registrationNumber: string;
-  hasRegistrationNumber: boolean;
-  
+  verifiedLegalEntity: string;
+  verifiedRegistrationDate: string;
+
+  // Size & Scale
   employees: string;
   yearsInOperation: string;
   annualRevenue: string;
   category: EnterpriseCategory | null;
 
+  // Consent
+  consentGiven: boolean;
+
+  // Data Sources
   connectedSources: {
     jofotara: boolean;
     cliq: boolean;
@@ -47,28 +63,28 @@ interface OnboardingContextType {
 }
 
 const defaultCommitments: Commitment[] = [
-  { id: 'c1', category: 'rent',         label: 'Office / Shop Rent',         amountJOD: 800  },
+  { id: 'c1', category: 'rent',         label: 'Office / Shop Rent',          amountJOD: 800  },
   { id: 'c2', category: 'payroll',      label: 'Staff Salaries (4 employees)', amountJOD: 1600 },
-  { id: 'c3', category: 'utilities',    label: 'Electricity & Water',         amountJOD: 300  },
-  { id: 'c4', category: 'subscription', label: 'POS System & Software',       amountJOD: 100  },
-  { id: 'c5', category: 'insurance',    label: 'Business Insurance',          amountJOD: 100  },
+  { id: 'c3', category: 'utilities',    label: 'Electricity & Water',          amountJOD: 300  },
+  { id: 'c4', category: 'subscription', label: 'POS System & Software',        amountJOD: 100  },
+  { id: 'c5', category: 'insurance',    label: 'Business Insurance',           amountJOD: 100  },
 ];
 
 const initialState: OnboardingState = {
+  authMethod: null,
+  businessType: '',
+  isOfficiallyRegistered: null,
+  registrationNumber: '',
   businessName: '',
   businessSector: '',
-  registrationNumber: '',
-  hasRegistrationNumber: true,
+  verifiedLegalEntity: '',
+  verifiedRegistrationDate: '',
   employees: '',
   yearsInOperation: '',
   annualRevenue: '',
   category: null,
-  connectedSources: {
-    jofotara: false,
-    cliq: false,
-    pos: false,
-    receipts: false,
-  },
+  consentGiven: false,
+  connectedSources: { jofotara: false, cliq: false, pos: false, receipts: false },
   commitments: defaultCommitments,
 };
 
@@ -78,23 +94,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OnboardingState>(initialState);
   const [currentStep, setCurrentStep] = useState(1);
 
-  const updateState = (updates: Partial<OnboardingState>) => {
+  const updateState = (updates: Partial<OnboardingState>) =>
     setState(prev => ({ ...prev, ...updates }));
-  };
 
-  const resetState = () => {
-    setState(initialState);
-    setCurrentStep(1);
-  };
+  const resetState = () => { setState(initialState); setCurrentStep(1); };
 
   const addCommitment = (c: Omit<Commitment, 'id'>) => {
     const id = `c-${Date.now()}`;
     setState(prev => ({ ...prev, commitments: [...prev.commitments, { ...c, id }] }));
   };
 
-  const removeCommitment = (id: string) => {
+  const removeCommitment = (id: string) =>
     setState(prev => ({ ...prev, commitments: prev.commitments.filter(c => c.id !== id) }));
-  };
 
   return (
     <OnboardingContext.Provider value={{ state, updateState, resetState, currentStep, setCurrentStep, addCommitment, removeCommitment }}>
@@ -104,9 +115,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 }
 
 export function useOnboarding() {
-  const context = useContext(OnboardingContext);
-  if (context === undefined) {
-    throw new Error('useOnboarding must be used within an OnboardingProvider');
-  }
-  return context;
+  const ctx = useContext(OnboardingContext);
+  if (!ctx) throw new Error('useOnboarding must be used within an OnboardingProvider');
+  return ctx;
 }

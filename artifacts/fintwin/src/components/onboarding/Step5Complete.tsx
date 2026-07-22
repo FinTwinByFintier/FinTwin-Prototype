@@ -2,102 +2,104 @@ import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Lock, ArrowRight, Activity, Building, Briefcase } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { CheckCircle2, ArrowRight, BarChart3, Zap, Leaf } from "lucide-react";
+
+const HIGHLIGHTS = [
+  { icon: BarChart3, label: 'Explore financing opportunities matched to your profile' },
+  { icon: Zap, label: 'Simulate financial decisions before committing' },
+  { icon: Leaf, label: 'Discover green financing and tax incentives' },
+];
 
 export function Step5Complete() {
   const { state } = useOnboarding();
-  const { t } = useTranslation();
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
       className="max-w-2xl mx-auto text-center"
     >
-      <div className="mb-10">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
-          className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8"
-        >
-          <CheckCircle2 className="w-12 h-12 text-primary" />
-        </motion.div>
+      {/* Success icon */}
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
+        className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6"
+      >
+        <CheckCircle2 className="w-12 h-12 text-primary" />
+      </motion.div>
 
-        <h2 className="text-4xl font-bold mb-4">{t('onboarding.step5.heading')}</h2>
-        <p className="text-xl text-muted-foreground">{t('onboarding.step5.sub')}</p>
-      </div>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <h2 className="text-4xl font-bold mb-3">Financial Twin Created Successfully</h2>
+        <p className="text-lg text-muted-foreground mb-2">
+          Your financial profile has been prepared successfully.
+        </p>
+        <p className="text-muted-foreground mb-10 max-w-md mx-auto">
+          You can now explore financing opportunities, simulate financial decisions, and monitor your business health.
+        </p>
+      </motion.div>
 
-      <div className="bg-card border rounded-3xl p-8 shadow-sm text-start mb-10 relative overflow-hidden">
-        <div className="absolute top-0 end-0 p-8 opacity-5">
-          <Activity className="w-48 h-48" />
-        </div>
-
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-6">{t('onboarding.step5.profileSummary')}</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <Building className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('onboarding.step5.businessName')}</p>
-                <p className="font-semibold text-lg">{state.businessName || "Your Business"}</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <Briefcase className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('onboarding.step5.classification')}</p>
-                <p className="font-semibold text-lg">{state.category || "Micro Enterprise"}</p>
-                <p className="text-sm text-primary">{state.businessSector}</p>
-              </div>
-            </div>
+      {/* Summary card */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="bg-card border rounded-3xl p-6 mb-8 text-start"
+      >
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <span className="text-primary font-bold text-lg">
+              {state.businessName ? state.businessName[0] : 'F'}
+            </span>
           </div>
-
-          <div className="space-y-4">
-            <div className="bg-muted/50 rounded-2xl p-5 border relative overflow-hidden group">
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Lock className="w-5 h-5 mb-1" />
-                <span className="text-xs font-medium uppercase tracking-wider">{t('onboarding.step5.unlocks')}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-1">{t('onboarding.step5.creditReadiness')}</p>
-              <div className="flex items-end gap-2 blur-[4px]">
-                <span className="text-3xl font-bold">84</span>
-                <span className="text-sm text-muted-foreground mb-1">/ 100</span>
-              </div>
-            </div>
-
-            <div className="bg-muted/50 rounded-2xl p-5 border relative overflow-hidden group">
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Lock className="w-5 h-5 mb-1" />
-                <span className="text-xs font-medium uppercase tracking-wider">{t('onboarding.step5.unlocks')}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-1">{t('onboarding.step5.greenMatch')}</p>
-              <div className="flex items-end gap-2 blur-[4px]">
-                <span className="text-3xl font-bold">62%</span>
-                <span className="text-sm text-primary font-medium mb-1 ps-2">{t('onboarding.step5.eligible')}</span>
-              </div>
-            </div>
+          <div>
+            <p className="font-bold text-base">{state.businessName || 'Your Business'}</p>
+            <p className="text-sm text-muted-foreground">{state.businessSector || 'Business'} · {state.category || 'Micro Enterprise'}</p>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-col items-center space-y-6">
-        <Button size="lg" className="h-16 px-12 text-xl rounded-full shadow-lg w-full sm:w-auto" asChild>
-          <Link href="/dashboard" className="flex items-center">
-            {t('onboarding.step5.viewDashboard')} <ArrowRight className="ms-2 w-6 h-6 rtl:rotate-180" />
+        <div className="grid grid-cols-3 gap-3 text-center">
+          {(['jofotara', 'cliq', 'pos'] as const).map(key => (
+            <div key={key} className={`rounded-xl p-3 text-xs font-medium ${state.connectedSources[key] ? 'bg-emerald-500/10 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
+              {key === 'cliq' ? 'Bank' : key === 'jofotara' ? 'JoFotara' : 'POS'}
+              <br />
+              <span className="font-semibold">{state.connectedSources[key] ? '✓ Connected' : 'Not connected'}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* What's next */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"
+      >
+        {HIGHLIGHTS.map(({ icon: Icon, label }) => (
+          <div key={label} className="bg-muted/40 rounded-2xl p-4 flex flex-col items-center gap-2 text-sm text-center text-muted-foreground">
+            <Icon className="w-5 h-5 text-primary" />
+            {label}
+          </div>
+        ))}
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+        className="flex flex-col sm:flex-row items-center justify-center gap-3"
+      >
+        <Button size="lg" className="h-14 px-10 text-base rounded-full shadow-md w-full sm:w-auto" asChild>
+          <Link href="/dashboard">
+            Go to Dashboard <ArrowRight className="ms-2 w-5 h-5 rtl:rotate-180" />
           </Link>
         </Button>
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-block">
-          {t('onboarding.step5.exploreLater')}
-        </Link>
-      </div>
+        <Button size="lg" variant="outline" className="h-14 px-10 text-base rounded-full w-full sm:w-auto" asChild>
+          <Link href="/dashboard">View Profile</Link>
+        </Button>
+      </motion.div>
     </motion.div>
   );
 }

@@ -35,7 +35,7 @@ export default function GetStarted() {
 
           <p className="mt-6 text-sm text-muted-foreground">
             {t('getStarted.alreadyHaveProfile')}{" "}
-            <Link href="/dashboard" className="text-primary hover:underline font-medium">
+            <Link href="/sign-in" className="text-primary hover:underline font-medium">
               {t('getStarted.goToDashboard')}
             </Link>
           </p>
