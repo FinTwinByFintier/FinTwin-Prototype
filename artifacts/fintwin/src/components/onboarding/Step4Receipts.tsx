@@ -117,19 +117,19 @@ export function Step4Receipts() {
       </AnimatePresence>
 
       <div className="flex items-center justify-between pt-8 mt-8 border-t">
-        <Button variant="ghost" onClick={() => setCurrentStep(3)}>
+        <Button variant="ghost" onClick={() => setCurrentStep(6)}>
           <ArrowLeft className="me-2 w-4 h-4 rtl:rotate-180" /> {t('common.back')}
         </Button>
         <div className="flex items-center gap-3">
           {processingState === 'idle' && (
-            <Button variant="ghost" className="text-muted-foreground text-sm" onClick={() => setCurrentStep(5)}>
+            <Button variant="ghost" className="text-muted-foreground text-sm" onClick={() => setCurrentStep(8)}>
               {t('common.skip')}
             </Button>
           )}
           <Button
             size="lg"
             className="rounded-full px-8"
-            onClick={() => setCurrentStep(5)}
+            onClick={() => setCurrentStep(8)}
             disabled={processingState === 'processing'}
           >
             {processingState === 'done' ? t('common.continue') : t('onboarding.step4.skipContinue')} <ArrowRight className="ms-2 w-4 h-4 rtl:rotate-180" />

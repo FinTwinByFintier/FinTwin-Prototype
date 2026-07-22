@@ -12,46 +12,58 @@ import { Step5Complete } from "@/components/onboarding/Step5Complete";
 import { Navbar } from "@/components/layout/Navbar";
 import { CheckCircle2 } from "lucide-react";
 
-const STEPS = [
-  { num: 1, label: 'Auth' },
-  { num: 2, label: 'Identity' },
-  { num: 3, label: 'Verify' },
-  { num: 4, label: 'Scale' },
-  { num: 5, label: 'Classify' },
-  { num: 6, label: 'Connect' },
-  { num: 7, label: 'Docs' },
-  { num: 8, label: 'Consent' },
-  { num: 9, label: 'Done' },
+// Only these steps appear in the progress bar.
+// Internal steps 1 (Auth), 3 (Verify), 5 (Classify) are hidden from the bar.
+const VISIBLE_STEPS = [
+  { label: 'Identity',  internalStep: 2 },
+  { label: 'Scale',     internalStep: 4 },
+  { label: 'Connect',   internalStep: 6 },
+  { label: 'Docs',      internalStep: 7 },
+  { label: 'Consent',   internalStep: 8 },
+  { label: 'Complete',  internalStep: 9 },
 ];
 
-const OPTIONAL_STEPS = new Set([7]);
-const TOTAL = STEPS.length;
+const OPTIONAL_INTERNAL = new Set([7]);
+
+/** Map the current internal step number to a visible-step index (0-based). */
+function getVisibleIndex(internalStep: number): number {
+  if (internalStep <= 2) return 0; // Identity
+  if (internalStep <= 4) return 1; // Scale
+  if (internalStep <= 6) return 2; // Connect
+  if (internalStep === 7) return 3; // Docs
+  if (internalStep === 8) return 4; // Consent
+  return 5;                         // Complete
+}
 
 export default function Onboarding() {
   const { currentStep } = useOnboarding();
+
+  const visibleIdx = getVisibleIndex(currentStep);
+  const totalVisible = VISIBLE_STEPS.length;
+  const fillPct = (visibleIdx / (totalVisible - 1)) * 100;
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
       <Navbar />
 
       <main className="flex-grow flex flex-col py-10 px-4">
-        {/* Progress bar */}
-        <div className="max-w-4xl mx-auto w-full mb-10">
+        {/* Progress bar — 6 visible steps */}
+        <div className="max-w-3xl mx-auto w-full mb-10">
           <div className="flex items-center justify-between relative">
             {/* Track */}
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-muted -z-10 rounded-full" />
             {/* Fill */}
             <motion.div
               className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary -z-10 rounded-full"
-              animate={{ width: `${((currentStep - 1) / (TOTAL - 1)) * 100}%` }}
+              animate={{ width: `${fillPct}%` }}
               transition={{ duration: 0.4, ease: 'easeInOut' }}
             />
 
-            {STEPS.map((step) => {
-              const done = currentStep > step.num;
-              const active = currentStep === step.num;
+            {VISIBLE_STEPS.map((step, i) => {
+              const done   = visibleIdx > i;
+              const active = visibleIdx === i;
               return (
-                <div key={step.num} className="flex flex-col items-center gap-1.5">
+                <div key={step.label} className="flex flex-col items-center gap-1.5">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all duration-300 ${
                       done
@@ -61,19 +73,22 @@ export default function Onboarding() {
                         : 'bg-card border-muted text-muted-foreground'
                     }`}
                   >
-                    {done ? <CheckCircle2 className="w-4 h-4" /> : step.num}
+                    {done ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
                   </div>
                   <span className={`text-[10px] font-medium hidden sm:block ${active || done ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {step.label}
-                    {OPTIONAL_STEPS.has(step.num) && <span className="ms-0.5 text-primary opacity-70"> *</span>}
+                    {OPTIONAL_INTERNAL.has(step.internalStep) && (
+                      <span className="ms-0.5 text-primary opacity-70"> *</span>
+                    )}
                   </span>
                 </div>
               );
             })}
           </div>
+
           <p className="text-center text-xs text-muted-foreground mt-4">
-            Step {currentStep} of {TOTAL}
-            {OPTIONAL_STEPS.has(currentStep) && ' · Optional'}
+            Step {visibleIdx + 1} of {totalVisible}
+            {OPTIONAL_INTERNAL.has(currentStep) && ' · Optional'}
           </p>
         </div>
 
