@@ -57,8 +57,8 @@ export function StepAuth() {
                 <IdCard className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-sm">National ID Login</p>
-                <p className="text-xs text-muted-foreground">Use your Jordanian national identity credentials</p>
+                <p className="font-semibold text-sm">Sign in with Sanad</p>
+                <p className="text-xs text-muted-foreground">Use your Sanad national identity credentials</p>
               </div>
             </div>
 
