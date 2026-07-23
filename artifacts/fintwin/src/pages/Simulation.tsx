@@ -115,30 +115,43 @@ function ToggleRow({ label, sub, value, onChange, icon: Icon }: {
 }
 
 /* ── Projected cash flow mini-chart ─────────────────────────── */
+const CHART_H = 64; // px — must match h-16
+
 function MiniChart({ data, baseline }: {
   data: Array<{ month: string; income: number; expense: number }>;
   baseline: Array<{ month: string; income: number; expense: number }>;
 }) {
-  const maxIncome = Math.max(...data.map(d => d.income), ...baseline.map(d => d.income));
+  const maxVal = Math.max(
+    ...data.map(d => d.income), ...data.map(d => d.expense),
+    ...baseline.map(d => d.income), ...baseline.map(d => d.expense),
+    1, // prevent division by zero
+  );
   return (
-    <div className="flex items-end gap-2 h-20">
+    <div className="flex gap-2" style={{ height: CHART_H + 16 }}>
       {data.map((d, i) => (
         <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
-          <div className="w-full flex items-end gap-0.5 h-16">
-            <motion.div
-              key={`inc-${d.income}`}
-              initial={{ height: 0 }}
-              animate={{ height: `${(d.income / maxIncome) * 100}%` }}
-              transition={{ duration: 0.4, delay: i * 0.05 }}
-              className="flex-1 bg-primary rounded-t-md min-h-[3px]"
-            />
-            <motion.div
-              key={`exp-${d.expense}`}
-              initial={{ height: 0 }}
-              animate={{ height: `${(d.expense / maxIncome) * 100}%` }}
-              transition={{ duration: 0.4, delay: i * 0.05 + 0.03 }}
-              className="flex-1 bg-muted-foreground/30 rounded-t-md min-h-[3px]"
-            />
+          {/* bar area — fixed height, clipped, bars grow from bottom via absolute positioning */}
+          <div className="relative w-full overflow-hidden rounded-t-md flex gap-0.5" style={{ height: CHART_H }}>
+            {/* income bar */}
+            <div className="relative flex-1 h-full">
+              <motion.div
+                key={`inc-${d.income}`}
+                initial={{ height: 0 }}
+                animate={{ height: Math.max(3, Math.round((d.income / maxVal) * CHART_H)) }}
+                transition={{ duration: 0.4, delay: i * 0.05 }}
+                className="absolute bottom-0 left-0 right-0 bg-primary rounded-t-md"
+              />
+            </div>
+            {/* expense bar */}
+            <div className="relative flex-1 h-full">
+              <motion.div
+                key={`exp-${d.expense}`}
+                initial={{ height: 0 }}
+                animate={{ height: Math.max(3, Math.round((d.expense / maxVal) * CHART_H)) }}
+                transition={{ duration: 0.4, delay: i * 0.05 + 0.03 }}
+                className="absolute bottom-0 left-0 right-0 bg-muted-foreground/30 rounded-t-md"
+              />
+            </div>
           </div>
           <span className="text-[10px] text-muted-foreground">{d.month}</span>
         </div>
