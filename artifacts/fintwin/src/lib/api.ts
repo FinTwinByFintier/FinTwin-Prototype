@@ -238,6 +238,7 @@ export function fetchExtractedTransactions() {
 
 export type OpenBankingAccount = {
   account_id: string;
+  source?: string;
   iban: string;
   iban_masked: string;
   currency: string;
@@ -303,6 +304,30 @@ export function saveOpenBankingAccounts(accountIds: string[]) {
 export function fetchLinkedBankAccounts() {
   return apiFetch<{ accounts: OpenBankingAccount[] }>(
     "/api/v1/openbanking/accounts/linked/",
+  );
+}
+
+export type SourceConnectResponse = {
+  source: string;
+  jopacc_customer_id: string;
+  account: OpenBankingAccount;
+  profile: BusinessProfile;
+};
+
+export function connectJoFotaraSource() {
+  return apiFetch<SourceConnectResponse>(
+    "/api/v1/openbanking/sources/jofotara/connect/",
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+export function connectPosSource(posProvider?: string) {
+  return apiFetch<SourceConnectResponse>(
+    "/api/v1/openbanking/sources/pos/connect/",
+    {
+      method: "POST",
+      body: JSON.stringify({ pos_provider: posProvider || "" }),
+    },
   );
 }
 

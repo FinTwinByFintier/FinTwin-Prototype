@@ -14,8 +14,11 @@ import {
 import { Step4Receipts } from "@/components/onboarding/Step4Receipts";
 import {
   ApiError,
+  connectJoFotaraSource,
+  connectPosSource,
   fetchOpenBankingAccounts,
   saveOpenBankingAccounts,
+  type BusinessProfile,
   type OpenBankingAccount,
 } from "@/lib/api";
 
@@ -326,22 +329,57 @@ function OpenBankingDialog({
 }
 
 // ── JoFotara flow ──────────────────────────────────────────────────────────────
-function JoFotaraDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
-  const [phase, setPhase] = useState<'idle' | 'loading' | 'done'>('idle');
-  const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+function JoFotaraDialog({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (profile?: BusinessProfile) => void;
+}) {
+  const [phase, setPhase] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [error, setError] = useState("");
+  const [connectedProfile, setConnectedProfile] = useState<BusinessProfile | null>(null);
 
-  const handleAuth = () => { setPhase('loading'); setTimeout(() => setPhase('done'), 2200); };
-  const handleDone = () => { onSuccess(); onClose(); setPhase('idle'); };
+  const reset = () => {
+    setPhase("idle");
+    setError("");
+    setConnectedProfile(null);
+  };
+
+  const handleAuth = async () => {
+    setPhase("loading");
+    setError("");
+    try {
+      const result = await connectJoFotaraSource();
+      setConnectedProfile(result.profile);
+      setPhase("done");
+    } catch (err) {
+      setPhase("error");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Could not connect JoFotara. Try again.",
+      );
+    }
+  };
+
+  const handleDone = () => {
+    onSuccess(connectedProfile || undefined);
+    onClose();
+    reset();
+  };
 
   return (
-    <Dialog open={open} onOpenChange={() => { onClose(); setPhase('idle'); }}>
+    <Dialog open={open} onOpenChange={() => { onClose(); reset(); }}>
       <DialogContent className="max-w-sm rounded-3xl">
         <DialogHeader>
           <DialogTitle>Connect JoFotara</DialogTitle>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {phase === 'idle' && (
+          {phase === "idle" && (
             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Connecting JoFotara gives FinTwin read-only access to your electronic invoices, allowing us to
@@ -359,13 +397,13 @@ function JoFotaraDialog({ open, onClose, onSuccess }: { open: boolean; onClose: 
                   <p className="text-xs text-muted-foreground">Jordan's national digital identity</p>
                 </div>
               </div>
-              <Button className="w-full rounded-full gap-2" onClick={handleAuth}>
+              <Button className="w-full rounded-full gap-2" onClick={() => void handleAuth()}>
                 <ShieldCheck className="w-4 h-4" /> Connect JoFotara
               </Button>
             </motion.div>
           )}
 
-          {phase === 'loading' && (
+          {phase === "loading" && (
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="py-8 flex flex-col items-center gap-4 text-center"
             >
@@ -375,7 +413,14 @@ function JoFotaraDialog({ open, onClose, onSuccess }: { open: boolean; onClose: 
             </motion.div>
           )}
 
-          {phase === 'done' && (
+          {phase === "error" && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+              <p className="text-sm text-red-500">{error}</p>
+              <Button className="w-full rounded-full" onClick={() => void handleAuth()}>Try again</Button>
+            </motion.div>
+          )}
+
+          {phase === "done" && (
             <motion.div key="done" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="py-4 text-center space-y-4"
             >
@@ -385,7 +430,6 @@ function JoFotaraDialog({ open, onClose, onSuccess }: { open: boolean; onClose: 
               <div>
                 <p className="font-semibold text-lg">JoFotara Connected</p>
                 <p className="text-sm text-muted-foreground mt-1">124 invoices imported</p>
-                <p className="text-xs text-muted-foreground">Last synchronisation: Today at {now}</p>
               </div>
               <Button className="w-full rounded-full bg-emerald-600 hover:bg-emerald-700" onClick={handleDone}>Done</Button>
             </motion.div>
@@ -404,17 +448,52 @@ const POS_PROVIDERS = [
   { name: 'Other',                 hasApi: false },
 ];
 
-function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+function PosDialog({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (profile?: BusinessProfile) => void;
+}) {
   const [selectedProvider, setSelectedProvider] = useState<typeof POS_PROVIDERS[0] | null>(null);
-  const [phase, setPhase] = useState<'select' | 'manual' | 'loading' | 'done'>('select');
+  const [phase, setPhase] = useState<'select' | 'manual' | 'loading' | 'done' | 'error'>('select');
   const [mid, setMid] = useState('');
   const [tid, setTid] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [connectError, setConnectError] = useState('');
+  const [connectedProfile, setConnectedProfile] = useState<BusinessProfile | null>(null);
+
+  const reset = () => {
+    setSelectedProvider(null);
+    setPhase('select');
+    setMid('');
+    setTid('');
+    setErrors({});
+    setConnectError('');
+    setConnectedProfile(null);
+  };
+
+  const runConnect = async () => {
+    setPhase('loading');
+    setConnectError('');
+    try {
+      const result = await connectPosSource(selectedProvider?.name || '');
+      setConnectedProfile(result.profile);
+      setPhase('done');
+    } catch (err) {
+      setPhase('error');
+      setConnectError(
+        err instanceof ApiError ? err.message : 'Could not connect POS. Try again.',
+      );
+    }
+  };
 
   const handleProviderNext = () => {
     if (!selectedProvider) return;
-    if (selectedProvider.hasApi) { setPhase('loading'); setTimeout(() => setPhase('done'), 2500); }
-    else { setPhase('manual'); }
+    if (selectedProvider.hasApi) void runConnect();
+    else setPhase('manual');
   };
 
   const handleManualSubmit = () => {
@@ -422,12 +501,14 @@ function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () =>
     if (!mid.trim()) errs.mid = 'Merchant ID is required';
     if (!tid.trim()) errs.tid = 'Terminal ID is required';
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    setPhase('loading');
-    setTimeout(() => setPhase('done'), 1500);
+    void runConnect();
   };
 
-  const handleDone = () => { onSuccess(); onClose(); reset(); };
-  const reset = () => { setSelectedProvider(null); setPhase('select'); setMid(''); setTid(''); setErrors({}); };
+  const handleDone = () => {
+    onSuccess(connectedProfile || undefined);
+    onClose();
+    reset();
+  };
 
   return (
     <Dialog open={open} onOpenChange={() => { onClose(); reset(); }}>
@@ -500,6 +581,13 @@ function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () =>
             </motion.div>
           )}
 
+          {phase === 'error' && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+              <p className="text-sm text-red-500">{connectError}</p>
+              <Button className="w-full rounded-full" onClick={() => void runConnect()}>Try again</Button>
+            </motion.div>
+          )}
+
           {phase === 'done' && (
             <motion.div key="done" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="py-4 text-center space-y-4"
@@ -523,7 +611,7 @@ function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () =>
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function Step3Data() {
-  const { state, updateState, setCurrentStep, persistProfile } = useOnboarding();
+  const { state, updateState, setCurrentStep, persistProfile, hydrateFromProfile } = useOnboarding();
   const [activeModal, setActiveModal] = useState<SourceKey | null>(null);
   const [linkedAccountCount, setLinkedAccountCount] = useState(0);
 
@@ -566,8 +654,13 @@ export function Step3Data() {
 
   const handleSuccess = (
     id: Exclude<SourceKey, 'receipts'>,
-    opts?: { iban?: string; count?: number },
+    opts?: { iban?: string; count?: number; profile?: BusinessProfile },
   ) => {
+    if (opts?.profile) {
+      hydrateFromProfile(opts.profile);
+      if (id === 'cliq' && opts?.count != null) setLinkedAccountCount(opts.count);
+      return;
+    }
     const nextSources = { ...state.connectedSources, [id]: true };
     const nowIso = new Date().toISOString();
     updateState({
@@ -576,14 +669,13 @@ export function Step3Data() {
       ...(id === 'cliq' && opts?.iban ? { iban: opts.iban } : {}),
     });
     if (id === 'cliq' && opts?.count != null) setLinkedAccountCount(opts.count);
-    // Only patch the source that just connected (avoids rewriting other sync times).
-    void persistProfile({
-      ...(id === 'cliq'
-        ? { connected_cliq: true, ...(opts?.iban ? { iban: opts.iban } : {}) }
-        : id === 'jofotara'
-          ? { connected_jofotara: true }
-          : { connected_pos: true }),
-    });
+    // Open Banking already persisted via select API; only patch when needed.
+    if (id === 'cliq') {
+      void persistProfile({
+        connected_cliq: true,
+        ...(opts?.iban ? { iban: opts.iban } : {}),
+      });
+    }
   };
 
   const connectedCount = (['jofotara', 'cliq', 'pos', 'receipts'] as SourceKey[]).filter(
@@ -713,12 +805,12 @@ export function Step3Data() {
       <JoFotaraDialog
         open={activeModal === 'jofotara'}
         onClose={() => setActiveModal(null)}
-        onSuccess={() => handleSuccess('jofotara')}
+        onSuccess={(profile) => handleSuccess('jofotara', { profile })}
       />
       <PosDialog
         open={activeModal === 'pos'}
         onClose={() => setActiveModal(null)}
-        onSuccess={() => handleSuccess('pos')}
+        onSuccess={(profile) => handleSuccess('pos', { profile })}
       />
       <Dialog open={activeModal === 'receipts'} onOpenChange={() => setActiveModal(null)}>
         <DialogContent className="!max-w-[min(98vw,92rem)] !w-[min(98vw,92rem)] rounded-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
