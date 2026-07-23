@@ -115,6 +115,7 @@ async function apiFetch<T>(
 export function register(nationalId: string, password: string) {
   // Drop any stale token — DRF rejects AllowAny routes if Authorization is invalid.
   setToken(null);
+  clearOpenBankingAccountsCache();
   return apiFetch<AuthResponse>("/api/v1/auth/register/", {
     method: "POST",
     body: JSON.stringify({ national_id: nationalId, password }),
@@ -124,6 +125,7 @@ export function register(nationalId: string, password: string) {
 
 export function login(nationalId: string, password: string) {
   setToken(null);
+  clearOpenBankingAccountsCache();
   return apiFetch<AuthResponse>("/api/v1/auth/login/", {
     method: "POST",
     body: JSON.stringify({ national_id: nationalId, password }),
@@ -249,13 +251,32 @@ export type OpenBankingAccount = {
   locked_for_debit?: boolean;
 };
 
-export function fetchOpenBankingAccounts() {
-  return apiFetch<{
-    status: "ok" | "error";
-    message?: string | null;
-    accounts: OpenBankingAccount[];
-    selected_account_ids: string[];
-  }>("/api/v1/openbanking/accounts/");
+export type OpenBankingAccountsResponse = {
+  status: "ok" | "error";
+  message?: string | null;
+  accounts: OpenBankingAccount[];
+  selected_account_ids: string[];
+  jopacc_customer_id?: string | null;
+  cached?: boolean;
+};
+
+let openBankingAccountsCache: OpenBankingAccountsResponse | null = null;
+
+export function clearOpenBankingAccountsCache() {
+  openBankingAccountsCache = null;
+}
+
+export function fetchOpenBankingAccounts(opts?: { refresh?: boolean }) {
+  if (!opts?.refresh && openBankingAccountsCache?.status === "ok") {
+    return Promise.resolve(openBankingAccountsCache);
+  }
+  const q = opts?.refresh ? "?refresh=1" : "";
+  return apiFetch<OpenBankingAccountsResponse>(
+    `/api/v1/openbanking/accounts/${q}`,
+  ).then((result) => {
+    if (result.status === "ok") openBankingAccountsCache = result;
+    return result;
+  });
 }
 
 export function saveOpenBankingAccounts(accountIds: string[]) {
@@ -265,7 +286,15 @@ export function saveOpenBankingAccounts(accountIds: string[]) {
       method: "POST",
       body: JSON.stringify({ account_ids: accountIds }),
     },
-  );
+  ).then((result) => {
+    if (openBankingAccountsCache?.status === "ok") {
+      openBankingAccountsCache = {
+        ...openBankingAccountsCache,
+        selected_account_ids: accountIds,
+      };
+    }
+    return result;
+  });
 }
 
 export function fetchLinkedBankAccounts() {

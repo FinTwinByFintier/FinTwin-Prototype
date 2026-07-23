@@ -39,35 +39,47 @@ function OpenBankingDialog({
   const [error, setError] = useState("");
   const [savedCount, setSavedCount] = useState(0);
   const [primaryIban, setPrimaryIban] = useState("");
+  const [fromCache, setFromCache] = useState(false);
+
+  const loadAccounts = async (refresh = false) => {
+    setPhase("loading");
+    setError("");
+    try {
+      const result = await fetchOpenBankingAccounts({ refresh });
+      if (result.status !== "ok") {
+        setError(result.message || "Could not load bank accounts");
+        setPhase("error");
+        return;
+      }
+      setAccounts(result.accounts || []);
+      setSelected(new Set(result.selected_account_ids || []));
+      setFromCache(Boolean(result.cached) && !refresh);
+      setPhase("select");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Could not load bank accounts",
+      );
+      setPhase("error");
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setPhase("loading");
-    setError("");
     void (async () => {
-      try {
-        const result = await fetchOpenBankingAccounts();
-        if (cancelled) return;
-        if (result.status !== "ok") {
-          setError(result.message || "Could not load bank accounts");
-          setPhase("error");
-          return;
-        }
-        setAccounts(result.accounts || []);
-        setSelected(new Set(result.selected_account_ids || []));
+      // Instant reopen: use in-memory list if we already loaded this session.
+      if (accounts.length && !cancelled) {
         setPhase("select");
-      } catch (err) {
-        if (cancelled) return;
-        setError(
-          err instanceof ApiError ? err.message : "Could not load bank accounts",
-        );
-        setPhase("error");
+        setError("");
+        return;
       }
+      await loadAccounts(false);
+      if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const toggle = (accountId: string) => {
@@ -153,10 +165,25 @@ function OpenBankingDialog({
               exit={{ opacity: 0 }}
               className="space-y-4"
             >
-              <p className="text-sm text-muted-foreground">
-                Select the account(s) that belong to your MSME. We save their account IDs
-                for your Financial Twin.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Select the account(s) that belong to your MSME. We save their account IDs
+                  for your Financial Twin.
+                </p>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline shrink-0 pt-0.5"
+                  disabled={phase === "saving"}
+                  onClick={() => void loadAccounts(true)}
+                >
+                  Refresh
+                </button>
+              </div>
+              {fromCache && (
+                <p className="text-[11px] text-muted-foreground -mt-2">
+                  Showing cached accounts · Refresh to call the bank again
+                </p>
+              )}
 
               {!accounts.length ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">
