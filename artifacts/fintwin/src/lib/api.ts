@@ -81,17 +81,20 @@ export class ApiError extends Error {
 
 async function apiFetch<T>(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit & { skipAuth?: boolean } = {},
 ): Promise<T> {
-  const headers = new Headers(options.headers || {});
-  headers.set("Content-Type", "application/json");
+  const { skipAuth, ...fetchOptions } = options;
+  const headers = new Headers(fetchOptions.headers || {});
+  if (!headers.has("Content-Type") && !(fetchOptions.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   headers.set("ngrok-skip-browser-warning", "true");
 
   const token = getToken();
-  if (token) headers.set("Authorization", `Token ${token}`);
+  if (token && !skipAuth) headers.set("Authorization", `Token ${token}`);
 
   const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
+    ...fetchOptions,
     headers,
   });
 
@@ -110,16 +113,21 @@ async function apiFetch<T>(
 }
 
 export function register(nationalId: string, password: string) {
+  // Drop any stale token — DRF rejects AllowAny routes if Authorization is invalid.
+  setToken(null);
   return apiFetch<AuthResponse>("/api/v1/auth/register/", {
     method: "POST",
     body: JSON.stringify({ national_id: nationalId, password }),
+    skipAuth: true,
   });
 }
 
 export function login(nationalId: string, password: string) {
+  setToken(null);
   return apiFetch<AuthResponse>("/api/v1/auth/login/", {
     method: "POST",
     body: JSON.stringify({ national_id: nationalId, password }),
+    skipAuth: true,
   });
 }
 
