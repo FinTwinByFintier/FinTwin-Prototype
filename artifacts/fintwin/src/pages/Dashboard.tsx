@@ -141,9 +141,16 @@ export default function Dashboard() {
                         <p className="text-xs text-muted-foreground">{t('nav.freePlan')}</p>
                       </div>
                       <Link
+                        href="/profile"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-3 text-sm hover:bg-muted/50 transition-colors w-full"
+                      >
+                        <Circle className="w-4 h-4" /> My Profile
+                      </Link>
+                      <Link
                         href="/"
                         onClick={() => { resetState(); setMenuOpen(false); }}
-                        className="flex items-center gap-2.5 px-4 py-3 text-sm text-destructive hover:bg-destructive/5 transition-colors w-full"
+                        className="flex items-center gap-2.5 px-4 py-3 text-sm text-destructive hover:bg-destructive/5 transition-colors w-full border-t"
                       >
                         <LogOut className="w-4 h-4" /> {t('nav.signOut')}
                       </Link>

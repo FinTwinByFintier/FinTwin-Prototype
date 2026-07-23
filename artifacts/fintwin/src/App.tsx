@@ -9,6 +9,7 @@ import Dashboard from '@/pages/Dashboard';
 import Simulation from '@/pages/Simulation';
 import LoanPrescreening from '@/pages/LoanPrescreening';
 import Login from '@/pages/Login';
+import Profile from '@/pages/Profile';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { SimulationProvider } from '@/context/SimulationContext';
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/simulation" component={Simulation} />
       <Route path="/loan-prescreening" component={LoanPrescreening} />
       <Route path="/login" component={Login} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -4,7 +4,7 @@ import { useOnboarding, EnterpriseCategory } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock } from "lucide-react";
 
 function formatRevenue(raw: string): string {
   const digits = raw.replace(/[^\d]/g, '');
@@ -12,28 +12,33 @@ function formatRevenue(raw: string): string {
   return parseInt(digits, 10).toLocaleString('en-US');
 }
 
+/** Parse a YYYY-MM-DD date string and return how many years ago it was. */
+function yearsFromDate(dateStr: string): number {
+  const year = parseInt(dateStr.slice(0, 4));
+  return new Date().getFullYear() - year;
+}
+
 export function Step2Size() {
   const { state, updateState, setCurrentStep } = useOnboarding();
 
+  // If the business is registered, years are auto-calculated and read-only
+  const autoYears = state.isOfficiallyRegistered && state.verifiedRegistrationDate
+    ? String(yearsFromDate(state.verifiedRegistrationDate))
+    : null;
+
   const [employees, setEmployees] = useState(state.employees || '');
-  const [years, setYears] = useState(state.yearsInOperation || '');
+  const [manualYears, setManualYears] = useState(state.yearsInOperation || '');
   const [revenueDisplay, setRevenueDisplay] = useState(() =>
     state.annualRevenue ? parseInt(state.annualRevenue).toLocaleString('en-US') : ''
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const effectiveYears = autoYears ?? manualYears;
+
   const handleEmployees = (val: string) => {
     const digits = val.replace(/[^\d]/g, '');
     setEmployees(digits);
-    updateState({ employees: digits });
     if (errors.employees) setErrors(p => ({ ...p, employees: '' }));
-  };
-
-  const handleYears = (val: string) => {
-    const digits = val.replace(/[^\d]/g, '');
-    setYears(digits);
-    updateState({ yearsInOperation: digits });
-    if (errors.years) setErrors(p => ({ ...p, years: '' }));
   };
 
   const handleRevenue = (raw: string) => {
@@ -54,12 +59,16 @@ export function Step2Size() {
   const handleNext = () => {
     const errs: Record<string, string> = {};
     if (!employees.trim()) errs.employees = 'Required';
-    if (!years.trim())     errs.years     = 'Required';
+    if (!autoYears && !manualYears.trim()) errs.years = 'Required';
     if (!state.annualRevenue) errs.revenue = 'Please enter annual revenue';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     const category = determineCategory();
-    updateState({ category, employees, yearsInOperation: years });
+    updateState({
+      category,
+      employees,
+      yearsInOperation: effectiveYears,
+    });
     setCurrentStep(5);
   };
 
@@ -98,20 +107,31 @@ export function Step2Size() {
         {/* Years in operation */}
         <div className="space-y-2">
           <Label className="font-medium">
-            Years in Operation <span className="text-destructive">*</span>
+            Years in Operation {!autoYears && <span className="text-destructive">*</span>}
           </Label>
-          <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 5"
-            value={years}
-            onChange={e => handleYears(e.target.value)}
-            className={`h-12 text-base ${errors.years ? 'border-destructive' : ''}`}
-          />
-          {errors.years
-            ? <p className="text-destructive text-xs">{errors.years}</p>
-            : <p className="text-xs text-muted-foreground">How many years has the business been running?</p>
-          }
+          {autoYears ? (
+            // Read-only auto-calculated field for registered businesses
+            <div className="flex items-center gap-3 h-12 px-4 rounded-xl border border-border bg-muted/40">
+              <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-base font-medium">{autoYears}</span>
+              <span className="text-xs text-muted-foreground ms-auto">Auto-calculated from registration date</span>
+            </div>
+          ) : (
+            <>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 5"
+                value={manualYears}
+                onChange={e => { setManualYears(e.target.value.replace(/[^\d]/g, '')); setErrors(p => ({ ...p, years: '' })); }}
+                className={`h-12 text-base ${errors.years ? 'border-destructive' : ''}`}
+              />
+              {errors.years
+                ? <p className="text-destructive text-xs">{errors.years}</p>
+                : <p className="text-xs text-muted-foreground">How many years has the business been running?</p>
+              }
+            </>
+          )}
         </div>
 
         {/* Annual revenue */}
@@ -142,7 +162,7 @@ export function Step2Size() {
       </div>
 
       <div className="flex justify-between mt-6">
-        <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(3)}>
+        <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(2)}>
           <ArrowLeft className="me-2 w-4 h-4" /> Back
         </Button>
         <Button className="rounded-full px-8" onClick={handleNext}>

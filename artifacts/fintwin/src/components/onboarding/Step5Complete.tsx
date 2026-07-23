@@ -6,8 +6,8 @@ import { CheckCircle2, ArrowRight, BarChart3, Zap, Leaf } from "lucide-react";
 
 const HIGHLIGHTS = [
   { icon: BarChart3, label: 'Explore financing opportunities matched to your profile' },
-  { icon: Zap, label: 'Simulate financial decisions before committing' },
-  { icon: Leaf, label: 'Discover green financing and tax incentives' },
+  { icon: Zap,       label: 'Simulate financial decisions before committing' },
+  { icon: Leaf,      label: 'Discover green financing and tax incentives' },
 ];
 
 export function Step5Complete() {
@@ -32,9 +32,7 @@ export function Step5Complete() {
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <h2 className="text-4xl font-bold mb-3">Financial Twin Created Successfully</h2>
-        <p className="text-lg text-muted-foreground mb-2">
-          Your financial profile has been prepared successfully.
-        </p>
+        <p className="text-lg text-muted-foreground mb-2">Your financial profile has been prepared successfully.</p>
         <p className="text-muted-foreground mb-10 max-w-md mx-auto">
           You can now explore financing opportunities, simulate financial decisions, and monitor your business health.
         </p>
@@ -55,13 +53,20 @@ export function Step5Complete() {
           </div>
           <div>
             <p className="font-bold text-base">{state.businessName || 'Your Business'}</p>
-            <p className="text-sm text-muted-foreground">{state.businessSector || 'Business'} · {state.category || 'Micro Enterprise'}</p>
+            <p className="text-sm text-muted-foreground">
+              {state.businessSector || 'Business'} · {state.category || 'Micro Enterprise'}
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 text-center">
-          {(['jofotara', 'cliq', 'pos'] as const).map(key => (
-            <div key={key} className={`rounded-xl p-3 text-xs font-medium ${state.connectedSources[key] ? 'bg-emerald-500/10 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
+          {(['cliq', 'jofotara', 'pos'] as const).map(key => (
+            <div
+              key={key}
+              className={`rounded-xl p-3 text-xs font-medium ${
+                state.connectedSources[key] ? 'bg-emerald-500/10 text-emerald-700' : 'bg-muted text-muted-foreground'
+              }`}
+            >
               {key === 'cliq' ? 'Bank' : key === 'jofotara' ? 'JoFotara' : 'POS'}
               <br />
               <span className="font-semibold">{state.connectedSources[key] ? '✓ Connected' : 'Not connected'}</span>
@@ -96,8 +101,9 @@ export function Step5Complete() {
             Go to Dashboard <ArrowRight className="ms-2 w-5 h-5 rtl:rotate-180" />
           </Link>
         </Button>
+        {/* "View Profile" navigates to the profile details page */}
         <Button size="lg" variant="outline" className="h-14 px-10 text-base rounded-full w-full sm:w-auto" asChild>
-          <Link href="/dashboard">View Profile</Link>
+          <Link href="/profile">View Profile</Link>
         </Button>
       </motion.div>
     </motion.div>

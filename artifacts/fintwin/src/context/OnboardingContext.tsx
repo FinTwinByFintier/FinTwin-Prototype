@@ -26,17 +26,23 @@ export interface OnboardingState {
   isOfficiallyRegistered: boolean | null;
   registrationNumber: string;
 
-  // Auto-filled after verification
+  // Auto-filled after verification (or manually entered for unregistered)
   businessName: string;
   businessSector: BusinessSector | '';
   verifiedLegalEntity: string;
-  verifiedRegistrationDate: string;
+  verifiedRegistrationDate: string; // "YYYY-MM-DD" for registered, empty for unregistered
 
   // Size & Scale
   employees: string;
-  yearsInOperation: string;
+  yearsInOperation: string;  // auto-calculated for registered businesses
   annualRevenue: string;
   category: EnterpriseCategory | null;
+
+  // Banking
+  iban: string;
+
+  // Contact
+  contactPhone: string;
 
   // Consent
   consentGiven: boolean;
@@ -83,6 +89,8 @@ const initialState: OnboardingState = {
   yearsInOperation: '',
   annualRevenue: '',
   category: null,
+  iban: '',
+  contactPhone: '',
   consentGiven: false,
   connectedSources: { jofotara: false, cliq: false, pos: false, receipts: false },
   commitments: defaultCommitments,
