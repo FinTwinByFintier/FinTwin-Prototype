@@ -36,7 +36,7 @@ function getVisibleIndex(s: number): number {
 }
 
 export default function Onboarding() {
-  const { currentStep, resumeAtStep } = useOnboarding();
+  const { currentStep, resumeAtStep, hydrateFromProfile } = useOnboarding();
   const [, setLocation] = useLocation();
 
   // Resume from backend if the user returns mid-flow (refresh / later visit).
@@ -46,6 +46,7 @@ export default function Onboarding() {
     fetchMe()
       .then((me) => {
         if (cancelled) return;
+        hydrateFromProfile(me.profile);
         if (routeFromNextStep(me.next_step) === "/dashboard") {
           setLocation("/dashboard");
           return;
@@ -58,7 +59,7 @@ export default function Onboarding() {
     return () => {
       cancelled = true;
     };
-  }, [resumeAtStep, setLocation]);
+  }, [resumeAtStep, setLocation, hydrateFromProfile]);
 
   const visibleIdx   = getVisibleIndex(currentStep);
   const totalVisible = VISIBLE_STEPS.length;

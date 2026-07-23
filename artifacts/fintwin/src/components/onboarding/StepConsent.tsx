@@ -56,12 +56,13 @@ function DocModal({
 }
 
 export function StepConsent() {
-  const { updateState, setCurrentStep } = useOnboarding();
+  const { updateState, setCurrentStep, persistProfile } = useOnboarding();
   const [termsChecked, setTermsChecked] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
   const handleAgree = () => {
     updateState({ consentGiven: true });
+    void persistProfile({ consent_given: true });
     setCurrentStep(8);
   };
 

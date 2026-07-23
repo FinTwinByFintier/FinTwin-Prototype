@@ -24,7 +24,7 @@ function sleep(ms: number) {
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { updateState, resumeAtStep } = useOnboarding();
+  const { updateState, resumeAtStep, hydrateFromProfile } = useOnboarding();
 
   const [phase, setPhase] = useState<Phase>("form");
   const [stepIdx, setStepIdx] = useState(0);
@@ -57,6 +57,7 @@ export default function Login() {
       const data = await login(nationalId, password);
       setToken(data.token);
       updateState({ authMethod: "sanad", nationalId });
+      hydrateFromProfile(data.profile);
 
       const remaining = Math.max(0, ANIMATION_MS - (Date.now() - started));
       await sleep(remaining);

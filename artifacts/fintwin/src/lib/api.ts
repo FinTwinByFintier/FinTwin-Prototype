@@ -17,6 +17,32 @@ export function setToken(token: string | null): void {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+export type BusinessProfilePayload = {
+  is_officially_registered?: boolean | null;
+  registration_number?: string;
+  business_name?: string;
+  business_type?: string;
+  business_sector?: string;
+  verified_legal_entity?: string;
+  verified_registration_date?: string;
+  employees?: string | number | null;
+  years_in_operation?: string | number | null;
+  annual_revenue_jod?: string | number | null;
+  category?: string;
+  iban?: string;
+  contact_phone?: string;
+  connected_cliq?: boolean;
+  connected_jofotara?: boolean;
+  connected_pos?: boolean;
+  pos_provider?: string;
+  consent_given?: boolean;
+};
+
+export type BusinessProfile = BusinessProfilePayload & {
+  consent_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type AuthResponse = {
   token: string;
   next_step: number;
@@ -27,11 +53,18 @@ export type AuthResponse = {
     next_step: number;
     date_joined: string;
   };
+  profile?: BusinessProfile;
 };
 
 export type MeResponse = {
   next_step: number;
   user: AuthResponse["user"];
+  profile?: BusinessProfile;
+};
+
+export type ProfileResponse = {
+  next_step: number;
+  profile: BusinessProfile;
 };
 
 export class ApiError extends Error {
@@ -97,6 +130,17 @@ export function saveOnboardingStep(step: number) {
   return apiFetch<MeResponse>("/api/v1/auth/onboarding/", {
     method: "PATCH",
     body: JSON.stringify({ step }),
+  });
+}
+
+export function fetchBusinessProfile() {
+  return apiFetch<ProfileResponse>("/api/v1/onboarding/profile/");
+}
+
+export function saveBusinessProfile(payload: BusinessProfilePayload) {
+  return apiFetch<ProfileResponse>("/api/v1/onboarding/profile/", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 

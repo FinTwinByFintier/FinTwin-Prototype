@@ -18,7 +18,7 @@ function sleep(ms: number) {
 }
 
 export function StepAuth() {
-  const { updateState, setCurrentStep } = useOnboarding();
+  const { updateState, setCurrentStep, hydrateFromProfile } = useOnboarding();
   const [view, setView] = useState<"form" | "loading">("form");
   const [stepIdx, setStepIdx] = useState(0);
   const [nationalId, setNationalId] = useState("");
@@ -52,6 +52,7 @@ export function StepAuth() {
       const data = await register(nationalId, password);
       setToken(data.token);
       updateState({ authMethod: "sanad", nationalId });
+      hydrateFromProfile(data.profile);
 
       const remaining = Math.max(0, ANIMATION_MS - (Date.now() - started));
       await sleep(remaining);

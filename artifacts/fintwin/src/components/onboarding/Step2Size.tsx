@@ -19,7 +19,7 @@ function yearsFromDate(dateStr: string): number {
 }
 
 export function Step2Size() {
-  const { state, updateState, setCurrentStep } = useOnboarding();
+  const { state, updateState, setCurrentStep, persistProfile } = useOnboarding();
 
   // If the business is registered, years are auto-calculated and read-only
   const autoYears = state.isOfficiallyRegistered && state.verifiedRegistrationDate
@@ -68,6 +68,12 @@ export function Step2Size() {
       category,
       employees,
       yearsInOperation: effectiveYears,
+    });
+    void persistProfile({
+      employees,
+      years_in_operation: effectiveYears,
+      annual_revenue_jod: state.annualRevenue,
+      category,
     });
     setCurrentStep(5);
   };

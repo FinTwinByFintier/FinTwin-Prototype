@@ -46,7 +46,7 @@ function calcYears(dateStr: string): number {
 type Phase = 'question' | 'registered-input' | 'registered-lookup' | 'registered-confirm' | 'unregistered-form';
 
 export function Step1Identity() {
-  const { state, updateState, setCurrentStep } = useOnboarding();
+  const { state, updateState, setCurrentStep, persistProfile } = useOnboarding();
 
   const [phase, setPhase] = useState<Phase>('question');
   const [regNumber, setRegNumber] = useState(state.registrationNumber || '');
@@ -95,11 +95,23 @@ export function Step1Identity() {
 
   const handleRegisteredContinue = () => {
     // Save any edits the user made
+    const payload = {
+      is_officially_registered: true as const,
+      registration_number: regNumber.trim() || state.registrationNumber,
+      business_name: editName,
+      business_type: editType as BusinessType,
+      business_sector: editSector as BusinessSector,
+      verified_registration_date: lookedUp?.registrationDate || state.verifiedRegistrationDate,
+      years_in_operation: lookedUp
+        ? String(calcYears(lookedUp.registrationDate))
+        : state.yearsInOperation,
+    };
     updateState({
       businessName: editName,
       businessType: editType as BusinessType,
       businessSector: editSector as BusinessSector,
     });
+    void persistProfile(payload);
     setCurrentStep(4); // Skip verification step — already done inline
   };
 
@@ -112,6 +124,16 @@ export function Step1Identity() {
     if (!manualYears.trim())  errs.years  = 'Years in operation is required';
     if (Object.keys(errs).length) { setManualErrors(errs); return; }
 
+    const payload = {
+      is_officially_registered: false as const,
+      business_name: manualName,
+      business_type: manualType as BusinessType,
+      business_sector: manualSector as BusinessSector,
+      years_in_operation: manualYears,
+      registration_number: '',
+      verified_registration_date: '',
+      verified_legal_entity: '',
+    };
     updateState({
       isOfficiallyRegistered: false,
       businessName: manualName,
@@ -121,6 +143,7 @@ export function Step1Identity() {
       registrationNumber: '',
       verifiedRegistrationDate: '',
     });
+    void persistProfile(payload);
     setCurrentStep(4); // Skip verification step
   };
 

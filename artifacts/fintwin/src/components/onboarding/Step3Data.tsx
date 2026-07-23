@@ -344,7 +344,7 @@ function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () =>
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function Step3Data() {
-  const { state, updateState, setCurrentStep } = useOnboarding();
+  const { state, updateState, setCurrentStep, persistProfile } = useOnboarding();
   const [activeModal, setActiveModal] = useState<SourceKey | null>(null);
 
   const sources = [
@@ -375,11 +375,30 @@ export function Step3Data() {
   ];
 
   const handleSuccess = (id: SourceKey, iban?: string) => {
-    updateState({ connectedSources: { ...state.connectedSources, [id]: true } });
-    if (id === 'cliq' && iban) updateState({ iban });
+    const nextSources = { ...state.connectedSources, [id]: true };
+    updateState({
+      connectedSources: nextSources,
+      ...(id === 'cliq' && iban ? { iban } : {}),
+    });
+    void persistProfile({
+      connected_cliq: nextSources.cliq,
+      connected_jofotara: nextSources.jofotara,
+      connected_pos: nextSources.pos,
+      ...(id === 'cliq' && iban ? { iban } : {}),
+    });
   };
 
   const connectedCount = (['jofotara', 'cliq', 'pos'] as SourceKey[]).filter(k => state.connectedSources[k]).length;
+
+  const handleContinue = () => {
+    void persistProfile({
+      connected_cliq: state.connectedSources.cliq,
+      connected_jofotara: state.connectedSources.jofotara,
+      connected_pos: state.connectedSources.pos,
+      iban: state.iban,
+    });
+    setCurrentStep(7);
+  };
 
   return (
     <motion.div
@@ -451,7 +470,7 @@ export function Step3Data() {
         <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(5)}>
           <ArrowLeft className="me-2 w-4 h-4" /> Back
         </Button>
-        <Button className="rounded-full px-8" onClick={() => setCurrentStep(7)}>
+        <Button className="rounded-full px-8" onClick={handleContinue}>
           {connectedCount === 0 ? 'Skip for now' : 'Continue'}
           <ArrowRight className="ms-2 w-4 h-4" />
         </Button>
