@@ -10,9 +10,16 @@ const AUTH_STEPS = [
   "Preparing onboarding…",
 ];
 
+const ANIMATION_MS = 4000;
+const STEP_INTERVAL_MS = Math.floor(ANIMATION_MS / AUTH_STEPS.length);
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function StepAuth() {
   const { updateState, setCurrentStep } = useOnboarding();
-  const [view, setView] = useState<"form" | "loading" | "done">("form");
+  const [view, setView] = useState<"form" | "loading">("form");
   const [stepIdx, setStepIdx] = useState(0);
   const [nationalId, setNationalId] = useState("");
   const [password, setPassword] = useState("");
@@ -35,26 +42,30 @@ export function StepAuth() {
     setSubmitting(true);
     setView("loading");
     setStepIdx(0);
+    const started = Date.now();
+
+    const anim = window.setInterval(() => {
+      setStepIdx((i) => Math.min(i + 1, AUTH_STEPS.length));
+    }, STEP_INTERVAL_MS);
 
     try {
-      const anim = window.setInterval(() => {
-        setStepIdx((i) => Math.min(i + 1, AUTH_STEPS.length - 1));
-      }, 700);
-
       const data = await register(nationalId, password);
-      window.clearInterval(anim);
       setToken(data.token);
       updateState({ authMethod: "sanad", nationalId });
-      setStepIdx(AUTH_STEPS.length - 1);
-      setView("done");
-      window.setTimeout(() => setCurrentStep(data.next_step || 2), 900);
+
+      const remaining = Math.max(0, ANIMATION_MS - (Date.now() - started));
+      await sleep(remaining);
+      window.clearInterval(anim);
+      setStepIdx(AUTH_STEPS.length);
+      setCurrentStep(data.next_step || 2);
     } catch (err) {
+      window.clearInterval(anim);
       setView("form");
       if (
         err instanceof ApiError &&
         (err.code === "exists" || /already exists/i.test(err.message))
       ) {
-        setError("An account already exists. Please use Login instead.");
+        setError("You already have an account. Please use Login to open your dashboard.");
       } else if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -191,23 +202,6 @@ export function StepAuth() {
                   <span className="text-sm">{step}</span>
                 </div>
               ))}
-            </div>
-          </motion.div>
-        )}
-
-        {view === "done" && (
-          <motion.div
-            key="done"
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-card border rounded-3xl p-10 flex flex-col items-center gap-4 text-center"
-          >
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <CheckCircle2 className="w-9 h-9 text-emerald-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-lg">Account created</p>
-              <p className="text-sm text-muted-foreground mt-1">Continuing to business setup…</p>
             </div>
           </motion.div>
         )}

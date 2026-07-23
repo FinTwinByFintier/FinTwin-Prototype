@@ -7,13 +7,20 @@ import { useOnboarding } from "@/context/OnboardingContext";
 import { ApiError, login, routeFromNextStep, setToken } from "@/lib/api";
 import { IdCard, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
-type Phase = "form" | "loading" | "done";
+type Phase = "form" | "loading";
 
 const LOGIN_STEPS = [
   "Verifying national ID…",
   "Checking credentials…",
   "Loading your progress…",
 ];
+
+const ANIMATION_MS = 4000;
+const STEP_INTERVAL_MS = Math.floor(ANIMATION_MS / LOGIN_STEPS.length);
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -25,8 +32,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [destination, setDestination] = useState<"/onboarding" | "/dashboard">("/dashboard");
-  const [resumeStep, setResumeStep] = useState(8);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,34 +47,33 @@ export default function Login() {
     setError("");
     setPhase("loading");
     setStepIdx(0);
+    const started = Date.now();
+
+    const anim = window.setInterval(() => {
+      setStepIdx((i) => Math.min(i + 1, LOGIN_STEPS.length));
+    }, STEP_INTERVAL_MS);
 
     try {
-      const anim = window.setInterval(() => {
-        setStepIdx((i) => Math.min(i + 1, LOGIN_STEPS.length - 1));
-      }, 700);
-
       const data = await login(nationalId, password);
-      window.clearInterval(anim);
-
       setToken(data.token);
       updateState({ authMethod: "sanad", nationalId });
+
+      const remaining = Math.max(0, ANIMATION_MS - (Date.now() - started));
+      await sleep(remaining);
+      window.clearInterval(anim);
+      setStepIdx(LOGIN_STEPS.length);
+
       const next = data.next_step || 2;
       const route = routeFromNextStep(next);
-      setResumeStep(next);
-      setDestination(route);
-      setStepIdx(LOGIN_STEPS.length - 1);
-      setPhase("done");
-
-      window.setTimeout(() => {
-        if (route === "/onboarding") {
-          resumeAtStep(next);
-          setLocation("/onboarding");
-        } else {
-          resumeAtStep(8);
-          setLocation("/dashboard");
-        }
-      }, 900);
+      if (route === "/onboarding") {
+        resumeAtStep(next);
+        setLocation("/onboarding");
+      } else {
+        resumeAtStep(8);
+        setLocation("/dashboard");
+      }
     } catch (err) {
+      window.clearInterval(anim);
       setPhase("form");
       if (err instanceof ApiError) setError(err.message);
       else setError("Could not sign in. Check your connection and try again.");
@@ -208,27 +212,6 @@ export default function Login() {
                       <span className="text-sm">{step}</span>
                     </div>
                   ))}
-                </div>
-              </motion.div>
-            )}
-
-            {phase === "done" && (
-              <motion.div
-                key="done"
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-card border rounded-3xl p-8 text-center space-y-5"
-              >
-                <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-9 h-9 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-xl">Signed in</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {destination === "/onboarding"
-                      ? `Resuming onboarding at step ${resumeStep}…`
-                      : "Taking you to your dashboard…"}
-                  </p>
                 </div>
               </motion.div>
             )}

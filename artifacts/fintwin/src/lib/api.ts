@@ -20,6 +20,7 @@ export function setToken(token: string | null): void {
 export type AuthResponse = {
   token: string;
   next_step: number;
+  created?: boolean;
   user: {
     id: number;
     onboarding_step: number;
