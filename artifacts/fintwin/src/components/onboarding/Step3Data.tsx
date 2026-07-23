@@ -198,9 +198,10 @@ function JoFotaraDialog({ open, onClose, onSuccess }: { open: boolean; onClose: 
 
 // ── POS flow ───────────────────────────────────────────────────────────────────
 const POS_PROVIDERS = [
-  { name: 'CliQ Pay', hasApi: true },
-  { name: 'PayWay Jordan', hasApi: true },
-  { name: 'Other POS Terminal', hasApi: false },
+  { name: 'Network International', hasApi: true },
+  { name: 'HyperPay', hasApi: true },
+  { name: 'MadfooatCom', hasApi: true },
+  { name: 'Other', hasApi: false },
 ];
 
 function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {

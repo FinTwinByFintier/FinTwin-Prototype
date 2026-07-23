@@ -49,7 +49,7 @@ export default function Home() {
                 >
                   {t('home.heroTitle1')}{" "}
                   <span className="text-primary">{t('home.heroTitleHighlight')}</span>
-                  {t('home.heroTitle2')}
+                  {" "}{t('home.heroTitle2')}
                 </motion.h1>
                 <motion.p variants={fadeIn} className="text-lg text-muted-foreground mb-8">
                   {t('home.heroSubtitle')}
