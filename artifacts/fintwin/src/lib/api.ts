@@ -37,8 +37,11 @@ export type BusinessProfilePayload = {
   connected_receipts?: boolean;
   pos_provider?: string;
   consent_given?: boolean;
+  last_synced_cliq?: string | null;
+  last_synced_jofotara?: string | null;
+  last_synced_pos?: string | null;
+  last_synced_receipts?: string | null;
 };
-
 export type BusinessProfile = BusinessProfilePayload & {
   consent_at?: string | null;
   updated_at?: string | null;

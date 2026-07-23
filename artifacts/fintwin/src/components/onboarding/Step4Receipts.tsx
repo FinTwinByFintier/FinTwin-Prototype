@@ -240,6 +240,10 @@ export function Step4Receipts({ onDone, embedded = false }: Props) {
       setImportedCount(result.imported);
       updateState({
         connectedSources: { ...state.connectedSources, receipts: true },
+        lastSynced: {
+          ...state.lastSynced,
+          receipts: new Date().toISOString(),
+        },
       });
       void persistProfile({ connected_receipts: true });
       setPhase("imported");

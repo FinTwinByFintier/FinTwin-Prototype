@@ -63,6 +63,12 @@ export interface OnboardingState {
     pos: boolean;
     receipts: boolean;
   };
+  lastSynced: {
+    jofotara: string | null;
+    cliq: string | null;
+    pos: string | null;
+    receipts: string | null;
+  };
   posProvider: string;
 
   commitments: Commitment[];
@@ -108,6 +114,7 @@ const initialState: OnboardingState = {
   contactPhone: '',
   consentGiven: false,
   connectedSources: { jofotara: false, cliq: false, pos: false, receipts: false },
+  lastSynced: { jofotara: null, cliq: null, pos: null, receipts: null },
   posProvider: '',
   commitments: defaultCommitments,
 };
@@ -143,6 +150,12 @@ function profileToState(profile: BusinessProfile): Partial<OnboardingState> {
       pos: !!profile.connected_pos,
       receipts: !!profile.connected_receipts,
     },
+    lastSynced: {
+      jofotara: profile.last_synced_jofotara || null,
+      cliq: profile.last_synced_cliq || null,
+      pos: profile.last_synced_pos || null,
+      receipts: profile.last_synced_receipts || null,
+    },
     posProvider: profile.pos_provider || '',
   };
 }
@@ -172,7 +185,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const persistProfile = useCallback(async (payload: BusinessProfilePayload) => {
     if (!getToken()) return;
     try {
-      await saveBusinessProfile(payload);
+      const res = await saveBusinessProfile(payload);
+      if (res?.profile) {
+        setState((prev) => ({ ...prev, ...profileToState(res.profile) }));
+      }
     } catch {
       /* keep UI moving during demo if network blips */
     }

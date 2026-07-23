@@ -21,6 +21,22 @@ import {
 
 type SourceKey = 'jofotara' | 'cliq' | 'pos' | 'receipts';
 
+function formatLastSync(iso: string | null | undefined): string {
+  if (!iso) return "Never";
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return "Never";
+  const diffMs = Date.now() - then.getTime();
+  if (diffMs < 60_000) return "Just now";
+  if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+  if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h ago`;
+  return then.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 // ── Open Banking — list + multi-select SME accounts ───────────────────────────
 function OpenBankingDialog({
   open,
@@ -553,17 +569,20 @@ export function Step3Data() {
     opts?: { iban?: string; count?: number },
   ) => {
     const nextSources = { ...state.connectedSources, [id]: true };
+    const nowIso = new Date().toISOString();
     updateState({
       connectedSources: nextSources,
+      lastSynced: { ...state.lastSynced, [id]: nowIso },
       ...(id === 'cliq' && opts?.iban ? { iban: opts.iban } : {}),
     });
     if (id === 'cliq' && opts?.count != null) setLinkedAccountCount(opts.count);
+    // Only patch the source that just connected (avoids rewriting other sync times).
     void persistProfile({
-      connected_cliq: nextSources.cliq,
-      connected_jofotara: nextSources.jofotara,
-      connected_pos: nextSources.pos,
-      connected_receipts: nextSources.receipts,
-      ...(id === 'cliq' && opts?.iban ? { iban: opts.iban } : {}),
+      ...(id === 'cliq'
+        ? { connected_cliq: true, ...(opts?.iban ? { iban: opts.iban } : {}) }
+        : id === 'jofotara'
+          ? { connected_jofotara: true }
+          : { connected_pos: true }),
     });
   };
 
@@ -637,7 +656,7 @@ export function Step3Data() {
                 <div className="space-y-2">
                   <div className="bg-emerald-500/10 rounded-xl p-3 text-xs text-emerald-700">
                     <p className="font-medium">{successText}</p>
-                    <p className="opacity-80">Last sync: Just now</p>
+                    <p className="opacity-80">Last sync: {formatLastSync(state.lastSynced.cliq)}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -651,12 +670,20 @@ export function Step3Data() {
               ) : isConnected && id !== 'receipts' ? (
                 <div className="bg-emerald-500/10 rounded-xl p-3 text-xs text-emerald-700">
                   <p className="font-medium">{successText}</p>
-                  <p className="opacity-80">Last sync: Just now</p>
+                  <p className="opacity-80">
+                    Last sync: {formatLastSync(state.lastSynced[id as 'jofotara' | 'pos'])}
+                  </p>
                 </div>
               ) : isConnected && id === 'receipts' ? (
-                <Button variant="outline" size="sm" className="rounded-full w-full" onClick={() => setActiveModal('receipts')}>
-                  Upload more
-                </Button>
+                <div className="space-y-2">
+                  <div className="bg-emerald-500/10 rounded-xl p-3 text-xs text-emerald-700">
+                    <p className="font-medium">{successText}</p>
+                    <p className="opacity-80">Last sync: {formatLastSync(state.lastSynced.receipts)}</p>
+                  </div>
+                  <Button variant="outline" size="sm" className="rounded-full w-full" onClick={() => setActiveModal('receipts')}>
+                    Upload more
+                  </Button>
+                </div>
               ) : (
                 <Button variant="outline" size="sm" className="rounded-full w-full" onClick={() => setActiveModal(id)}>
                   {id === 'receipts' ? 'Upload & digitize' : id === 'cliq' ? 'Connect Open Banking' : 'Connect'}

@@ -131,7 +131,7 @@ export default function Login() {
                           setNationalId(e.target.value.replace(/\D/g, ""));
                           setError("");
                         }}
-                        placeholder="10-digit national ID"
+                        placeholder="XXXXXXXXXX"
                         className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
                         autoComplete="username"
                       />
