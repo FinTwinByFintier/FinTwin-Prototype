@@ -20,7 +20,7 @@ export function StepAuth() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nationalId.trim()) { setError('Please enter your National ID number.'); return; }
+    if (!/^\d{10}$/.test(nationalId)) { setError('National ID must be exactly 10 digits.'); return; }
     if (!password.trim()) { setError('Please enter your password.'); return; }
     setError('');
     updateState({ authMethod: 'sanad' });
@@ -67,9 +67,11 @@ export function StepAuth() {
                 <label className="text-sm font-medium mb-1.5 block">National ID Number</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={nationalId}
-                  onChange={e => { setNationalId(e.target.value); setError(''); }}
-                  placeholder="e.g. 9********"
+                  onChange={e => { setNationalId(e.target.value.replace(/\D/g, '')); setError(''); }}
+                  placeholder="10-digit national ID"
                   className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
                   autoComplete="username"
                 />
