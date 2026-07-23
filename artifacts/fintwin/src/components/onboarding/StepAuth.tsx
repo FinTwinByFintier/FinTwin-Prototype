@@ -1,20 +1,28 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
-import { Loader2, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, IdCard, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 
 const AUTH_STEPS = [
-  'Connecting to Sanad…',
-  'Verifying national identity…',
+  'Verifying national ID…',
+  'Confirming identity…',
   'Retrieving your profile…',
 ];
 
 export function StepAuth() {
   const { updateState, setCurrentStep } = useOnboarding();
-  const [view, setView] = useState<'choose' | 'loading' | 'done'>('choose');
+  const [view, setView] = useState<'form' | 'loading' | 'done'>('form');
   const [stepIdx, setStepIdx] = useState(0);
+  const [nationalId, setNationalId] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSanad = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nationalId.trim()) { setError('Please enter your National ID number.'); return; }
+    if (!password.trim()) { setError('Please enter your password.'); return; }
+    setError('');
     updateState({ authMethod: 'sanad' });
     setView('loading');
     setStepIdx(0);
@@ -40,31 +48,69 @@ export function StepAuth() {
       </div>
 
       <AnimatePresence mode="wait">
-        {view === 'choose' && (
-          <motion.div key="choose" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        {view === 'form' && (
+          <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="bg-card border rounded-3xl p-8"
           >
-            <button
-              onClick={handleSanad}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-start group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-6 h-6 text-primary" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <IdCard className="w-5 h-5 text-primary" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-base">Continue with Sanad</p>
-                  <span className="text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-full">Recommended</span>
+              <div>
+                <p className="font-semibold text-sm">National ID Login</p>
+                <p className="text-xs text-muted-foreground">Use your Jordanian national identity credentials</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">National ID Number</label>
+                <input
+                  type="text"
+                  value={nationalId}
+                  onChange={e => { setNationalId(e.target.value); setError(''); }}
+                  placeholder="e.g. 9********"
+                  className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                  autoComplete="username"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => { setPassword(e.target.value); setError(''); }}
+                    placeholder="Enter your password"
+                    className="w-full px-4 py-3 pe-11 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute inset-y-0 end-0 px-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Use your Jordanian national digital identity. Secure and instant.
-                </p>
               </div>
-              <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
-            </button>
+
+              {error && (
+                <p className="text-sm text-red-500 px-1">{error}</p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all mt-2"
+              >
+                Sign In
+              </button>
+            </form>
 
             <p className="text-xs text-center text-muted-foreground mt-5">
-              Sanad is Jordan's official national digital identity platform. Your credentials are verified directly with the government — FinTwin never stores your Sanad password.
+              Your credentials are verified securely — FinTwin never stores your password.
             </p>
           </motion.div>
         )}
