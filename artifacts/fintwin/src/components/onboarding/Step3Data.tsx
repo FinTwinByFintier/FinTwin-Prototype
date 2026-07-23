@@ -186,8 +186,7 @@ function OpenBankingDialog({
             >
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Select the account(s) that belong to your MSME. We save their account IDs
-                  for your Financial Twin.
+                  Select the account(s) that belong to your enterprise.
                 </p>
                 <button
                   type="button"
@@ -429,7 +428,6 @@ function JoFotaraDialog({
               </div>
               <div>
                 <p className="font-semibold text-lg">JoFotara Connected</p>
-                <p className="text-sm text-muted-foreground mt-1">124 invoices imported</p>
               </div>
               <Button className="w-full rounded-full bg-emerald-600 hover:bg-emerald-700" onClick={handleDone}>Done</Button>
             </motion.div>
@@ -632,7 +630,7 @@ export function Step3Data() {
       description: 'Verify your electronic invoices and revenue through the national e-invoicing platform. Strengthens your financial profile.',
       icon: FileText,
       color: 'bg-blue-500/10 text-blue-600',
-      successText: '124 invoices imported',
+      successText: 'JoFotara connected',
     },
     {
       id: 'pos' as SourceKey,

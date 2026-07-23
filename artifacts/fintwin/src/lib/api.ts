@@ -331,6 +331,120 @@ export function connectPosSource(posProvider?: string) {
   );
 }
 
+export type LinkedAccountSummary = OpenBankingAccount & {
+  current_balance: number | string | null;
+  balance_updated_at: string | null;
+};
+
+export type MonthlyCashflowPoint = {
+  month: string;
+  income: number;
+  expense: number;
+};
+
+export type RecentTransaction = {
+  id: number;
+  source: string;
+  amount: string;
+  currency: string;
+  direction: "credit" | "debit";
+  date: string | null;
+  description: string;
+  counterparty: string;
+  channel: string;
+};
+
+export type UpcomingPayment = {
+  id: number;
+  source: string;
+  nickname: string;
+  beneficiary: string;
+  amount: string | null;
+  currency: string;
+  frequency: string;
+  status: string;
+  next_payment_at: string | null;
+  remaining_payments: number | null;
+};
+
+export type TwinCompleteness = {
+  percent: number;
+  accounts_linked: number;
+  transactions_imported: number;
+  standing_orders_tracked: number;
+};
+
+export type DashboardSummary = {
+  linked_accounts: LinkedAccountSummary[];
+  total_available_balance: string;
+  monthly_cashflow: MonthlyCashflowPoint[];
+  recent_transactions: RecentTransaction[];
+  upcoming_payments: UpcomingPayment[];
+  profile: BusinessProfile;
+  twin_completeness: TwinCompleteness;
+};
+
+export type SyncRunResult = {
+  synced_sources: string[];
+  accounts: number;
+  balances_updated: number;
+  transactions_imported: number;
+  sosps_imported: number;
+};
+
+export function runDataSync() {
+  return apiFetch<SyncRunResult>("/api/v1/openbanking/sync/run/", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function fetchDashboardSummary() {
+  return apiFetch<DashboardSummary>("/api/v1/openbanking/dashboard-summary/");
+}
+
+export type TwinTransaction = {
+  id: number;
+  source: string;
+  amount: string;
+  currency: string;
+  direction: "credit" | "debit";
+  date: string | null;
+  description: string;
+  counterparty: string;
+  channel: string;
+  channel_code?: string;
+  is_cliq?: boolean;
+  origin?: string;
+};
+
+export type TransactionsListResponse = {
+  filter: string;
+  count: number;
+  counts: {
+    all: number;
+    open_banking: number;
+    jofotara: number;
+    pos: number;
+    digitized: number;
+    cliq: number;
+  };
+  transactions: TwinTransaction[];
+};
+
+export type TransactionFilter =
+  | "all"
+  | "open_banking"
+  | "jofotara"
+  | "pos"
+  | "digitized"
+  | "cliq";
+
+export function fetchTransactions(source: TransactionFilter = "all") {
+  const q = source && source !== "all" ? `?source=${encodeURIComponent(source)}` : "";
+  return apiFetch<TransactionsListResponse>(`/api/v1/openbanking/transactions/${q}`);
+}
+
 export function logout() {
   return apiFetch<void>("/api/v1/auth/logout/", { method: "POST" }).finally(() =>
     setToken(null),

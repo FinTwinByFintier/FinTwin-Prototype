@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
@@ -7,15 +7,19 @@ import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
+  fetchDashboardSummary, runDataSync,
+  type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
+} from "@/lib/api";
+import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
   Wallet, Timer, CreditCard, Plus, ChevronDown, ChevronUp,
-  Circle, FlaskConical, ReceiptText, Landmark,
+  Circle, FlaskConical, ReceiptText, Landmark, RefreshCw, CalendarClock,
 } from "lucide-react";
 
-/* ── Static mock data ─────────────────────────────────────── */
-const cashFlow = [
+/* ── Fallback mock data (used until real twin data loads / if a source has none) ── */
+const MOCK_CASH_FLOW: MonthlyCashflowPoint[] = [
   { month: "Apr", income: 5200, expense: 3800 },
   { month: "May", income: 6100, expense: 4200 },
   { month: "Jun", income: 5700, expense: 3600 },
@@ -30,7 +34,30 @@ const ongoingLoan = {
   installments: { paid: 8, total: 24 },
 };
 
-const maxIncome = Math.max(...cashFlow.map(d => d.income));
+function formatMoney(value: number | string | null | undefined, currency = "JOD"): string {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  if (n == null || Number.isNaN(n)) return `— ${currency}`;
+  return `${n.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${currency}`;
+}
+
+function formatShortDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function sourceLabelKey(source: string | undefined): string {
+  if (source === "jofotara") return "dashboard.sourceJoFotara";
+  if (source === "pos") return "dashboard.sourcePos";
+  return "dashboard.sourceBank";
+}
+
+function sourceIcon(source: string | undefined) {
+  if (source === "jofotara") return ReceiptText;
+  if (source === "pos") return CreditCard;
+  return Landmark;
+}
 
 /* ── Component ─────────────────────────────────────────────── */
 export default function Dashboard() {
@@ -41,6 +68,29 @@ export default function Dashboard() {
   const [menuOpen, setMenuOpen]               = useState(false);
   const [stepsOpen, setStepsOpen]             = useState(false);
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
+  const [summary, setSummary]                 = useState<DashboardSummary | null>(null);
+  const [syncing, setSyncing]                 = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDashboardSummary()
+      .then((s) => { if (!cancelled) setSummary(s); })
+      .catch(() => { /* keep mocks if the twin has no data yet */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSyncNow = async () => {
+    setSyncing(true);
+    try {
+      await runDataSync();
+      const s = await fetchDashboardSummary();
+      setSummary(s);
+    } catch {
+      // best-effort — keep whatever we already have
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const businessName = state.businessName   || "Amman Coffee Roasters";
   const category     = state.category       || t('dashboard.microEnterprise');
@@ -62,6 +112,8 @@ export default function Dashboard() {
 
   const hasCommitments = (state.commitments ?? []).length > 0;
 
+  const twinCompleteness = summary?.twin_completeness ?? null;
+
   const profileItems = [
     { label: t('dashboard.businessIdentity'),   done: true },
     { label: t('dashboard.sizeAndScale'),        done: true },
@@ -71,15 +123,44 @@ export default function Dashboard() {
     { label: t('dashboard.monthlyCommitments'),  done: hasCommitments, action: () => setCommitmentsOpen(true) },
   ];
   const completedCount = profileItems.filter(p => p.done).length;
-  const profilePct     = Math.round((completedCount / profileItems.length) * 100);
+  const profilePct     = twinCompleteness?.percent ?? Math.round((completedCount / profileItems.length) * 100);
 
-  const transactions = [
+  /* Real cash flow from the twin (Balances + Transactions sync) — falls back to mock */
+  const hasRealCashFlow = !!summary?.monthly_cashflow?.some(m => m.income || m.expense);
+  const cashFlow: MonthlyCashflowPoint[] = hasRealCashFlow ? summary!.monthly_cashflow : MOCK_CASH_FLOW;
+  const maxIncome = Math.max(...cashFlow.map(d => Math.max(d.income, d.expense)), 1);
+  const totalIncomeSum   = cashFlow.reduce((s, d) => s + d.income, 0);
+  const totalExpenseSum  = cashFlow.reduce((s, d) => s + d.expense, 0);
+  const netSum           = totalIncomeSum - totalExpenseSum;
+  const lastMonth        = cashFlow[cashFlow.length - 1];
+  const netThisMonthAmt  = lastMonth ? lastMonth.income - lastMonth.expense : 0;
+
+  const totalAvailableBalance = summary ? parseFloat(summary.total_available_balance || "0") : null;
+  const avgMonthlyExpense = totalExpenseSum > 0 ? totalExpenseSum / cashFlow.length : 0;
+  const runwayMonths = totalAvailableBalance && avgMonthlyExpense > 0
+    ? (totalAvailableBalance / avgMonthlyExpense)
+    : null;
+
+  /* Real recent transactions from the twin — falls back to mock */
+  const realTransactions: RecentTransaction[] = summary?.recent_transactions ?? [];
+  const mockTransactions = [
     { icon: ShoppingBag, label: t('dashboard.tx1Label'), sub: t('dashboard.tx1Sub'), amount: "+340 JOD",   positive: true,  color: "bg-emerald-500/10 text-emerald-600" },
     { icon: Truck,       label: t('dashboard.tx2Label'), sub: t('dashboard.tx2Sub'), amount: "−1,200 JOD", positive: false, color: "bg-red-500/10 text-red-500" },
     { icon: Coffee,      label: t('dashboard.tx3Label'), sub: t('dashboard.tx3Sub'), amount: "+820 JOD",   positive: true,  color: "bg-primary/10 text-primary" },
     { icon: Zap,         label: t('dashboard.tx4Label'), sub: t('dashboard.tx4Sub'), amount: "−95 JOD",    positive: false, color: "bg-red-500/10 text-red-500" },
     { icon: ShoppingBag, label: t('dashboard.tx5Label'), sub: t('dashboard.tx5Sub'), amount: "+1,540 JOD", positive: true,  color: "bg-blue-500/10 text-blue-600" },
   ];
+  const transactions = realTransactions.length
+    ? realTransactions.map((tx) => ({
+        key: `tx-${tx.id}`,
+        icon: sourceIcon(tx.source),
+        label: tx.description,
+        sub: [formatShortDate(tx.date), tx.channel].filter(Boolean).join(" · "),
+        amount: `${tx.direction === "credit" ? "+" : "−"}${Number(tx.amount).toLocaleString()} ${tx.currency}`,
+        positive: tx.direction === "credit",
+        color: tx.direction === "credit" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500",
+      }))
+    : mockTransactions.map((tx, i) => ({ ...tx, key: `mock-tx-${i}` }));
 
   const matches = [
     { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "تمويل إسلامي" : "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",    sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87, productId: "murabaha-arab-bank" },
@@ -94,7 +175,13 @@ export default function Dashboard() {
     { label: t('dashboard.scoreLabelDataCoverage'),   value: 55, color: "bg-amber-400" },
   ];
 
-  const nextSteps = [
+  const monthsOfHistory = cashFlow.filter(m => m.income || m.expense).length;
+  const nextSteps = twinCompleteness ? [
+    { label: t('dashboard.monthsOfHistory', { count: monthsOfHistory }), impact: "+8 pts", done: monthsOfHistory > 0 },
+    { label: t('dashboard.transactionsDetected', { count: twinCompleteness.transactions_imported }), impact: "+12 pts", done: twinCompleteness.transactions_imported > 0 },
+    { label: t('dashboard.standingOrdersOnTime', { count: twinCompleteness.standing_orders_tracked }), impact: "+6 pts", done: twinCompleteness.standing_orders_tracked > 0 },
+    { label: t('dashboard.nextStep4'), impact: "+5 pts", done: false },
+  ] : [
     { label: t('dashboard.nextStep1'), impact: "+8 pts",  done: true },
     { label: t('dashboard.nextStep2'), impact: "+12 pts", done: false },
     { label: t('dashboard.nextStep3'), impact: "+6 pts",  done: false },
@@ -228,8 +315,20 @@ export default function Dashboard() {
         {/* Top stat strip */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { icon: Wallet,     label: t('dashboard.netThisMonth'),  value: "+2,305 JOD",  sub: t('dashboard.vsLastMonth', { pct: 14 }),       subColor: "text-emerald-600" },
-            { icon: Timer,      label: t('dashboard.runway'),         value: "4.2 months",  sub: t('dashboard.basedOnBurn'),                    subColor: "text-muted-foreground" },
+            {
+              icon: Wallet,
+              label: t('dashboard.netThisMonth'),
+              value: `${netThisMonthAmt >= 0 ? "+" : "−"}${Math.abs(netThisMonthAmt).toLocaleString()} JOD`,
+              sub: hasRealCashFlow ? t('dashboard.cashFlowSub') : t('dashboard.vsLastMonth', { pct: 14 }),
+              subColor: "text-emerald-600",
+            },
+            {
+              icon: Timer,
+              label: t('dashboard.runway'),
+              value: runwayMonths != null ? `${runwayMonths.toFixed(1)} months` : "4.2 months",
+              sub: totalAvailableBalance != null ? formatMoney(totalAvailableBalance) + " available" : t('dashboard.basedOnBurn'),
+              subColor: "text-muted-foreground",
+            },
             { icon: CreditCard, label: t('dashboard.activeLoans'),    value: t('dashboard.loanLabel', { count: 1 }), sub: t('dashboard.nextPaymentDate', { date: 'Aug 1' }), subColor: "text-muted-foreground" },
           ].map((stat, i) => {
             const Icon = stat.icon;
@@ -417,9 +516,9 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t">
                 {[
-                  { label: t('dashboard.totalIncome'),   value: "+4,800 JOD", color: "text-emerald-600" },
-                  { label: t('dashboard.totalExpenses'), value: "−2,900 JOD", color: "text-foreground" },
-                  { label: t('dashboard.net'),           value: "+1,900 JOD", color: "text-primary" },
+                  { label: t('dashboard.totalIncome'),   value: `+${totalIncomeSum.toLocaleString()} JOD`, color: "text-emerald-600" },
+                  { label: t('dashboard.totalExpenses'), value: `−${totalExpenseSum.toLocaleString()} JOD`, color: "text-foreground" },
+                  { label: t('dashboard.net'),           value: `${netSum >= 0 ? "+" : "−"}${Math.abs(netSum).toLocaleString()} JOD`, color: "text-primary" },
                 ].map(s => (
                   <div key={s.label} className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
@@ -434,15 +533,26 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <h3 className="font-semibold">{t('dashboard.recentTransactions')}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.transactionsSub')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {realTransactions.length
+                      ? t('dashboard.transactionsDetected', { count: realTransactions.length })
+                      : t('dashboard.transactionsSub')}
+                  </p>
                 </div>
-                <Button variant="ghost" size="sm" className="text-primary text-xs">{t('common.viewAll')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary text-xs"
+                  onClick={() => navigate("/transactions")}
+                >
+                  {t('common.viewAll')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
+                </Button>
               </div>
               <div className="space-y-1">
                 {transactions.map((tx, i) => {
                   const Icon = tx.icon;
                   return (
-                    <motion.div key={tx.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 + i * 0.05 }} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/40 transition-colors">
+                    <motion.div key={tx.key} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 + i * 0.05 }} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/40 transition-colors">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.color}`}>
                         <Icon className="w-4 h-4" />
                       </div>
@@ -480,16 +590,38 @@ export default function Dashboard() {
           {/* ── Right sidebar ── */}
           <div className="space-y-5">
 
-            {/* Profile completion */}
+            {/* Digital Twin Completeness */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border rounded-3xl p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">{t('dashboard.profileCompletion')}</h3>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-semibold text-sm">
+                  {twinCompleteness ? t('dashboard.digitalTwinCompleteness') : t('dashboard.profileCompletion')}
+                </h3>
                 <span className="text-xs font-bold text-primary">{profilePct}%</span>
               </div>
+              {twinCompleteness && (
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  {t('dashboard.completenessSub', { pct: profilePct })}
+                </p>
+              )}
 
               <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-4">
                 <motion.div initial={{ width: 0 }} animate={{ width: `${profilePct}%` }} transition={{ duration: 0.8, delay: 0.3 }} className="h-full bg-primary rounded-full" />
               </div>
+
+              {twinCompleteness && (
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[
+                    { label: t('dashboard.accountsLinked'),         value: twinCompleteness.accounts_linked },
+                    { label: t('dashboard.transactionsImported'),   value: twinCompleteness.transactions_imported },
+                    { label: t('dashboard.standingOrdersTracked'),  value: twinCompleteness.standing_orders_tracked },
+                  ].map((c) => (
+                    <div key={c.label} className="bg-muted/40 rounded-xl p-2.5 text-center">
+                      <p className="text-base font-bold leading-tight">{c.value}</p>
+                      <p className="text-[9px] text-muted-foreground leading-tight mt-0.5">{c.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-2.5">
                 {profileItems.map(item => (
@@ -535,6 +667,106 @@ export default function Dashboard() {
                 </button>
               )}
             </motion.div>
+
+            {/* Linked Accounts & Balances */}
+            {summary && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4 gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm">{t('dashboard.linkedAccounts')}</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{t('dashboard.linkedAccountsSub')}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary text-xs gap-1.5 shrink-0"
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? t('dashboard.syncing') : t('dashboard.syncNow')}
+                  </Button>
+                </div>
+
+                {summary.linked_accounts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">{t('dashboard.noLinkedAccounts')}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {summary.linked_accounts.map((acc) => {
+                      const Icon = sourceIcon(acc.source);
+                      return (
+                        <div key={`${acc.source}-${acc.account_id}`} className="border rounded-2xl p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                              </div>
+                              <span className="text-xs font-semibold truncate">{acc.bank_name_en || t('dashboard.linkedAccounts')}</span>
+                            </div>
+                            <span className="text-[9px] uppercase tracking-wide text-muted-foreground shrink-0">
+                              {t(sourceLabelKey(acc.source))}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {acc.account_type_name} · {acc.iban_masked}
+                          </p>
+                          <div className="flex items-center justify-between text-xs pt-1 border-t">
+                            <span className="text-muted-foreground">{t('dashboard.availableBalance')}</span>
+                            <span className="font-semibold">{formatMoney(acc.available_balance, acc.currency)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{t('dashboard.currentBalanceLabel')}</span>
+                            <span className="font-semibold">{formatMoney(acc.current_balance, acc.currency)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Upcoming Payments (from Standing Orders / SOSPs) */}
+            {summary && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-sm">{t('dashboard.upcomingPayments')}</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t('dashboard.upcomingPaymentsSub')}</p>
+                  </div>
+                  <CalendarClock className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+
+                {summary.upcoming_payments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">{t('dashboard.noUpcomingPayments')}</p>
+                ) : (
+                  <div className="space-y-1">
+                    {summary.upcoming_payments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-muted/40 transition-colors">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{p.beneficiary}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {[p.frequency, p.next_payment_at ? t('dashboard.nextPaymentOn', { date: formatShortDate(p.next_payment_at) }) : null]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </div>
+                        <div className="text-end shrink-0">
+                          <p className="text-xs font-semibold">
+                            {p.amount != null ? formatMoney(p.amount, p.currency) : "—"}
+                          </p>
+                          {p.remaining_payments != null && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {t('dashboard.paymentsRemaining', { count: p.remaining_payments })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Ongoing loan */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="bg-card border rounded-3xl p-5 shadow-sm">
