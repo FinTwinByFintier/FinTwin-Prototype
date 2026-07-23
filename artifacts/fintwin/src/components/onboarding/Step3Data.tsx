@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
@@ -12,133 +12,268 @@ import {
   CheckCircle2, Loader2, ShieldCheck, Wifi, Lock, ScanLine,
 } from "lucide-react";
 import { Step4Receipts } from "@/components/onboarding/Step4Receipts";
+import {
+  ApiError,
+  fetchOpenBankingAccounts,
+  saveOpenBankingAccounts,
+  type OpenBankingAccount,
+} from "@/lib/api";
 
 type SourceKey = 'jofotara' | 'cliq' | 'pos' | 'receipts';
 
-// ── Bank — IBAN + OTP flow ─────────────────────────────────────────────────────
-function BankDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: (iban: string) => void }) {
-  const [phase, setPhase] = useState<'iban' | 'otp' | 'loading' | 'done'>('iban');
-  const [iban, setIban]   = useState('');
-  const [otp, setOtp]     = useState('');
-  const [ibanError, setIbanError] = useState('');
-  const [otpError, setOtpError]   = useState('');
+// ── Open Banking — list + multi-select SME accounts ───────────────────────────
+function OpenBankingDialog({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (payload: { iban: string; count: number }) => void;
+}) {
+  const [phase, setPhase] = useState<"loading" | "select" | "saving" | "done" | "error">(
+    "loading",
+  );
+  const [accounts, setAccounts] = useState<OpenBankingAccount[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [error, setError] = useState("");
+  const [savedCount, setSavedCount] = useState(0);
+  const [primaryIban, setPrimaryIban] = useState("");
 
-  const maskedPhone = '•••• 1234';
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setPhase("loading");
+    setError("");
+    void (async () => {
+      try {
+        const result = await fetchOpenBankingAccounts();
+        if (cancelled) return;
+        if (result.status !== "ok") {
+          setError(result.message || "Could not load bank accounts");
+          setPhase("error");
+          return;
+        }
+        setAccounts(result.accounts || []);
+        setSelected(new Set(result.selected_account_ids || []));
+        setPhase("select");
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof ApiError ? err.message : "Could not load bank accounts",
+        );
+        setPhase("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
-  const validateIban = (v: string) => {
-    const clean = v.replace(/\s/g, '').toUpperCase();
-    return clean.startsWith('JO') && clean.length === 30;
+  const toggle = (accountId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
   };
 
-  const handleSendOtp = () => {
-    if (!iban.trim()) { setIbanError('Please enter your company IBAN'); return; }
-    if (!validateIban(iban)) { setIbanError('IBAN must start with JO and be 30 characters'); return; }
-    setIbanError('');
-    setPhase('otp');
+  const handleSave = async () => {
+    if (!selected.size) {
+      setError("Select at least one SME account");
+      return;
+    }
+    setError("");
+    setPhase("saving");
+    try {
+      const result = await saveOpenBankingAccounts([...selected]);
+      setSavedCount(result.saved);
+      setPrimaryIban(result.accounts[0]?.iban || "");
+      setPhase("done");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save accounts");
+      setPhase("select");
+    }
   };
 
-  const handleVerifyOtp = () => {
-    if (otp.length < 6) { setOtpError('Please enter the 6-digit OTP'); return; }
-    setOtpError('');
-    setPhase('loading');
-    setTimeout(() => setPhase('done'), 2000);
+  const handleDone = () => {
+    onSuccess({ iban: primaryIban, count: savedCount });
+    onClose();
   };
 
-  const handleDone = () => { onSuccess(iban.replace(/\s/g, '').toUpperCase()); onClose(); reset(); };
-  const reset = () => { setPhase('iban'); setIban(''); setOtp(''); setIbanError(''); setOtpError(''); };
+  const formatBalance = (a: OpenBankingAccount) => {
+    if (a.available_balance == null || a.available_balance === "") return null;
+    const n = Number(a.available_balance);
+    if (Number.isNaN(n)) return `${a.available_balance} ${a.currency || "JOD"}`;
+    return `${n.toLocaleString()} ${a.currency || "JOD"}`;
+  };
 
   return (
-    <Dialog open={open} onOpenChange={() => { onClose(); reset(); }}>
-      <DialogContent className="max-w-sm rounded-3xl">
+    <Dialog open={open} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Connect Bank Account</DialogTitle>
+          <DialogTitle>Connect Open Banking</DialogTitle>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {/* Step 1: IBAN input */}
-          {phase === 'iban' && (
-            <motion.div key="iban" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Enter your company IBAN to establish a secure Open Banking connection. We will send a one-time code to your registered mobile number to confirm consent.
-              </p>
-              <div className="space-y-2">
-                <Label className="font-medium">Company IBAN</Label>
-                <Input
-                  placeholder="JO94 CBJO 0010 0000 0000 0131 000 2"
-                  value={iban}
-                  onChange={e => { setIban(e.target.value.toUpperCase()); setIbanError(''); }}
-                  className={`font-mono text-sm h-12 ${ibanError ? 'border-destructive' : ''}`}
-                />
-                {ibanError
-                  ? <p className="text-destructive text-xs">{ibanError}</p>
-                  : <p className="text-xs text-muted-foreground">Jordanian IBANs begin with JO and are 30 characters.</p>
-                }
-              </div>
-              <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2 text-xs text-muted-foreground">
-                <Lock className="w-4 h-4 flex-shrink-0" />
-                Read-only access only. FinTwin cannot move funds or initiate payments.
-              </div>
-              <Button className="w-full rounded-full" onClick={handleSendOtp}>
-                Send OTP
+          {phase === "loading" && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="py-10 flex flex-col items-center gap-4 text-center"
+            >
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              <p className="font-medium">Fetching your bank accounts…</p>
+              <p className="text-sm text-muted-foreground">Jordan Open Finance (sandbox)</p>
+            </motion.div>
+          )}
+
+          {phase === "error" && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-4 py-4"
+            >
+              <p className="text-sm text-destructive">{error}</p>
+              <Button className="w-full rounded-full" variant="outline" onClick={onClose}>
+                Close
               </Button>
             </motion.div>
           )}
 
-          {/* Step 2: OTP verification */}
-          {phase === 'otp' && (
-            <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-sm text-center">
-                <p className="font-medium">OTP sent to {maskedPhone}</p>
-                <p className="text-xs text-muted-foreground mt-1">Enter the 6-digit code below to confirm your consent.</p>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-medium">One-Time Password</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="• • • • • •"
-                  value={otp}
-                  onChange={e => { setOtp(e.target.value.replace(/[^\d]/g, '')); setOtpError(''); }}
-                  className={`h-14 text-center text-2xl font-bold tracking-[0.5em] ${otpError ? 'border-destructive' : ''}`}
-                />
-                {otpError && <p className="text-destructive text-xs text-center">{otpError}</p>}
-              </div>
-              <button type="button" className="text-xs text-primary hover:underline w-full text-center">
-                Didn't receive a code? Resend
-              </button>
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 rounded-full" onClick={() => setPhase('iban')}>Back</Button>
-                <Button className="flex-1 rounded-full" onClick={handleVerifyOtp}>Verify OTP</Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 3: Loading */}
-          {phase === 'loading' && (
-            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="py-8 flex flex-col items-center gap-4 text-center"
+          {(phase === "select" || phase === "saving") && (
+            <motion.div
+              key="select"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-4"
             >
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
-              <p className="font-medium">Establishing secure connection…</p>
-              <p className="text-sm text-muted-foreground">Importing transaction history.</p>
+              <p className="text-sm text-muted-foreground">
+                Select the account(s) that belong to your MSME. We save their account IDs
+                for your Financial Twin.
+              </p>
+
+              {!accounts.length ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  No accounts returned from the bank for this sandbox customer.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                  {accounts.map((a) => {
+                    const checked = selected.has(a.account_id);
+                    const bal = formatBalance(a);
+                    return (
+                      <button
+                        key={a.account_id}
+                        type="button"
+                        onClick={() => toggle(a.account_id)}
+                        disabled={phase === "saving"}
+                        className={`w-full text-start rounded-2xl border p-4 transition-colors ${
+                          checked
+                            ? "border-emerald-500/40 bg-emerald-500/5"
+                            : "border-border hover:border-primary/30"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
+                              checked
+                                ? "bg-emerald-600 border-emerald-600 text-white"
+                                : "border-muted-foreground/40"
+                            }`}
+                          >
+                            {checked && <CheckCircle2 className="w-3.5 h-3.5" />}
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="font-semibold text-sm truncate">
+                              {a.bank_name_en || "Bank"}
+                              {a.account_type_name ? ` · ${a.account_type_name}` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {a.iban_masked || a.iban}
+                              {a.account_status ? ` · ${a.account_status}` : ""}
+                              {a.account_type_code ? ` · ${a.account_type_code}` : ""}
+                            </p>
+                            {(bal || a.branch_name_en) && (
+                              <p className="text-xs text-muted-foreground">
+                                {bal}
+                                {bal && a.branch_name_en ? " · " : ""}
+                                {a.branch_name_en}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <Lock className="w-4 h-4 flex-shrink-0" />
+                Read-only AIS access. FinTwin cannot move funds.
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-full"
+                  onClick={onClose}
+                  disabled={phase === "saving"}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 rounded-full"
+                  onClick={() => void handleSave()}
+                  disabled={!selected.size || phase === "saving"}
+                >
+                  {phase === "saving" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 me-2 animate-spin" /> Saving…
+                    </>
+                  ) : (
+                    `Save ${selected.size || ""} account${selected.size === 1 ? "" : "s"}`
+                  )}
+                </Button>
+              </div>
             </motion.div>
           )}
 
-          {/* Step 4: Success */}
-          {phase === 'done' && (
-            <motion.div key="done" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+          {phase === "done" && (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
               className="py-4 text-center space-y-4"
             >
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-9 h-9 text-emerald-600" />
               </div>
               <div>
-                <p className="font-semibold text-lg">Bank Connected</p>
-                <p className="text-xs font-mono text-muted-foreground mt-1 truncate px-4">{iban.replace(/\s/g, '').toUpperCase()}</p>
-                <p className="text-xs text-muted-foreground mt-1">847 transactions imported · Last sync: Just now</p>
+                <p className="font-semibold text-lg">Accounts imported</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {savedCount} SME account{savedCount === 1 ? "" : "s"} linked to your twin.
+                </p>
+                {primaryIban && (
+                  <p className="text-xs font-mono text-muted-foreground mt-2 truncate px-4">
+                    {primaryIban}
+                  </p>
+                )}
               </div>
-              <Button className="w-full rounded-full bg-emerald-600 hover:bg-emerald-700" onClick={handleDone}>Done</Button>
+              <Button
+                className="w-full rounded-full bg-emerald-600 hover:bg-emerald-700"
+                onClick={handleDone}
+              >
+                Done
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -347,15 +482,18 @@ function PosDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () =>
 export function Step3Data() {
   const { state, updateState, setCurrentStep, persistProfile } = useOnboarding();
   const [activeModal, setActiveModal] = useState<SourceKey | null>(null);
+  const [linkedAccountCount, setLinkedAccountCount] = useState(0);
 
   const sources = [
     {
       id: 'cliq' as SourceKey,
-      label: 'Bank Account',
-      description: 'Connect via Jordan Open Banking. Securely links your company IBAN and imports transaction history for cash flow analysis.',
+      label: 'Open Banking',
+      description: 'Connect via Jordan Open Finance. Pick the SME account(s) to feed your twin with balances and transactions.',
       icon: Landmark,
       color: 'bg-emerald-500/10 text-emerald-600',
-      successText: '847 transactions synced',
+      successText: linkedAccountCount
+        ? `${linkedAccountCount} account${linkedAccountCount === 1 ? "" : "s"} linked`
+        : 'Bank accounts linked',
     },
     {
       id: 'jofotara' as SourceKey,
@@ -383,18 +521,22 @@ export function Step3Data() {
     },
   ];
 
-  const handleSuccess = (id: Exclude<SourceKey, 'receipts'>, iban?: string) => {
+  const handleSuccess = (
+    id: Exclude<SourceKey, 'receipts'>,
+    opts?: { iban?: string; count?: number },
+  ) => {
     const nextSources = { ...state.connectedSources, [id]: true };
     updateState({
       connectedSources: nextSources,
-      ...(id === 'cliq' && iban ? { iban } : {}),
+      ...(id === 'cliq' && opts?.iban ? { iban: opts.iban } : {}),
     });
+    if (id === 'cliq' && opts?.count != null) setLinkedAccountCount(opts.count);
     void persistProfile({
       connected_cliq: nextSources.cliq,
       connected_jofotara: nextSources.jofotara,
       connected_pos: nextSources.pos,
       connected_receipts: nextSources.receipts,
-      ...(id === 'cliq' && iban ? { iban } : {}),
+      ...(id === 'cliq' && opts?.iban ? { iban: opts.iban } : {}),
     });
   };
 
@@ -464,7 +606,22 @@ export function Step3Data() {
               </div>
               <p className="text-sm text-muted-foreground flex-1 mb-4">{description}</p>
 
-              {isConnected && id !== 'receipts' ? (
+              {isConnected && id === 'cliq' ? (
+                <div className="space-y-2">
+                  <div className="bg-emerald-500/10 rounded-xl p-3 text-xs text-emerald-700">
+                    <p className="font-medium">{successText}</p>
+                    <p className="opacity-80">Last sync: Just now</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full w-full"
+                    onClick={() => setActiveModal('cliq')}
+                  >
+                    Manage accounts
+                  </Button>
+                </div>
+              ) : isConnected && id !== 'receipts' ? (
                 <div className="bg-emerald-500/10 rounded-xl p-3 text-xs text-emerald-700">
                   <p className="font-medium">{successText}</p>
                   <p className="opacity-80">Last sync: Just now</p>
@@ -475,7 +632,7 @@ export function Step3Data() {
                 </Button>
               ) : (
                 <Button variant="outline" size="sm" className="rounded-full w-full" onClick={() => setActiveModal(id)}>
-                  {id === 'receipts' ? 'Upload & digitize' : 'Connect'}
+                  {id === 'receipts' ? 'Upload & digitize' : id === 'cliq' ? 'Connect Open Banking' : 'Connect'}
                 </Button>
               )}
             </div>
@@ -494,10 +651,10 @@ export function Step3Data() {
       </div>
 
       {/* Dialogs */}
-      <BankDialog
+      <OpenBankingDialog
         open={activeModal === 'cliq'}
         onClose={() => setActiveModal(null)}
-        onSuccess={(iban) => handleSuccess('cliq', iban)}
+        onSuccess={({ iban, count }) => handleSuccess('cliq', { iban, count })}
       />
       <JoFotaraDialog
         open={activeModal === 'jofotara'}
@@ -509,7 +666,6 @@ export function Step3Data() {
         onClose={() => setActiveModal(null)}
         onSuccess={() => handleSuccess('pos')}
       />
-
       <Dialog open={activeModal === 'receipts'} onOpenChange={() => setActiveModal(null)}>
         <DialogContent className="!max-w-[min(98vw,92rem)] !w-[min(98vw,92rem)] rounded-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
           <DialogHeader>

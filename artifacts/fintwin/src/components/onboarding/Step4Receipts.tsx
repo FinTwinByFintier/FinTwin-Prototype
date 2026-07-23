@@ -72,7 +72,6 @@ export function Step4Receipts({ onDone, embedded = false }: Props) {
   const [phase, setPhase] = useState<Phase>("upload");
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [rows, setRows] = useState<EditableTx[]>([]);
   const [importError, setImportError] = useState("");
@@ -105,7 +104,7 @@ export function Step4Receipts({ onDone, embedded = false }: Props) {
     );
     if (!list.length) return;
 
-    setPhase("upload");
+    // Keep any existing review table visible while more files process.
     setImportError("");
 
     const newFiles: FilePreview[] = list.map((file) => {
@@ -118,60 +117,59 @@ export function Step4Receipts({ onDone, embedded = false }: Props) {
         size: formatBytes(file.size),
         previewUrl: isPdf ? null : URL.createObjectURL(file),
         isPdf,
-        status: "pending",
+        status: "pending" as const,
         txCount: 0,
       };
     });
 
     setFiles((prev) => [...prev, ...newFiles]);
-    setBusy(true);
 
-    const collected: EditableTx[] = [];
-
-    for (const item of newFiles) {
-      setFiles((prev) =>
-        prev.map((f) => (f.id === item.id ? { ...f, status: "processing" } : f)),
-      );
-      try {
-        const result = await extractReceipt(item.file);
-        const txs = (result.transactions || []).map((tx, i) => ({
-          ...tx,
-          rowId: uid(),
-          temp_id: tx.temp_id || `${item.id}-${i}`,
-          source_filename: item.name,
-          currency: tx.currency || "JOD",
-          direction: (tx.direction || "unknown") as EditableTx["direction"],
-          kind: tx.kind || "other",
-        }));
-        collected.push(...txs);
+    // Process in parallel; append rows as each file finishes.
+    await Promise.all(
+      newFiles.map(async (item) => {
         setFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id
-              ? {
-                  ...f,
-                  status: txs.length ? "done" : "error",
-                  error: txs.length
-                    ? undefined
-                    : result.message || "No transactions found",
-                  txCount: txs.length,
-                }
-              : f,
-          ),
+          prev.map((f) => (f.id === item.id ? { ...f, status: "processing" } : f)),
         );
-      } catch (err) {
-        const message =
-          err instanceof ApiError ? err.message : "Could not digitize this file";
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id ? { ...f, status: "error", error: message } : f,
-          ),
-        );
-      }
-    }
-
-    setRows((prev) => [...prev, ...collected]);
-    setBusy(false);
-    if (collected.length) setPhase("review");
+        try {
+          const result = await extractReceipt(item.file);
+          const txs = (result.transactions || []).map((tx, i) => ({
+            ...tx,
+            rowId: uid(),
+            temp_id: tx.temp_id || `${item.id}-${i}`,
+            source_filename: item.name,
+            currency: tx.currency || "JOD",
+            direction: (tx.direction || "unknown") as EditableTx["direction"],
+            kind: tx.kind || "other",
+          }));
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === item.id
+                ? {
+                    ...f,
+                    status: txs.length ? "done" : "error",
+                    error: txs.length
+                      ? undefined
+                      : result.message || "No transactions found",
+                    txCount: txs.length,
+                  }
+                : f,
+            ),
+          );
+          if (txs.length) {
+            setRows((prev) => [...prev, ...txs]);
+            setPhase("review");
+          }
+        } catch (err) {
+          const message =
+            err instanceof ApiError ? err.message : "Could not digitize this file";
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === item.id ? { ...f, status: "error", error: message } : f,
+            ),
+          );
+        }
+      }),
+    );
   };
 
   const removeFile = (id: string) => {
@@ -377,14 +375,14 @@ export function Step4Receipts({ onDone, embedded = false }: Props) {
         )}
       </AnimatePresence>
 
-      {busy && (
+      {processing && (
         <p className="text-xs text-center text-muted-foreground">
           Extracting transactions from your documents…
         </p>
       )}
 
-      {/* Review table */}
-      {phase === "review" && (
+      {/* Review table — stay visible while more files are still processing */}
+      {phase !== "imported" && (phase === "review" || rows.length > 0) && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}

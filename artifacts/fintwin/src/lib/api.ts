@@ -223,6 +223,49 @@ export function fetchExtractedTransactions() {
   );
 }
 
+export type OpenBankingAccount = {
+  account_id: string;
+  iban: string;
+  iban_masked: string;
+  currency: string;
+  account_status: string;
+  account_type_code: string;
+  account_type_name: string;
+  bank_name_en: string;
+  bank_name_ar: string;
+  branch_name_en: string;
+  available_balance: number | string | null;
+  balance_position: string;
+  shared_account?: boolean;
+  locked_for_credit?: boolean;
+  locked_for_debit?: boolean;
+};
+
+export function fetchOpenBankingAccounts() {
+  return apiFetch<{
+    status: "ok" | "error";
+    message?: string | null;
+    accounts: OpenBankingAccount[];
+    selected_account_ids: string[];
+  }>("/api/v1/openbanking/accounts/");
+}
+
+export function saveOpenBankingAccounts(accountIds: string[]) {
+  return apiFetch<{ saved: number; accounts: OpenBankingAccount[] }>(
+    "/api/v1/openbanking/accounts/select/",
+    {
+      method: "POST",
+      body: JSON.stringify({ account_ids: accountIds }),
+    },
+  );
+}
+
+export function fetchLinkedBankAccounts() {
+  return apiFetch<{ accounts: OpenBankingAccount[] }>(
+    "/api/v1/openbanking/accounts/linked/",
+  );
+}
+
 export function logout() {
   return apiFetch<void>("/api/v1/auth/logout/", { method: "POST" }).finally(() =>
     setToken(null),
