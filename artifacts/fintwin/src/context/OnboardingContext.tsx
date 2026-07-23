@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, ReactNode, useCallback } fr
 import type { Commitment } from '@/lib/simulationEngine';
 import {
   BusinessProfile,
+  clearOpenBankingAccountsCache,
   getToken,
+  logout,
   saveBusinessProfile,
   saveOnboardingStep,
   setToken,
@@ -78,6 +80,7 @@ interface OnboardingContextType {
   state: OnboardingState;
   updateState: (updates: Partial<OnboardingState>) => void;
   resetState: () => void;
+  signOut: () => Promise<void>;
   currentStep: number;
   setCurrentStep: (step: number) => void;
   resumeAtStep: (step: number) => void;
@@ -174,8 +177,21 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setState(initialState);
     setCurrentStepState(1);
     setToken(null);
+    clearOpenBankingAccountsCache();
     setIsAuthenticated(false);
   };
+
+  const signOut = useCallback(async () => {
+    try {
+      await logout();
+    } catch {
+      setToken(null);
+    }
+    clearOpenBankingAccountsCache();
+    setState(initialState);
+    setCurrentStepState(1);
+    setIsAuthenticated(false);
+  }, []);
 
   const hydrateFromProfile = useCallback((profile?: BusinessProfile | null) => {
     if (!profile) return;
@@ -223,6 +239,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         state,
         updateState,
         resetState,
+        signOut,
         currentStep,
         setCurrentStep,
         resumeAtStep,

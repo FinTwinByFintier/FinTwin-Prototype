@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BarChart3, Leaf, Landmark } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
@@ -19,6 +20,19 @@ const stagger = {
 
 export default function Home() {
   const { t } = useTranslation();
+
+  useEffect(() => {
+    const fromNav = sessionStorage.getItem("scrollToHowItWorks");
+    const fromHash = window.location.hash === "#how-it-works";
+    if (!fromNav && !fromHash) return;
+    sessionStorage.removeItem("scrollToHowItWorks");
+    const id = window.setTimeout(() => {
+      document
+        .getElementById("how-it-works")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, []);
 
   const steps = [
     { n: "1", title: t('home.step1Title'), desc: t('home.step1Desc') },
@@ -108,7 +122,7 @@ export default function Home() {
         </section>
 
         {/* How it works */}
-        <section className="py-20 bg-muted/30">
+        <section id="how-it-works" className="py-20 bg-muted/30 scroll-mt-20">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl lg:text-4xl font-bold text-center mb-14">{t('home.howItWorksTitle')}</h2>
 

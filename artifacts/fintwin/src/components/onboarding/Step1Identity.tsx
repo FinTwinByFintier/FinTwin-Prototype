@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2, Loader2, Pencil } from "lucide-react";
+import { mockRegistryLookup, type MockRegistryLookupResult } from "@/lib/mockRegistry";
 
 const BUSINESS_TYPES: BusinessType[] = ['LLC', 'Sole Proprietorship', 'Partnership', 'Other'];
 
@@ -14,28 +15,7 @@ const SECTORS: BusinessSector[] = [
   'Services', 'Professional Services', 'Agriculture', 'Crafts & Trades', 'Other',
 ];
 
-// ── Mock registry service ─────────────────────────────────────────────────────
-interface RegistryResult {
-  businessName: string;
-  businessType: BusinessType;
-  sector: BusinessSector;
-  registrationDate: string; // YYYY-MM-DD
-}
-
-function mockRegistryLookup(regNumber: string): RegistryResult {
-  const seed = regNumber.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const names = ['Al Noor Trading Co.', 'Jordan Fresh Foods LLC', 'Al Baraka Services', 'Amman Craft Studio', 'Green Valley Enterprise', 'Petra Supplies LLC'];
-  const types: BusinessType[] = ['LLC', 'Sole Proprietorship', 'Partnership', 'LLC', 'LLC', 'Sole Proprietorship'];
-  const sectors: BusinessSector[] = ['Retail & Trade', 'Food & Hospitality', 'Services', 'Small Manufacturing', 'Crafts & Trades', 'Retail & Trade'];
-  const years = [2018, 2019, 2020, 2021, 2022, 2017];
-  const months = ['01', '03', '06', '09', '11', '04'];
-  return {
-    businessName: names[seed % names.length],
-    businessType: types[seed % types.length],
-    sector: sectors[seed % sectors.length],
-    registrationDate: `${years[seed % years.length]}-${months[seed % months.length]}-01`,
-  };
-}
+type RegistryResult = MockRegistryLookupResult;
 
 function calcYears(dateStr: string): number {
   const year = parseInt(dateStr.slice(0, 4));

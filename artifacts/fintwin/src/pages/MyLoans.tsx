@@ -6,6 +6,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useOnboarding } from "@/context/OnboardingContext";
 import {
   fetchLoanApplications,
+  getToken,
   respondToLoanOffer,
   type LoanApplication,
 } from "@/lib/api";
@@ -293,8 +294,12 @@ export default function MyLoans() {
   }, []);
 
   useEffect(() => {
+    if (!getToken()) {
+      navigate("/login");
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, navigate]);
 
   const parts = useMemo(() => partitionLoans(apps), [apps]);
   const visible =

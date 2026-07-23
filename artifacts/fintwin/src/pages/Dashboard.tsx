@@ -9,6 +9,7 @@ import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
   fetchDashboardSummary, runDataSync,
   fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
+  getToken,
   type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
   type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
 } from "@/lib/api";
@@ -58,7 +59,7 @@ function sourceIcon(source: string | undefined) {
 
 /* ── Component ─────────────────────────────────────────────── */
 export default function Dashboard() {
-  const { state, resetState, updateState } = useOnboarding();
+  const { state, signOut, updateState } = useOnboarding();
   const [, navigate] = useLocation();
   const { t } = useTranslation();
   const { toggleLanguage } = useLanguage();
@@ -72,6 +73,12 @@ export default function Dashboard() {
   const [loanApps, setLoanApps]               = useState<LoanApplication[]>([]);
   const [latestLoan, setLatestLoan]           = useState<LoanApplication | null>(null);
   const [concentration, setConcentration]     = useState<ConcentrationSummary | null>(null);
+
+  useEffect(() => {
+    if (!getToken()) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -310,13 +317,17 @@ export default function Dashboard() {
                       >
                         <Circle className="w-4 h-4" /> My Profile
                       </Link>
-                      <Link
-                        href="/"
-                        onClick={() => { resetState(); setMenuOpen(false); }}
-                        className="flex items-center gap-2.5 px-4 py-3 text-sm text-destructive hover:bg-destructive/5 transition-colors w-full border-t"
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          await signOut();
+                          navigate("/login");
+                        }}
+                        className="flex items-center gap-2.5 px-4 py-3 text-sm text-destructive hover:bg-destructive/5 transition-colors w-full border-t text-start"
                       >
                         <LogOut className="w-4 h-4" /> {t('nav.signOut')}
-                      </Link>
+                      </button>
                     </motion.div>
                   </>
                 )}

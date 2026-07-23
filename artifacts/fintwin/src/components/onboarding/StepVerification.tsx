@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, AlertCircle, ArrowRight, Building2, Loader2, RotateCcw } from "lucide-react";
+import { formatRegistryDisplayDate, mockRegistryLookup } from "@/lib/mockRegistry";
 
 type Status = 'loading' | 'success' | 'error';
 
@@ -15,18 +16,13 @@ const LOADING_MESSAGES = [
   'Almost done…',
 ];
 
-// Simulated verified business data based on registration number
-function getMockVerification(regNumber: string, businessType: string) {
-  const seed = regNumber.length + businessType.length;
-  const names = ['Al Noor Trading Co.', 'Jordan Fresh Foods LLC', 'Al Baraka Services', 'Amman Craft Studio', 'Green Valley Enterprise'];
-  const entities = ['Limited Liability Company', 'Sole Proprietorship', 'Partnership', 'LLC'];
-  const sectors = ['Retail & Trade', 'Food & Hospitality', 'Services', 'Crafts & Trades', 'Small Manufacturing'];
-  const years = ['2018', '2019', '2020', '2021', '2022'];
+function getMockVerification(regNumber: string, _businessType: string) {
+  const result = mockRegistryLookup(regNumber);
   return {
-    businessName: names[seed % names.length],
-    legalEntity: entities[seed % entities.length],
-    registrationDate: `${['Jan','Mar','Jun','Sep','Nov'][seed % 5]} ${years[seed % years.length]}`,
-    sector: sectors[seed % sectors.length] as any,
+    businessName: result.businessName,
+    legalEntity: result.legalEntity,
+    registrationDate: formatRegistryDisplayDate(result.registrationDate),
+    sector: result.sector,
   };
 }
 
