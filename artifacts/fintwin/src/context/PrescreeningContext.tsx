@@ -1,11 +1,27 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type { ManualInputs } from '@/lib/prescreeningEngine';
 import { emptyManualInputs } from '@/lib/prescreeningEngine';
+import type { LoanApplication, LoanProduct, LoanQuote, ScoringSummary } from '@/lib/api';
 
 export interface UploadedDoc {
   fileName: string;
   objectPath: string;
 }
+
+export type TwinMetrics = {
+  displayName?: string;
+  monthlyDebt?: number;
+  monthlyRevenue?: number;
+  cashBalance?: number;
+  debtItems?: { label: string; amount: number }[];
+  registrationNumber?: string;
+  openBankingConnected?: boolean;
+  accountsLinked?: number;
+  avgMonthlyInflow?: number;
+  avgMonthlyOutflow?: number;
+  bankName?: string;
+  ibanMasked?: string;
+};
 
 interface PrescreeningContextType {
   selectedProductId: string | null;
@@ -16,11 +32,25 @@ interface PrescreeningContextType {
   prevStep: () => void;
   manualInputs: ManualInputs;
   setManualInput: <K extends keyof ManualInputs>(key: K, value: ManualInputs[K]) => void;
+  replaceManualInputs: (inputs: ManualInputs) => void;
   submitted: boolean;
   setSubmitted: (v: boolean) => void;
   referenceNumber: string;
+  setReferenceNumber: (v: string) => void;
   uploadedDocs: Record<string, UploadedDoc>;
   setUploadedDoc: (label: string, doc: UploadedDoc) => void;
+  scoring: ScoringSummary | null;
+  setScoring: (s: ScoringSummary | null) => void;
+  products: LoanProduct[];
+  setProducts: (p: LoanProduct[]) => void;
+  submittedApplication: LoanApplication | null;
+  setSubmittedApplication: (a: LoanApplication | null) => void;
+  twinMetrics: TwinMetrics;
+  setTwinMetrics: (m: TwinMetrics) => void;
+  liveQuote: LoanQuote | null;
+  setLiveQuote: (q: LoanQuote | null) => void;
+  quoteAmount: number;
+  setQuoteAmount: (n: number) => void;
   reset: () => void;
 }
 
@@ -40,6 +70,12 @@ export function PrescreeningProvider({ children }: { children: ReactNode }) {
   const [submitted, setSubmitted] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState(generateRef);
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDoc>>({});
+  const [scoring, setScoring] = useState<ScoringSummary | null>(null);
+  const [products, setProducts] = useState<LoanProduct[]>([]);
+  const [submittedApplication, setSubmittedApplication] = useState<LoanApplication | null>(null);
+  const [twinMetrics, setTwinMetrics] = useState<TwinMetrics>({});
+  const [liveQuote, setLiveQuote] = useState<LoanQuote | null>(null);
+  const [quoteAmount, setQuoteAmount] = useState(10000);
 
   const setManualInput = <K extends keyof ManualInputs>(key: K, value: ManualInputs[K]) => {
     setManualInputs(prev => ({ ...prev, [key]: value }));
@@ -58,8 +94,11 @@ export function PrescreeningProvider({ children }: { children: ReactNode }) {
     setCurrentStep(1);
     setManualInputs(emptyManualInputs());
     setSubmitted(false);
-    setReferenceNumber(generateRef()); // fresh ref for each new prescreening session
+    setReferenceNumber(generateRef());
     setUploadedDocs({});
+    setSubmittedApplication(null);
+    setLiveQuote(null);
+    setQuoteAmount(10000);
   };
 
   return (
@@ -67,9 +106,16 @@ export function PrescreeningProvider({ children }: { children: ReactNode }) {
       selectedProductId, setSelectedProductId,
       currentStep, goToStep, nextStep, prevStep,
       manualInputs, setManualInput,
+      replaceManualInputs: setManualInputs,
       submitted, setSubmitted,
-      referenceNumber,
+      referenceNumber, setReferenceNumber,
       uploadedDocs, setUploadedDoc,
+      scoring, setScoring,
+      products, setProducts,
+      submittedApplication, setSubmittedApplication,
+      twinMetrics, setTwinMetrics,
+      liveQuote, setLiveQuote,
+      quoteAmount, setQuoteAmount,
       reset,
     }}>
       {children}

@@ -43,7 +43,7 @@ function ServiceBadge({ label, connected }: { label: string; connected: boolean 
 }
 
 export default function Profile() {
-  const { state, updateState } = useOnboarding();
+  const { state, updateState, persistProfile } = useOnboarding();
   const [saved, setSaved] = useState(false);
 
   // Editable local state — mirrors context
@@ -60,8 +60,8 @@ export default function Profile() {
   // Years are editable only for unregistered businesses
   const yearsLocked = !!(state.isOfficiallyRegistered && state.verifiedRegistrationDate);
 
-  const handleSave = () => {
-    updateState({
+  const handleSave = async () => {
+    const updates = {
       businessName,
       businessType: businessType as BusinessType,
       businessSector: businessSector as BusinessSector,
@@ -71,6 +71,21 @@ export default function Profile() {
       annualRevenue,
       iban,
       contactPhone,
+    };
+    updateState(updates);
+    await persistProfile({
+      business_name: businessName,
+      business_type: businessType || undefined,
+      business_sector: businessSector || undefined,
+      registration_number: registrationNumber,
+      employees: employees || null,
+      years_in_operation: (yearsLocked ? state.yearsInOperation : manualYears) || null,
+      annual_revenue_jod: annualRevenue || null,
+      iban,
+      contact_phone: contactPhone,
+      is_officially_registered: registrationNumber.trim()
+        ? true
+        : state.isOfficiallyRegistered,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

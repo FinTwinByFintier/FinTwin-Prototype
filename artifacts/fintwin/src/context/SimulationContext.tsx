@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, ReactNode } from 'react';
 import { simulate, defaultOverrides, mockBaseState } from '@/lib/simulationEngine';
 import type { SimOverrides, SimResult, BaseState } from '@/lib/simulationEngine';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { fetchScoringSummary, fetchDashboardSummary } from '@/lib/api';
 
 interface SimulationContextType {
   overrides: SimOverrides;
@@ -12,6 +13,7 @@ interface SimulationContextType {
   result: SimResult;
   baseline: SimResult;
   baseState: BaseState;
+  displayName: string;
 }
 
 export const SCENARIOS = {
@@ -41,8 +43,39 @@ export const SCENARIOS = {
 const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
 
 export function SimulationProvider({ children }: { children: ReactNode }) {
-  const { state } = useOnboarding();
+  const { state, updateState } = useOnboarding();
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
+  const [twinScores, setTwinScores] = useState<{ credit?: number; green?: number }>({});
+  const [twinFinance, setTwinFinance] = useState<{
+    existingLoanPayment?: number;
+    availableCash?: number;
+    monthlyRevenue?: number;
+    displayName?: string;
+  }>({});
+
+  useEffect(() => {
+    fetchScoringSummary()
+      .then((s) => setTwinScores({ credit: s.credit_score, green: s.green_score }))
+      .catch(() => {});
+    fetchDashboardSummary()
+      .then((summary) => {
+        const name = summary.display_identity?.display_name;
+        if (name && !state.businessName) {
+          updateState({ businessName: name });
+        }
+        const debt = parseFloat(summary.monthly_debt?.total_monthly || '0');
+        const cash = parseFloat(summary.total_available_balance || '0');
+        const last = summary.monthly_cashflow?.[summary.monthly_cashflow.length - 1];
+        setTwinFinance({
+          existingLoanPayment: Number.isFinite(debt) ? debt : 0,
+          availableCash: Number.isFinite(cash) ? cash : 0,
+          monthlyRevenue: last?.income || undefined,
+          displayName: name,
+        });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const baseState = useMemo(() => mockBaseState(
     state.annualRevenue,
@@ -51,7 +84,9 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     state.connectedSources,
     state.businessSector,
     state.commitments ?? [],
-  ), [state]);
+    twinScores,
+    twinFinance,
+  ), [state, twinScores, twinFinance]);
 
   const [overrides, setOverrides] = useState<SimOverrides>(() => defaultOverrides(baseState));
 
@@ -67,7 +102,6 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
   const applyScenario = (scenario: keyof typeof SCENARIOS) => {
     if (activeScenario === scenario) {
-      // deselect
       resetOverrides();
       return;
     }
@@ -79,9 +113,13 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
   const baseline = useMemo(() => simulate(baseState, defaultOverrides(baseState)), [baseState]);
   const result   = useMemo(() => simulate(baseState, overrides), [baseState, overrides]);
+  const displayName = twinFinance.displayName || state.businessName || 'Your business';
 
   return (
-    <SimulationContext.Provider value={{ overrides, setOverride, resetOverrides, applyScenario, activeScenario, result, baseline, baseState }}>
+    <SimulationContext.Provider value={{
+      overrides, setOverride, resetOverrides, applyScenario, activeScenario,
+      result, baseline, baseState, displayName,
+    }}>
       {children}
     </SimulationContext.Provider>
   );

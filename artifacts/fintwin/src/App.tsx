@@ -11,6 +11,7 @@ import LoanPrescreening from '@/pages/LoanPrescreening';
 import Login from '@/pages/Login';
 import Profile from '@/pages/Profile';
 import Transactions from '@/pages/Transactions';
+import MyLoans from '@/pages/MyLoans';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { SimulationProvider } from '@/context/SimulationContext';
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/simulation" component={Simulation} />
       <Route path="/loan-prescreening" component={LoanPrescreening} />
+      <Route path="/my-loans" component={MyLoans} />
       <Route path="/login" component={Login} />
       <Route path="/profile" component={Profile} />
       <Route component={NotFound} />

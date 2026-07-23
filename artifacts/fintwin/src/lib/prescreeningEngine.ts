@@ -33,8 +33,8 @@ export const BANK_PRODUCTS: BankProduct[] = [
     name: 'Murabaha Working Capital',
     bank: 'Arab Bank',
     maxAmountJOD: 25000,
-    rate: '6.5%',
-    rateValue: 6.5,
+    rate: '',
+    rateValue: 0,
     matchPct: 87,
     minCreditScore: 65,
     minYearsOperation: 2,
@@ -51,8 +51,8 @@ export const BANK_PRODUCTS: BankProduct[] = [
     name: 'Energy Efficiency Fund',
     bank: 'CBJ',
     maxAmountJOD: 50000,
-    rate: '2.75%',
-    rateValue: 2.75,
+    rate: '',
+    rateValue: 0,
     matchPct: 62,
     minCreditScore: 60,
     minYearsOperation: 1,
@@ -69,8 +69,8 @@ export const BANK_PRODUCTS: BankProduct[] = [
     name: 'MSME Guarantee Loan',
     bank: 'JLGC',
     maxAmountJOD: 15000,
-    rate: '7.0%',
-    rateValue: 7.0,
+    rate: '',
+    rateValue: 0,
     matchPct: 74,
     minCreditScore: 55,
     minYearsOperation: 1,
@@ -110,18 +110,47 @@ export function buildAutoProfile(
   state: OnboardingState,
   creditScore: number,
   greenScore: number,
+  twin?: {
+    displayName?: string;
+    monthlyDebt?: number;
+    monthlyRevenue?: number;
+    cashBalance?: number;
+    debtItems?: { label: string; amount: number }[];
+    openBankingConnected?: boolean;
+    accountsLinked?: number;
+    avgMonthlyInflow?: number;
+    avgMonthlyOutflow?: number;
+    bankName?: string;
+    ibanMasked?: string;
+    registrationNumber?: string;
+  },
 ): AutoProfile {
-  const businessName = state.businessName || 'Amman Coffee Roasters';
+  const businessName = twin?.displayName || state.businessName || 'Your business';
   const sector = state.businessSector || 'Food & Hospitality';
   const category = state.category || 'Micro Enterprise';
   const employees = state.employees || '4';
   const years = state.yearsInOperation || '3';
-  const revenue = state.annualRevenue ? `${(parseInt(state.annualRevenue) / 12).toLocaleString()} JOD/mo` : '4,800 JOD/mo';
-  const hasReg = state.hasRegistrationNumber && state.registrationNumber;
+  const monthlyRev = twin?.monthlyRevenue
+    ?? (state.annualRevenue ? parseInt(state.annualRevenue, 10) / 12 : 0);
+  const revenue = monthlyRev > 0
+    ? `${Math.round(monthlyRev).toLocaleString()} JOD/mo`
+    : '—';
+  const registrationNumber = (twin?.registrationNumber || state.registrationNumber || '').trim();
+  const hasReg = !!registrationNumber;
   const connected = Object.values(state.connectedSources).filter(Boolean).length;
   const commitments = state.commitments ?? [];
-  const totalExpenses = commitments.reduce((s, c) => s + c.amountJOD, 0) + 850; // +existing loan
-  const netCash = 4800 - totalExpenses;
+  const existingDebt = twin?.monthlyDebt ?? 0;
+  const commitmentTotal = commitments.reduce((s, c) => s + c.amountJOD, 0);
+  const totalExpenses = commitmentTotal + existingDebt;
+  const netCash = monthlyRev > 0 ? Math.round(monthlyRev - totalExpenses) : null;
+  const dti = monthlyRev > 0 ? Math.round((existingDebt / monthlyRev) * 100) : null;
+  const cashBalance = twin?.cashBalance;
+  const debtLabel = existingDebt > 0
+    ? `${Math.round(existingDebt).toLocaleString()} JOD`
+    : '0 JOD';
+  const openBankingConnected =
+    twin?.openBankingConnected ?? state.connectedSources.cliq;
+  const accountsLinked = twin?.accountsLinked ?? 0;
 
   const sections: AutoSection[] = [
     {
@@ -134,7 +163,7 @@ export function buildAutoProfile(
         { label: 'Enterprise size', value: category },
         { label: 'Years in operation', value: `${years} years` },
         { label: 'Employees', value: `${employees} employees` },
-        { label: 'Registration number', value: hasReg ? state.registrationNumber : 'Not provided', source: hasReg ? 'Ministry of Industry' : undefined },
+        { label: 'Registration number', value: hasReg ? registrationNumber : 'Not provided', source: hasReg ? 'Ministry of Industry' : undefined },
       ],
     },
     {
@@ -144,9 +173,12 @@ export function buildAutoProfile(
       items: [
         { label: 'Monthly revenue', value: revenue, source: state.connectedSources.jofotara ? 'JoFotara' : 'Estimated' },
         { label: 'Monthly expenses', value: `${totalExpenses.toLocaleString()} JOD`, source: 'FinTwin profile' },
-        { label: 'Net monthly cash', value: `${netCash >= 0 ? '+' : ''}${netCash.toLocaleString()} JOD` },
-        { label: 'Cash trend', value: '↑ 14% vs last month', source: state.connectedSources.cliq ? 'CliQ' : 'Estimated' },
-        { label: 'Cash balance', value: '18,500 JOD', source: state.connectedSources.cliq ? 'CliQ' : 'Estimated' },
+        { label: 'Net monthly cash', value: netCash == null ? '—' : `${netCash >= 0 ? '+' : ''}${netCash.toLocaleString()} JOD` },
+        {
+          label: 'Cash balance',
+          value: cashBalance != null ? `${Math.round(cashBalance).toLocaleString()} JOD` : '—',
+          source: openBankingConnected ? 'Open banking' : 'Estimated',
+        },
       ],
     },
     {
@@ -154,10 +186,22 @@ export function buildAutoProfile(
       title: 'Repayment Capacity',
       status: 'complete',
       items: [
-        { label: 'Existing monthly debt', value: '850 JOD', source: 'CliQ open banking' },
-        { label: 'Debt-to-income ratio', value: `${Math.round((850 / 4800) * 100)}%` },
-        { label: 'Cash runway', value: '4.2 months at current burn' },
-        { label: 'On-time payment history', value: '8 of 8 installments paid', source: 'Arab Bank' },
+        {
+          label: 'Existing monthly debt',
+          value: debtLabel,
+          source: existingDebt > 0 ? 'Open banking + applications' : 'No obligations synced',
+        },
+        {
+          label: 'Debt-to-income ratio',
+          value: dti == null ? '—' : `${dti}%`,
+        },
+        ...(twin?.debtItems?.length
+          ? twin.debtItems.slice(0, 4).map((item) => ({
+              label: item.label,
+              value: `${Math.round(item.amount).toLocaleString()} JOD/mo`,
+              source: 'Synced obligation',
+            }))
+          : []),
       ],
     },
     {
@@ -177,7 +221,7 @@ export function buildAutoProfile(
       status: 'complete',
       items: [
         { label: 'FinTwin credit score', value: `${creditScore} / 100`, source: 'FinTwin engine' },
-        { label: 'Payment history', value: '82 / 100', source: 'CliQ + Bank' },
+        { label: 'Payment history', value: '82 / 100', source: 'Open banking' },
         { label: 'Cash flow health', value: '70 / 100' },
         { label: 'Business age score', value: '65 / 100' },
         { label: 'Data coverage', value: `${connected} of 4 sources connected` },
@@ -186,17 +230,45 @@ export function buildAutoProfile(
     {
       id: 'banking',
       title: 'Bank Account Activity',
-      status: state.connectedSources.cliq ? 'complete' : 'missing',
-      items: state.connectedSources.cliq
+      status: openBankingConnected ? 'complete' : 'missing',
+      items: openBankingConnected
         ? [
-            { label: 'CliQ account', value: 'Connected', source: 'CliQ' },
-            { label: 'Avg monthly inflow', value: '5,700 JOD (last 4 mo)', source: 'CliQ' },
-            { label: 'Avg monthly outflow', value: '3,600 JOD (last 4 mo)', source: 'CliQ' },
-            { label: 'JoFotara', value: state.connectedSources.jofotara ? 'Connected' : 'Not connected', source: 'JoFotara' },
+            {
+              label: 'Open banking',
+              value: accountsLinked > 0
+                ? `Connected · ${accountsLinked} account${accountsLinked === 1 ? '' : 's'}`
+                : 'Connected',
+              source: 'JoPACC AIS',
+            },
+            ...(twin?.bankName
+              ? [{ label: 'Bank', value: twin.bankName, source: 'Open banking' }]
+              : []),
+            ...(twin?.ibanMasked
+              ? [{ label: 'Account', value: twin.ibanMasked, source: 'Open banking' }]
+              : []),
+            {
+              label: 'Avg monthly inflow',
+              value: twin?.avgMonthlyInflow != null && twin.avgMonthlyInflow > 0
+                ? `${Math.round(twin.avgMonthlyInflow).toLocaleString()} JOD`
+                : '—',
+              source: 'Open banking',
+            },
+            {
+              label: 'Avg monthly outflow',
+              value: twin?.avgMonthlyOutflow != null && twin.avgMonthlyOutflow > 0
+                ? `${Math.round(twin.avgMonthlyOutflow).toLocaleString()} JOD`
+                : '—',
+              source: 'Open banking',
+            },
+            {
+              label: 'JoFotara',
+              value: state.connectedSources.jofotara ? 'Connected' : 'Not connected',
+              source: 'JoFotara',
+            },
           ]
         : [
-            { label: 'CliQ account', value: 'Not connected' },
-            { label: 'Status', value: 'Connect CliQ to populate bank activity' },
+            { label: 'Open banking', value: 'Not connected' },
+            { label: 'Status', value: 'Connect open banking to populate bank activity' },
           ],
     },
     {
@@ -215,7 +287,7 @@ export function buildAutoProfile(
   const documents = (product: BankProduct): DocumentItem[] => {
     const base: DocumentItem[] = [
       { label: 'National ID / Passport', status: 'complete' },
-      { label: 'Bank statements (3–6 months)', status: state.connectedSources.cliq ? 'complete' : 'missing' },
+      { label: 'Bank statements (3–6 months)', status: openBankingConnected ? 'complete' : 'missing' },
       { label: 'Income / revenue evidence', status: state.connectedSources.jofotara ? 'complete' : 'partial' },
       { label: 'Financial statements', status: 'partial' },
     ];
@@ -224,7 +296,7 @@ export function buildAutoProfile(
     }
     if (product.requiresGreenScore) {
       base.push({ label: 'Green investment plan / energy audit', status: 'missing' });
-      base.push({ label: 'Utility bills (3 months)', status: state.connectedSources.cliq ? 'partial' : 'missing' });
+      base.push({ label: 'Utility bills (3 months)', status: openBankingConnected ? 'partial' : 'missing' });
     }
     base.push({ label: 'Business plan (brief)', status: 'missing' }); // filled in step 3
     return base;
@@ -283,6 +355,22 @@ export const emptyManualInputs = (): ManualInputs => ({
   loanPurposeDescription: '',
 });
 
+export const demoManualInputs = (): ManualInputs => ({
+  businessPlan:
+    'Working capital expansion to grow wholesale distribution across Amman and Zarqa. Focus on inventory turnover, supplier terms, and digital invoicing via JoFotara.',
+  mgmtYearsExperience: '8',
+  mgmtTeamSize: '3',
+  mgmtPriorLoansRepaid: '2',
+  mgmtBackground:
+    'Owner-operator with prior MSME financing repaid on schedule; bookkeeping handled in-house with quarterly accountant review.',
+  industrySector: 'Retail & Trade',
+  industryDescription:
+    'Specialty goods wholesale and retail with recurring B2B customers and seasonal peak demand.',
+  loanPurposeCategory: 'working-capital',
+  loanPurposeDescription:
+    'Inventory purchase and short-term operating float for the next 6 months of growth.',
+});
+
 export function calcManualCompletion(inputs: ManualInputs): number {
   const fields = Object.values(inputs);
   return Math.round((fields.filter(f => f.trim().length > 0).length / fields.length) * 100);
@@ -300,12 +388,18 @@ export function evaluateReadiness(
   creditScore: number,
   greenScore: number,
   inputs: ManualInputs,
+  twin?: { monthlyDebt?: number; monthlyRevenue?: number; registrationNumber?: string },
 ): ReadinessResult {
   const years = state.yearsInOperation ? parseFloat(state.yearsInOperation) : 3;
   const connected = Object.values(state.connectedSources).filter(Boolean).length;
-  const hasReg = state.hasRegistrationNumber && !!state.registrationNumber;
+  const hasReg = !!(twin?.registrationNumber || state.registrationNumber || '').trim();
   const manualPct = calcManualCompletion(inputs);
-  const debtToIncome = Math.round((850 / 4800) * 100);
+  const monthlyDebt = twin?.monthlyDebt ?? 0;
+  const monthlyRevenue = twin?.monthlyRevenue
+    ?? (state.annualRevenue ? parseInt(state.annualRevenue, 10) / 12 : 0);
+  const debtToIncome = monthlyRevenue > 0
+    ? Math.round((monthlyDebt / monthlyRevenue) * 100)
+    : (monthlyDebt > 0 ? 50 : 0);
   const greenSectors = ['Food & Hospitality', 'Agriculture', 'Small Manufacturing'];
   const isGreenSector = greenSectors.some(s => (state.businessSector || '').includes(s));
 

@@ -8,10 +8,11 @@ import { useLanguage } from "@/context/LanguageContext";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
+import { requestLoanQuote } from "@/lib/api";
 import {
   X, RotateCcw, BarChart3, Leaf, Wallet, Timer, TrendingUp, TrendingDown,
   Users, Zap, Home, CreditCard, Sun, Cpu, Clock, Bell, AlertCircle,
-  ChevronDown, Package, ReceiptText,
+  ChevronDown, Package, ReceiptText, Loader2,
 } from "lucide-react";
 
 /* ── Delta chip ────────────────────────────────────────────── */
@@ -178,19 +179,39 @@ export default function Simulation() {
   const { toggleLanguage } = useLanguage();
   const {
     overrides, setOverride, resetOverrides, applyScenario, activeScenario,
-    result, baseline, baseState,
+    result, baseline, baseState, displayName,
   } = useSimulation();
 
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [quoting, setQuoting] = useState(false);
 
-  const businessName = state.businessName || "Amman Coffee Roasters";
+  const businessName = displayName;
   const gc = useGreenColor(result.greenScore);
   const baseGc = useGreenColor(baseline.greenScore);
 
   const hasNoCommitments = state.commitments.length === 0;
 
   const fmt = (n: number) => n.toLocaleString('en-JO');
+
+  const handleApplyForLoan = async () => {
+    setQuoting(true);
+    try {
+      await requestLoanQuote({
+        amount: overrides.newLoanAmount,
+        tenor_months: overrides.loanTermMonths,
+        loan_category: "Business",
+        loan_type: "Business financing",
+      });
+    } catch {
+      // Quote is best-effort; still continue into prescreening
+    } finally {
+      setQuoting(false);
+    }
+    navigate(
+      `/loan-prescreening?productId=new-loan&amount=${overrides.newLoanAmount}&term=${overrides.loanTermMonths}`,
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -463,9 +484,12 @@ export default function Simulation() {
                       size="sm"
                       variant="outline"
                       className="w-full h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
-                      onClick={() => navigate(`/loan-prescreening?productId=new-loan&amount=${overrides.newLoanAmount}&term=${overrides.loanTermMonths}`)}
+                      disabled={quoting}
+                      onClick={handleApplyForLoan}
                     >
-                      {t('simulation.applyForLoan')} <CreditCard className="w-3.5 h-3.5" />
+                      {quoting
+                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t('simulation.fetchingQuote')}</>
+                        : <>{t('simulation.applyForLoan')} <CreditCard className="w-3.5 h-3.5" /></>}
                     </Button>
                   </div>
                 )}

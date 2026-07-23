@@ -22,6 +22,9 @@ export interface BaseState {
   connectedSourcesCount: number; // 0-4
   hasReceipts: boolean;
   sector: string;
+  /** Twin scores from API — simulation layers what-if deltas on top. */
+  baselineCreditScore?: number;
+  baselineGreenScore?: number;
 }
 
 export interface SimOverrides {
@@ -70,15 +73,18 @@ function loanMonthlyPayment(principal: number, annualRatePct: number, months: nu
 
 /* ── Main simulation function ── */
 export function simulate(base: BaseState, overrides: SimOverrides): SimResult {
-  // --- Green score ---
-  let greenScore = 38; // base
-  greenScore += base.connectedSourcesCount * 5;   // up to +20
-  if (base.hasReceipts) greenScore += 5;
-  const greenSectors = ['Food & Hospitality', 'Agriculture', 'Small Manufacturing'];
-  if (greenSectors.some(s => base.sector.includes(s))) greenScore += 5;
-  if (overrides.solarPanels) greenScore += 8;
-  if (overrides.energyEfficiency) greenScore += 5;
-  greenScore = Math.min(100, Math.max(0, greenScore));
+  // --- Green score (anchor on twin score when available) ---
+  const greenAnchor = base.baselineGreenScore ?? 38;
+  let greenDelta = 0;
+  if (base.baselineGreenScore == null) {
+    greenDelta += base.connectedSourcesCount * 5;
+    if (base.hasReceipts) greenDelta += 5;
+    const greenSectors = ['Food & Hospitality', 'Agriculture', 'Small Manufacturing'];
+    if (greenSectors.some(s => base.sector.includes(s))) greenDelta += 5;
+  }
+  if (overrides.solarPanels) greenDelta += 8;
+  if (overrides.energyEfficiency) greenDelta += 5;
+  const greenScore = Math.min(100, Math.max(0, greenAnchor + greenDelta));
 
   // --- Interest rate ---
   const interestRate = deriveInterestRate(greenScore);
@@ -152,13 +158,17 @@ export function simulate(base: BaseState, overrides: SimOverrides): SimResult {
   // New loan adds debt burden — penalises slightly
   const debtPenalty = overrides.newLoanAmount > 0 ? Math.min(15, overrides.newLoanAmount / 3000) : 0;
 
-  const creditScore = Math.round(
+  let creditScore = Math.round(
     paymentHistory  * 0.35 +
     cashFlowScore   * 0.25 +
     ageScore        * 0.20 +
     dataScore       * 0.20 -
     debtPenalty
   );
+  if (base.baselineCreditScore != null) {
+    const cashDelta = Math.round((cashFlowScore - 50) * 0.15);
+    creditScore = Math.round(base.baselineCreditScore - debtPenalty + cashDelta);
+  }
 
   // --- Projected cash flow (next 4 months) ---
   const months = ['Aug', 'Sep', 'Oct', 'Nov'];
@@ -211,21 +221,26 @@ export const mockBaseState = (
   connectedSources: { jofotara: boolean; cliq: boolean; pos: boolean; receipts: boolean },
   sector: string,
   commitments: Commitment[],
+  baselineScores?: { credit?: number; green?: number },
+  twin?: { existingLoanPayment?: number; availableCash?: number; monthlyRevenue?: number },
 ): BaseState => {
-  const revenue = annualRevenue ? parseInt(annualRevenue, 10) / 12 : 4800;
+  const revenueFromAnnual = annualRevenue ? parseInt(annualRevenue, 10) / 12 : NaN;
+  const revenue = twin?.monthlyRevenue ?? (isNaN(revenueFromAnnual) ? 0 : revenueFromAnnual);
   const emp = employees ? parseInt(employees, 10) : 4;
   const yrs = years ? parseFloat(years) : 3;
   const connected = Object.values(connectedSources).filter(Boolean).length;
   return {
-    monthlyRevenue: isNaN(revenue) ? 4800 : revenue,
+    monthlyRevenue: revenue > 0 ? revenue : 0,
     commitments,
-    existingLoanPayment: 850,
-    availableCash: 18500,
+    existingLoanPayment: twin?.existingLoanPayment ?? 0,
+    availableCash: twin?.availableCash ?? 0,
     employees: isNaN(emp) ? 4 : emp,
     avgSalaryJOD: 400,
     yearsInOperation: isNaN(yrs) ? 3 : yrs,
     connectedSourcesCount: connected,
     hasReceipts: connectedSources.receipts,
     sector: sector || 'Food & Hospitality',
+    baselineCreditScore: baselineScores?.credit,
+    baselineGreenScore: baselineScores?.green,
   };
 };

@@ -372,6 +372,61 @@ export type TwinCompleteness = {
   accounts_linked: number;
   transactions_imported: number;
   standing_orders_tracked: number;
+  beneficiaries_imported?: number;
+};
+
+export type DisplayIdentity = {
+  display_name: string;
+  business_name: string;
+  beneficiary_name: string;
+  beneficiary_name_ar: string;
+  trade_name: string;
+  nickname: string;
+  iban: string;
+  cliq_alias: string;
+  phone: string;
+  bank_name: string;
+  source: "beneficiary" | "profile" | "fallback" | string;
+};
+
+export type MonthlyDebtItem = {
+  id: number;
+  label: string;
+  beneficiary: string;
+  amount_monthly: string;
+  currency: string;
+  frequency: string | null;
+  kind: "sosp" | "loan_application" | string;
+  reference_number?: string;
+  requested_amount?: string;
+  status?: string;
+};
+
+export type MonthlyDebt = {
+  total_monthly: string;
+  sosp_monthly: string;
+  loan_monthly: string;
+  currency: string;
+  items: MonthlyDebtItem[];
+};
+
+export type BeneficiarySummary = {
+  id: number;
+  beneficiary_id: string;
+  beneficiary_type: string;
+  name_en: string;
+  name_ar: string;
+  trade_name_en: string;
+  trade_name_ar: string;
+  display_name: string;
+  nickname: string;
+  iban: string;
+  cliq_alias: string;
+  notes: string;
+  bank_name_en: string;
+  is_primary: boolean;
+  account_id: string;
+  source: string;
 };
 
 export type DashboardSummary = {
@@ -380,6 +435,9 @@ export type DashboardSummary = {
   monthly_cashflow: MonthlyCashflowPoint[];
   recent_transactions: RecentTransaction[];
   upcoming_payments: UpcomingPayment[];
+  beneficiaries?: BeneficiarySummary[];
+  display_identity?: DisplayIdentity;
+  monthly_debt?: MonthlyDebt;
   profile: BusinessProfile;
   twin_completeness: TwinCompleteness;
 };
@@ -390,6 +448,7 @@ export type SyncRunResult = {
   balances_updated: number;
   transactions_imported: number;
   sosps_imported: number;
+  beneficiaries_imported?: number;
 };
 
 export function runDataSync() {
@@ -443,6 +502,176 @@ export type TransactionFilter =
 export function fetchTransactions(source: TransactionFilter = "all") {
   const q = source && source !== "all" ? `?source=${encodeURIComponent(source)}` : "";
   return apiFetch<TransactionsListResponse>(`/api/v1/openbanking/transactions/${q}`);
+}
+
+/* ── Scoring ─────────────────────────────────────────────── */
+
+export type ScoringSummary = {
+  credit_score: number;
+  credit_band: string;
+  green_score: number;
+  green_band: string;
+  credit_breakdown: Record<
+    string,
+    { weight: number; component_score: number; contribution: number }
+  >;
+  green_breakdown: Record<
+    string,
+    { weight: number; component_score: number; contribution: number }
+  >;
+  is_placeholder: boolean;
+  computed_at: string | null;
+};
+
+export function fetchScoringSummary() {
+  return apiFetch<ScoringSummary>("/api/v1/scoring/summary/");
+}
+
+export function refreshScoringSummary() {
+  return apiFetch<ScoringSummary>("/api/v1/scoring/summary/", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/* ── Lending ─────────────────────────────────────────────── */
+
+export type LoanProduct = {
+  id: string;
+  tag: string;
+  tag_color: string;
+  name: string;
+  bank: string;
+  description: string;
+  max_amount_jod: string;
+  rate: string;
+  rate_value: number;
+  match_pct: number;
+  min_credit_score: number;
+  min_years_operation: number;
+  requires_registration: boolean;
+  requires_green_score: boolean;
+  min_green_score: number;
+  requires_green_sector: boolean;
+  meets_credit: boolean;
+  meets_green: boolean;
+};
+
+export type LoanQuote = {
+  rate: string;
+  rate_type: string;
+  monthly_installment: string | null;
+  total_repayment: string | null;
+  currency: string;
+  loan_tenor: string;
+  additional_details: string[];
+  quote_source: "sandbox" | "local_fallback" | string;
+};
+
+export type LoanApplicationDocument = {
+  document_type: string;
+  label: string;
+  is_required: boolean;
+  status: string;
+};
+
+export type LoanApplication = {
+  id: number;
+  reference_number: string;
+  status: string;
+  loan_category: string;
+  loan_type: string;
+  requested_amount: string;
+  tenor_months: number;
+  financing_need: string;
+  product_id: string | null;
+  product_name: string | null;
+  product_bank: string | null;
+  completeness_pct: number;
+  readiness_verdict: string;
+  application_score: number;
+  readiness_detail: Record<string, unknown>;
+  credit_score_snapshot: number | null;
+  green_score_snapshot: number | null;
+  quoted_rate: string;
+  quoted_rate_type: string;
+  monthly_installment: string | null;
+  total_repayment: string | null;
+  quote_source: string;
+  quote_additional_details: string[];
+  jopacc_loan_id: string | null;
+  jopacc_last_status: string | null;
+  jopacc_reply_messages: string[];
+  manual_profile: Record<string, string>;
+  documents: LoanApplicationDocument[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type ConcentrationSummary = {
+  total_inflow: string;
+  currency: string;
+  top_counterparties: Array<{
+    counterparty: string;
+    amount: string;
+    pct: number;
+  }>;
+  top_concentration_pct: number;
+  risk_level: "low" | "moderate" | "high" | string;
+  flagged: boolean;
+};
+
+export function fetchLoanProducts() {
+  return apiFetch<{ products: LoanProduct[] }>("/api/v1/lending/products/");
+}
+
+export function requestLoanQuote(payload: {
+  amount: number | string;
+  tenor_months?: number;
+  loan_category?: string;
+  loan_type?: string;
+  down_payment?: number | string | null;
+  product_id?: string;
+}) {
+  return apiFetch<LoanQuote>("/api/v1/lending/quote/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchLoanApplications() {
+  return apiFetch<{ applications: LoanApplication[] }>("/api/v1/lending/applications/");
+}
+
+export function submitLoanApplication(payload: {
+  product_id?: string;
+  requested_amount: number | string;
+  tenor_months?: number;
+  financing_need?: string;
+  loan_category?: string;
+  loan_type?: string;
+  down_payment_amount?: number | string | null;
+  manual_profile?: Record<string, string>;
+}) {
+  return apiFetch<LoanApplication>("/api/v1/lending/applications/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchLoanApplication(id: number) {
+  return apiFetch<LoanApplication>(`/api/v1/lending/applications/${id}/`);
+}
+
+export function respondToLoanOffer(id: number, decision: "approved" | "rejected") {
+  return apiFetch<LoanApplication>(`/api/v1/lending/applications/${id}/respond/`, {
+    method: "POST",
+    body: JSON.stringify({ decision }),
+  });
+}
+
+export function fetchConcentration() {
+  return apiFetch<ConcentrationSummary>("/api/v1/lending/concentration/");
 }
 
 export function logout() {

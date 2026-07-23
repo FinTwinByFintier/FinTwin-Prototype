@@ -11,21 +11,68 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   BANK_PRODUCTS, buildAutoProfile, evaluateReadiness,
-  calcManualCompletion,
+  calcManualCompletion, demoManualInputs,
 } from "@/lib/prescreeningEngine";
-import type { BankProduct, CriterionResult, Verdict } from "@/lib/prescreeningEngine";
+import type { BankProduct, CriterionResult, ManualInputs, ReadinessResult, Verdict } from "@/lib/prescreeningEngine";
+import {
+  fetchScoringSummary, fetchLoanProducts, submitLoanApplication, respondToLoanOffer,
+  fetchDashboardSummary, requestLoanQuote, fetchBusinessProfile,
+  type LoanApplication, type LoanProduct,
+} from "@/lib/api";
 import {
   Bell, X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle,
   XCircle, Leaf, BarChart3, FileText, Users, Globe, Target,
   Landmark, ArrowRight, Clock, Loader2, Sparkles, ExternalLink,
-  Building, Banknote, Upload, Download, Paperclip,
+  Building, Banknote, Upload, Download, Paperclip, Bug,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { storageAuthHeaders } from "@/lib/storageToken";
 
-/* ── Constants ───────────────────────────────────────────── */
-const CREDIT_SCORE = 74;
-const GREEN_SCORE  = 62;
+function apiProductToBank(p: LoanProduct): BankProduct {
+  return {
+    id: p.id,
+    tag: p.tag,
+    tagColor: p.tag_color || "text-primary",
+    name: p.name,
+    bank: p.bank,
+    maxAmountJOD: Number(p.max_amount_jod) || 0,
+    rate: p.rate,
+    rateValue: p.rate_value,
+    matchPct: p.match_pct,
+    minCreditScore: p.min_credit_score,
+    minYearsOperation: p.min_years_operation,
+    requiresRegistration: p.requires_registration,
+    requiresGreenScore: p.requires_green_score,
+    minGreenScore: p.min_green_score,
+    requiresGreenSector: p.requires_green_sector,
+    description: p.description,
+  };
+}
+
+function readinessFromApplication(
+  app: LoanApplication,
+  product: BankProduct,
+  credit: number,
+  green: number,
+  state: Parameters<typeof evaluateReadiness>[1],
+  inputs: ManualInputs,
+): ReadinessResult {
+  const detail = (app.readiness_detail || {}) as Record<string, unknown>;
+  if (Array.isArray(detail.credit_criteria) || Array.isArray(detail.creditCriteria)) {
+    return {
+      creditCriteria: (detail.credit_criteria || detail.creditCriteria) as CriterionResult[],
+      greenCriteria: (detail.green_criteria || detail.greenCriteria || []) as CriterionResult[],
+      creditVerdict: (detail.credit_verdict || detail.creditVerdict || "pass") as Verdict,
+      greenVerdict: (detail.green_verdict || detail.greenVerdict || "pass") as Verdict,
+      overallVerdict: (detail.overall_verdict || detail.overallVerdict || app.readiness_verdict || "ready") as ReadinessResult["overallVerdict"],
+      rateTier: String(detail.rate_tiers || detail.rateTier || ""),
+      greenClassification: (detail.green_classification || detail.greenClassification) as string | undefined,
+      applicationScore: app.application_score || Number(detail.application_score || detail.applicationScore || 0),
+      blockers: Number(detail.blockers || 0),
+    };
+  }
+  return evaluateReadiness(product, state, credit, green, inputs);
+}
 
 const LOAN_PURPOSE_ICONS: Record<string, React.ElementType> = {
   'working-capital': Banknote,
@@ -164,8 +211,17 @@ function generateApplicationPDF(params: {
   result: ReturnType<typeof evaluateReadiness>;
   uploadedDocs: Record<string, { fileName: string; objectPath: string }>;
   manualInputs: ReturnType<typeof import('@/lib/prescreeningEngine')['emptyManualInputs']>;
+  quotedRate?: string;
+  quotedAmount?: number;
 }) {
-  const { businessName, product, referenceNumber, result, uploadedDocs, manualInputs } = params;
+  const {
+    businessName, product, referenceNumber, result, uploadedDocs, manualInputs,
+    quotedRate, quotedAmount,
+  } = params;
+  const amountLabel = quotedAmount
+    ? `${quotedAmount.toLocaleString()} JOD`
+    : 'Amount set at bank quote';
+  const rateLabel = quotedRate || '';
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210;
   const margin = 20;
@@ -247,8 +303,8 @@ function generateApplicationPDF(params: {
   kv('Business Name', businessName);
   kv('Reference', referenceNumber);
   kv('Product', `${product.name} — ${product.bank}`);
-  kv('Amount', `Up to ${product.maxAmountJOD.toLocaleString()} JOD`);
-  kv('Rate', `${product.rate} per year`);
+  kv('Amount', amountLabel);
+  if (rateLabel) kv('Rate', `${rateLabel} per year`);
   kv('Status', result.overallVerdict === 'ready' ? '✓ All Criteria Met' : '✓ Ready with Minor Caveats');
   kv('Application Score', `${result.applicationScore} / 100`);
   kv('Generated', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
@@ -446,21 +502,24 @@ function StepIndicator({ current }: { current: number }) {
 
 /* ── Step 1: Product selector ─────────────────────────────── */
 function StepSelectProduct() {
-  const { selectedProductId, setSelectedProductId, nextStep } = usePrescreening();
+  const { selectedProductId, setSelectedProductId, nextStep, scoring, products } = usePrescreening();
   const { t } = useTranslation();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const preselect = params.get('productId');
+  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const GREEN_SCORE = scoring?.green_score ?? 62;
+  const catalogue = products.length ? products.map(apiProductToBank) : BANK_PRODUCTS;
 
   useEffect(() => {
-    if (preselect && BANK_PRODUCTS.find(p => p.id === preselect)) {
+    if (preselect && catalogue.find(p => p.id === preselect)) {
       setSelectedProductId(preselect);
     } else if (preselect === 'new-loan') {
       const amount = parseInt(params.get('amount') ?? '0', 10);
       setSelectedProductId(amount <= 15000 ? 'msme-jlgc' : 'murabaha-arab-bank');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [catalogue.length]);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -470,7 +529,7 @@ function StepSelectProduct() {
       </div>
 
       <div className="space-y-4">
-        {BANK_PRODUCTS.map(p => {
+        {catalogue.map(p => {
           const selected = selectedProductId === p.id;
           const meetsCredit = CREDIT_SCORE >= p.minCreditScore;
           const meetsGreen  = !p.requiresGreenScore || GREEN_SCORE >= p.minGreenScore;
@@ -527,9 +586,7 @@ function StepSelectProduct() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        <div className="text-[10px] text-muted-foreground">{t('prescreening.step4.productSub').split('·')[1]?.trim() || 'Rate'}</div>
-                        <div className="font-bold text-sm text-primary">{p.rate} / yr</div>
-                        <div className="text-[10px] text-muted-foreground ml-1">· {t('prescreening.upTo', { amount: p.maxAmountJOD.toLocaleString() })}</div>
+                        <div className="text-[10px] text-muted-foreground">{t('prescreening.rateFromBank')}</div>
                       </div>
                     )}
                   </div>
@@ -555,11 +612,13 @@ function StepSelectProduct() {
 /* ── Step 2: Auto-generated profile ──────────────────────── */
 function StepAutoProfile({ product }: { product: BankProduct }) {
   const { state } = useOnboarding();
-  const { nextStep, prevStep, uploadedDocs } = usePrescreening();
+  const { nextStep, prevStep, uploadedDocs, scoring, twinMetrics } = usePrescreening();
   const { t } = useTranslation();
   const [openSection, setOpenSection] = useState<string | null>('identity');
+  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const GREEN_SCORE = scoring?.green_score ?? 62;
 
-  const profile = buildAutoProfile(state, CREDIT_SCORE, GREEN_SCORE);
+  const profile = buildAutoProfile(state, CREDIT_SCORE, GREEN_SCORE, twinMetrics);
   const docs = profile.documents(product);
 
   const uploadCount = Object.keys(uploadedDocs).length;
@@ -807,26 +866,88 @@ function StepManualInputs({ product }: { product: BankProduct }) {
 /* ── Step 4: Readiness gate ──────────────────────────────── */
 function StepReadinessGate({ product }: { product: BankProduct }) {
   const { state } = useOnboarding();
-  const { manualInputs, prevStep, submitted, setSubmitted, referenceNumber } = usePrescreening();
+  const {
+    manualInputs, prevStep, submitted, setSubmitted, referenceNumber, setReferenceNumber,
+    scoring, setSubmittedApplication, submittedApplication, twinMetrics,
+    liveQuote, setLiveQuote, quoteAmount, setQuoteAmount,
+  } = usePrescreening();
   const { t } = useTranslation();
   const [analysing, setAnalysing] = useState(true);
+  const [quoting, setQuoting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const GREEN_SCORE = scoring?.green_score ?? 62;
 
   useEffect(() => {
-    const t = setTimeout(() => setAnalysing(false), 1800);
-    return () => clearTimeout(t);
-  }, []);
+    const amount = Math.min(product.maxAmountJOD || 10000, 10000);
+    setQuoteAmount(amount);
+    setQuoting(true);
+    requestLoanQuote({
+      product_id: product.id,
+      amount,
+      tenor_months: 36,
+      loan_category: 'Business',
+      loan_type: 'Business financing',
+    })
+      .then(setLiveQuote)
+      .catch(() => setLiveQuote(null))
+      .finally(() => setQuoting(false));
 
-  const result = evaluateReadiness(product, state, CREDIT_SCORE, GREEN_SCORE, manualInputs);
+    const timer = setTimeout(() => setAnalysing(false), 1800);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
+
+  const result = submittedApplication
+    ? readinessFromApplication(submittedApplication, product, CREDIT_SCORE, GREEN_SCORE, state, manualInputs)
+    : evaluateReadiness(product, state, CREDIT_SCORE, GREEN_SCORE, manualInputs, twinMetrics);
+
+  const displayRate =
+    liveQuote?.rate
+    || submittedApplication?.quoted_rate
+    || '';
+  const displayAmount = quoteAmount;
+  const quoteSource = liveQuote?.quote_source || submittedApplication?.quote_source || '';
+
+  const productSub = quoting
+    ? `${product.bank} · ${t('prescreening.fetchingQuote')}`
+    : displayRate
+      ? t('prescreening.step4.productSubQuote', {
+          bank: product.bank,
+          rate: displayRate,
+          amount: displayAmount.toLocaleString(),
+          source: quoteSource === 'sandbox'
+            ? t('dashboard.liveBankQuote')
+            : t('dashboard.estimatedQuote'),
+        })
+      : `${product.bank} · ${t('prescreening.rateFromBank')}`;
   const isReady = result.overallVerdict !== 'not-ready';
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     setSubmitting(true);
-    setTimeout(() => { setSubmitting(false); setSubmitted(true); }, 1400);
-  }, [setSubmitted]);
+    setSubmitError(null);
+    try {
+      const amount = quoteAmount || Math.min(product.maxAmountJOD || 10000, 10000);
+      const app = await submitLoanApplication({
+        product_id: product.id,
+        requested_amount: amount,
+        tenor_months: 36,
+        financing_need: manualInputs.loanPurposeDescription || manualInputs.loanPurposeCategory || product.description,
+        manual_profile: { ...manualInputs },
+      });
+      setSubmittedApplication(app);
+      setReferenceNumber(app.reference_number);
+      setSubmitted(true);
+    } catch (e: any) {
+      setSubmitError(e?.message || 'Submit failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [manualInputs, product, quoteAmount, setReferenceNumber, setSubmitted, setSubmittedApplication]);
 
   if (submitted) {
-    return <SubmissionSuccess product={product} refNum={referenceNumber} />;
+    return <SubmissionSuccess product={product} refNum={referenceNumber} application={submittedApplication} />;
   }
 
   return (
@@ -842,7 +963,7 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
           <motion.div key="results" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="mb-5">
               <h2 className="text-xl font-bold mb-1">{t('prescreening.step4.headingReady', { product: product.name })}</h2>
-              <p className="text-sm text-muted-foreground">{t('prescreening.step4.productSub', { bank: product.bank, rate: product.rate, max: product.maxAmountJOD.toLocaleString() })}</p>
+              <p className="text-sm text-muted-foreground">{productSub}</p>
             </div>
 
             {/* Dual panels */}
@@ -901,6 +1022,9 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
             </div>
 
             {/* Verdict */}
+            {submitError && (
+              <p className="text-xs text-red-600 mb-3">{submitError}</p>
+            )}
             {!isReady ? (
               <NotReadyPanel result={result} onBack={prevStep} />
             ) : (
@@ -982,20 +1106,27 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
   submitting: boolean;
 }) {
   const { state } = useOnboarding();
-  const { uploadedDocs, manualInputs, referenceNumber } = usePrescreening();
+  const { uploadedDocs, manualInputs, referenceNumber, scoring, submittedApplication, twinMetrics, liveQuote, quoteAmount } = usePrescreening();
   const { t } = useTranslation();
-  const businessName = state.businessName || 'Amman Coffee Roasters';
+  const businessName = twinMetrics.displayName || state.businessName || 'Your business';
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const uploadCount = Object.keys(uploadedDocs).length;
+  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const GREEN_SCORE = scoring?.green_score ?? 62;
+  const quotedRate = liveQuote?.rate || submittedApplication?.quoted_rate || '';
+  const quotedAmount = quoteAmount || Number(submittedApplication?.requested_amount) || 0;
 
   const handleDownloadPdf = useCallback(async () => {
     setGeneratingPdf(true);
     try {
-      generateApplicationPDF({ businessName, product, referenceNumber, result, uploadedDocs, manualInputs });
+      generateApplicationPDF({
+        businessName, product, referenceNumber, result, uploadedDocs, manualInputs,
+        quotedRate, quotedAmount,
+      });
     } finally {
       setGeneratingPdf(false);
     }
-  }, [businessName, product, referenceNumber, result, uploadedDocs, manualInputs]);
+  }, [businessName, product, referenceNumber, result, uploadedDocs, manualInputs, quotedRate, quotedAmount]);
 
   return (
     <div className="border-2 border-emerald-300 bg-emerald-50 rounded-2xl p-5">
@@ -1023,8 +1154,18 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
           {[
             { label: t('prescreening.step4.ready.applicant'), value: businessName },
             { label: t('prescreening.step4.ready.product'), value: `${product.name} — ${product.bank}` },
-            { label: t('prescreening.step4.ready.amountRequested'), value: t('prescreening.upTo', { amount: product.maxAmountJOD.toLocaleString() }) },
-            { label: t('prescreening.step4.ready.rateTier'), value: `${product.rate} / yr (${result.rateTier})` },
+            {
+              label: t('prescreening.step4.ready.amountRequested'),
+              value: quotedAmount
+                ? `${quotedAmount.toLocaleString()} JOD`
+                : t('prescreening.rateFromBank'),
+            },
+            {
+              label: t('prescreening.step4.ready.rateTier'),
+              value: quotedRate
+                ? `${quotedRate} / yr${result.rateTier ? ` (${result.rateTier})` : ''}`
+                : t('prescreening.rateFromBank'),
+            },
             { label: t('prescreening.step4.ready.creditScore'), value: `${CREDIT_SCORE} / 100` },
             ...(product.requiresGreenScore ? [{ label: t('prescreening.step4.ready.greenScore'), value: `${GREEN_SCORE} / 100 — ${t('prescreening.step4.ready.cbgEligible')}` }] : []),
             { label: t('prescreening.step4.ready.prescreeningStatus'), value: result.overallVerdict === 'ready' ? t('prescreening.step4.ready.allCriteriaMet') : t('prescreening.step4.ready.readyWithCaveats') },
@@ -1068,23 +1209,45 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
 }
 
 /* ── Submission success ───────────────────────────────────── */
-function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: string }) {
+function SubmissionSuccess({ product, refNum, application }: { product: BankProduct; refNum: string; application: LoanApplication | null }) {
   const [, navigate] = useLocation();
-  const { uploadedDocs, manualInputs } = usePrescreening();
+  const { uploadedDocs, manualInputs, scoring, twinMetrics, liveQuote, quoteAmount } = usePrescreening();
   const { state } = useOnboarding();
   const { t } = useTranslation();
-  const businessName = state.businessName || 'Amman Coffee Roasters';
+  const businessName = twinMetrics.displayName || state.businessName || 'Your business';
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  const result = evaluateReadiness(product, state, CREDIT_SCORE, GREEN_SCORE, manualInputs);
+  const [responding, setResponding] = useState(false);
+  const [appState, setAppState] = useState(application);
+  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const GREEN_SCORE = scoring?.green_score ?? 62;
+  const result = appState
+    ? readinessFromApplication(appState, product, CREDIT_SCORE, GREEN_SCORE, state, manualInputs)
+    : evaluateReadiness(product, state, CREDIT_SCORE, GREEN_SCORE, manualInputs, twinMetrics);
+  const quotedRate = appState?.quoted_rate || liveQuote?.rate || '';
+  const quotedAmount = Number(appState?.requested_amount) || quoteAmount || 0;
+
+  const handleRespond = async (decision: 'approved' | 'rejected') => {
+    if (!appState?.id) return;
+    setResponding(true);
+    try {
+      const updated = await respondToLoanOffer(appState.id, decision);
+      setAppState(updated);
+    } finally {
+      setResponding(false);
+    }
+  };
 
   const handleDownloadPdf = useCallback(async () => {
     setGeneratingPdf(true);
     try {
-      generateApplicationPDF({ businessName, product, referenceNumber: refNum, result, uploadedDocs, manualInputs });
+      generateApplicationPDF({
+        businessName, product, referenceNumber: refNum, result, uploadedDocs, manualInputs,
+        quotedRate, quotedAmount,
+      });
     } finally {
       setGeneratingPdf(false);
     }
-  }, [businessName, product, refNum, result, uploadedDocs, manualInputs]);
+  }, [businessName, product, refNum, result, uploadedDocs, manualInputs, quotedRate, quotedAmount]);
 
   return (
     <motion.div
@@ -1101,9 +1264,31 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.reference')}</span><span className="font-bold font-mono">{refNum}</span></div>
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.product')}</span><span className="font-semibold">{product.name}</span></div>
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.bank')}</span><span className="font-semibold">{product.bank}</span></div>
-        <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.rate')}</span><span className="font-semibold">{product.rate} / yr</span></div>
+        {quotedAmount > 0 && (
+          <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.step4.ready.amountRequested')}</span><span className="font-semibold">{quotedAmount.toLocaleString()} JOD</span></div>
+        )}
+        {quotedRate && (
+          <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.quotedRate')}</span><span className="font-semibold">{quotedRate} · {(appState?.quote_source || liveQuote?.quote_source) === 'sandbox' ? t('dashboard.liveBankQuote') : t('dashboard.estimatedQuote')}</span></div>
+        )}
         <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.expectedResponse')}</span><span className="font-semibold">{t('prescreening.success.responseTime')}</span></div>
+        {appState?.monthly_installment && (
+          <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('prescreening.success.monthly')}</span><span className="font-semibold">{Number(appState.monthly_installment).toLocaleString()} JOD</span></div>
+        )}
+        {appState?.status && (
+          <div className="flex justify-between text-xs"><span className="text-muted-foreground">{t('dashboard.loanStatusLabel', { status: appState.status })}</span><span className="font-semibold">{appState.status}</span></div>
+        )}
       </div>
+      {appState?.id && appState.status === 'pending' && (
+        <div className="flex gap-2 mb-3">
+          <Button disabled={responding} onClick={() => handleRespond('approved')} className="flex-1 gap-1">{t('prescreening.success.acceptOffer')}</Button>
+          <Button disabled={responding} variant="outline" onClick={() => handleRespond('rejected')} className="flex-1 gap-1">{t('prescreening.success.rejectOffer')}</Button>
+        </div>
+      )}
+      {!!appState?.jopacc_reply_messages?.length && (
+        <div className="text-xs text-muted-foreground text-left mb-3 space-y-1">
+          {appState.jopacc_reply_messages.map((m) => <p key={m}>• {m}</p>)}
+        </div>
+      )}
       <Button
         onClick={handleDownloadPdf}
         disabled={generatingPdf}
@@ -1115,8 +1300,11 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
           : <><Download className="w-4 h-4" />{t('prescreening.success.downloadPdf')}</>
         }
       </Button>
-      <Button onClick={() => navigate('/dashboard')} className="w-full gap-2">
-        {t('prescreening.success.backToDashboard')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+      <Button onClick={() => navigate('/my-loans')} className="w-full gap-2 mb-2">
+        {t('dashboard.viewMyLoans')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+      </Button>
+      <Button onClick={() => navigate('/dashboard')} variant="outline" className="w-full gap-2">
+        {t('prescreening.success.backToDashboard')}
       </Button>
     </motion.div>
   );
@@ -1125,21 +1313,147 @@ function SubmissionSuccess({ product, refNum }: { product: BankProduct; refNum: 
 /* ── Main page ───────────────────────────────────────────── */
 export default function LoanPrescreening() {
   const [, navigate] = useLocation();
-  const { state } = useOnboarding();
-  const { currentStep, selectedProductId, reset } = usePrescreening();
+  const { state, updateState, hydrateFromProfile, persistProfile } = useOnboarding();
+  const {
+    currentStep, selectedProductId, reset, setScoring, setProducts, products, setTwinMetrics, twinMetrics,
+    setSelectedProductId, replaceManualInputs, goToStep, setUploadedDoc,
+  } = usePrescreening();
   const { t } = useTranslation();
   const { toggleLanguage } = useLanguage();
 
   // Reset flow state on every entry so repeat visits always start fresh
   useEffect(() => {
     reset();
+    fetchScoringSummary().then(setScoring).catch(() => {});
+    fetchLoanProducts().then((r) => setProducts(r.products || [])).catch(() => {});
+
+    const hydrateProfile = (profile?: Parameters<typeof hydrateFromProfile>[0]) => {
+      if (!profile) return;
+      hydrateFromProfile(profile);
+      const reg = (profile.registration_number || '').trim();
+      if (reg) {
+        updateState({
+          registrationNumber: reg,
+          isOfficiallyRegistered: profile.is_officially_registered ?? true,
+        });
+      }
+    };
+
+    fetchBusinessProfile()
+      .then((res) => hydrateProfile(res.profile))
+      .catch(() => {});
+
+    fetchDashboardSummary()
+      .then((summary) => {
+        hydrateProfile(summary.profile);
+        const name = summary.display_identity?.display_name;
+        const debt = parseFloat(summary.monthly_debt?.total_monthly || '0');
+        const cash = parseFloat(summary.total_available_balance || '0');
+        const cashflow = summary.monthly_cashflow || [];
+        const activeMonths = cashflow.filter((m) => m.income || m.expense);
+        const avgIn = activeMonths.length
+          ? activeMonths.reduce((s, m) => s + m.income, 0) / activeMonths.length
+          : undefined;
+        const avgOut = activeMonths.length
+          ? activeMonths.reduce((s, m) => s + m.expense, 0) / activeMonths.length
+          : undefined;
+        const last = cashflow[cashflow.length - 1];
+        const linked = summary.linked_accounts || [];
+        const obAccount =
+          linked.find((a) => a.source === 'open_banking') || linked[0];
+        const openBankingConnected =
+          linked.length > 0
+          || !!summary.profile?.connected_cliq
+          || state.connectedSources.cliq;
+        const reg = (
+          summary.profile?.registration_number
+          || state.registrationNumber
+          || ''
+        ).trim();
+        const metrics = {
+          displayName: name,
+          monthlyDebt: Number.isFinite(debt) ? debt : 0,
+          monthlyRevenue: last?.income || (
+            state.annualRevenue ? parseInt(state.annualRevenue, 10) / 12 : undefined
+          ),
+          cashBalance: Number.isFinite(cash) ? cash : undefined,
+          debtItems: (summary.monthly_debt?.items || []).map((item) => ({
+            label: item.label,
+            amount: parseFloat(item.amount_monthly || '0') || 0,
+          })),
+          openBankingConnected,
+          accountsLinked: linked.length || summary.twin_completeness?.accounts_linked || 0,
+          avgMonthlyInflow: avgIn,
+          avgMonthlyOutflow: avgOut,
+          bankName: obAccount?.bank_name_en || summary.display_identity?.bank_name || undefined,
+          ibanMasked: obAccount?.iban_masked || undefined,
+          registrationNumber: reg || undefined,
+        };
+        setTwinMetrics(metrics);
+        if (name && !state.businessName) updateState({ businessName: name });
+        if (openBankingConnected && !state.connectedSources.cliq) {
+          updateState({ connectedSources: { ...state.connectedSources, cliq: true } });
+        }
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const businessName = state.businessName || 'Amman Coffee Roasters';
-  const product = BANK_PRODUCTS.find(p => p.id === selectedProductId) ?? null;
+  const businessName = twinMetrics.displayName || state.businessName || 'Your business';
+  const catalogue = products.length ? products.map(apiProductToBank) : BANK_PRODUCTS;
+  const product = catalogue.find(p => p.id === selectedProductId) ?? null;
 
   const handleExit = () => { reset(); navigate('/dashboard'); };
+
+  const handleDemoPrefill = () => {
+    const productId = selectedProductId
+      || products[0]?.id
+      || 'murabaha-arab-bank';
+    setSelectedProductId(productId);
+    replaceManualInputs(demoManualInputs());
+    const reg = (state.registrationNumber || twinMetrics.registrationNumber || '2001694321').trim();
+    updateState({
+      registrationNumber: reg,
+      isOfficiallyRegistered: true,
+      businessName: state.businessName || twinMetrics.displayName || 'Demo MSME Trading Co.',
+      businessSector: state.businessSector || 'Retail & Trade',
+      yearsInOperation: state.yearsInOperation || '4',
+      employees: state.employees || '6',
+      annualRevenue: state.annualRevenue || '72000',
+      connectedSources: {
+        jofotara: true,
+        cliq: true,
+        pos: state.connectedSources.pos,
+        receipts: state.connectedSources.receipts,
+      },
+    });
+    setTwinMetrics({
+      ...twinMetrics,
+      registrationNumber: reg,
+      openBankingConnected: true,
+      displayName: twinMetrics.displayName || state.businessName || 'Demo MSME Trading Co.',
+    });
+    setUploadedDoc('Business registration certificate', {
+      fileName: 'registration-demo.pdf',
+      objectPath: 'demo/registration-demo.pdf',
+    });
+    setUploadedDoc('Bank statements (3–6 months)', {
+      fileName: 'bank-statements-demo.pdf',
+      objectPath: 'demo/bank-statements-demo.pdf',
+    });
+    void persistProfile({
+      registration_number: reg,
+      is_officially_registered: true,
+      business_name: state.businessName || twinMetrics.displayName || 'Demo MSME Trading Co.',
+      business_sector: state.businessSector || 'Retail & Trade',
+      years_in_operation: state.yearsInOperation || '4',
+      employees: state.employees || '6',
+      annual_revenue_jod: state.annualRevenue || '72000',
+      connected_cliq: true,
+      connected_jofotara: true,
+    });
+    goToStep(3);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -1148,6 +1462,14 @@ export default function LoanPrescreening() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDemoPrefill}
+              title="Demo: autofill prescreening"
+              className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-full border border-dashed border-amber-400/60 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors flex items-center gap-1"
+            >
+              <Bug className="w-3 h-3" /> Debug fill
+            </button>
             <button
               onClick={toggleLanguage}
               className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground transition-colors"

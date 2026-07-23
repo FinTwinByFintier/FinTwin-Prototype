@@ -8,14 +8,18 @@ import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
   fetchDashboardSummary, runDataSync,
+  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
   type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
+  type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
 } from "@/lib/api";
+import { nextPayment, partitionLoans, formatDueDate } from "@/lib/loanSchedule";
 import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
   Wallet, Timer, CreditCard, Plus, ChevronDown, ChevronUp,
   Circle, FlaskConical, ReceiptText, Landmark, RefreshCw, CalendarClock,
+  PieChart,
 } from "lucide-react";
 
 /* ── Fallback mock data (used until real twin data loads / if a source has none) ── */
@@ -26,13 +30,6 @@ const MOCK_CASH_FLOW: MonthlyCashflowPoint[] = [
   { month: "Jul", income: 4800, expense: 2900 },
 ];
 
-const ongoingLoan = {
-  label: "Murabaha Facility — Arab Bank",
-  total: 20000,
-  remaining: 13400,
-  nextPayment: { amount: 850, date: "Aug 1, 2026" },
-  installments: { paid: 8, total: 24 },
-};
 
 function formatMoney(value: number | string | null | undefined, currency = "JOD"): string {
   const n = typeof value === "string" ? parseFloat(value) : value;
@@ -61,7 +58,7 @@ function sourceIcon(source: string | undefined) {
 
 /* ── Component ─────────────────────────────────────────────── */
 export default function Dashboard() {
-  const { state, resetState } = useOnboarding();
+  const { state, resetState, updateState } = useOnboarding();
   const [, navigate] = useLocation();
   const { t } = useTranslation();
   const { toggleLanguage } = useLanguage();
@@ -70,12 +67,43 @@ export default function Dashboard() {
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
   const [summary, setSummary]                 = useState<DashboardSummary | null>(null);
   const [syncing, setSyncing]                 = useState(false);
+  const [scoring, setScoring]                 = useState<ScoringSummary | null>(null);
+  const [loanProducts, setLoanProducts]       = useState<LoanProduct[]>([]);
+  const [loanApps, setLoanApps]               = useState<LoanApplication[]>([]);
+  const [latestLoan, setLatestLoan]           = useState<LoanApplication | null>(null);
+  const [concentration, setConcentration]     = useState<ConcentrationSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchDashboardSummary()
-      .then((s) => { if (!cancelled) setSummary(s); })
+      .then((s) => {
+        if (cancelled) return;
+        setSummary(s);
+        const name = s.display_identity?.display_name;
+        if (name && !state.businessName) {
+          updateState({ businessName: name });
+        }
+      })
       .catch(() => { /* keep mocks if the twin has no data yet */ });
+    fetchScoringSummary()
+      .then((s) => { if (!cancelled) setScoring(s); })
+      .catch(() => {});
+    fetchLoanProducts()
+      .then((r) => { if (!cancelled) setLoanProducts(r.products || []); })
+      .catch(() => {});
+    fetchLoanApplications()
+      .then((r) => {
+        if (cancelled) return;
+        const apps = r.applications || [];
+        setLoanApps(apps);
+        const { pending, active } = partitionLoans(apps);
+        const spotlight = pending[0] || active[0] || apps.find((a) => !["cancelled", "rejected"].includes(a.status)) || apps[0] || null;
+        setLatestLoan(spotlight);
+      })
+      .catch(() => {});
+    fetchConcentration()
+      .then((c) => { if (!cancelled) setConcentration(c); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -83,8 +111,9 @@ export default function Dashboard() {
     setSyncing(true);
     try {
       await runDataSync();
-      const s = await fetchDashboardSummary();
+      const [s, sc] = await Promise.all([fetchDashboardSummary(), fetchScoringSummary()]);
       setSummary(s);
+      setScoring(sc);
     } catch {
       // best-effort — keep whatever we already have
     } finally {
@@ -92,16 +121,25 @@ export default function Dashboard() {
     }
   };
 
-  const businessName = state.businessName   || "Amman Coffee Roasters";
+  const businessName =
+    summary?.display_identity?.display_name
+    || state.businessName
+    || summary?.profile?.business_name
+    || "Your business";
   const category     = state.category       || t('dashboard.microEnterprise');
   const sector       = state.businessSector || "Food & Hospitality";
-  const creditScore  = 74;
-  const greenScore   = 62;
+  const creditScore  = scoring?.credit_score ?? 74;
+  const greenScore   = scoring?.green_score ?? 62;
 
   function greenLabel(score: number) {
     if (score >= 75) return t('dashboard.greenScoreLabels.strong');
     if (score >= 50) return t('dashboard.greenScoreLabels.developing');
     return t('dashboard.greenScoreLabels.low');
+  }
+  function creditLabel(score: number) {
+    if (score >= 75) return t('dashboard.strong');
+    if (score >= 55) return t('dashboard.moderate');
+    return t('dashboard.developing');
   }
   function greenColors(score: number) {
     if (score >= 75) return { bar: "bg-emerald-500", text: "text-emerald-600" };
@@ -162,18 +200,43 @@ export default function Dashboard() {
       }))
     : mockTransactions.map((tx, i) => ({ ...tx, key: `mock-tx-${i}` }));
 
-  const matches = [
-    { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "تمويل إسلامي" : "Islamic Finance", tagColor: "text-primary",     label: "Murabaha Working Capital",    sub: "Arab Bank · Up to 25,000 JOD", rate: "6.5%",  match: 87, productId: "murabaha-arab-bank" },
-    { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "قرض أخضر"   : "Green Loan",      tagColor: "text-emerald-600", label: "Energy Efficiency Fund",      sub: "CBJ · Up to 50,000 JOD",       rate: "2.75%", match: 62, productId: "energy-efficiency-cbj" },
-    { tag: t('prescreening.steps.selectLoan') === "اختر القرض" ? "قرض MSME"   : "MSME Loan",       tagColor: "text-blue-600",    label: "Jordan Loan Guarantee Corp.", sub: "JLGC · Up to 15,000 JOD",      rate: "7.0%",  match: 74, productId: "msme-jlgc" },
-  ];
+  const matches = (loanProducts.length
+    ? loanProducts
+    : []
+  ).map((p) => ({
+    tag: p.tag,
+    tagColor: p.tag_color || "text-primary",
+    label: p.name,
+    sub: p.bank,
+    rate: p.rate || "",
+    match: p.match_pct,
+    productId: p.id,
+  }));
 
-  const scoreBreakdown = [
-    { label: t('dashboard.scoreLabelPaymentHistory'), value: 82, color: "bg-emerald-500" },
-    { label: t('dashboard.scoreLabelCashFlow'),       value: 70, color: "bg-primary" },
-    { label: t('dashboard.scoreLabelBusinessAge'),    value: 65, color: "bg-blue-500" },
-    { label: t('dashboard.scoreLabelDataCoverage'),   value: 55, color: "bg-amber-400" },
-  ];
+  const breakdownMap: Record<string, { label: string; color: string }> = {
+    banking_behavior: { label: t('dashboard.scoreLabelPaymentHistory'), color: "bg-emerald-500" },
+    cash_flow: { label: t('dashboard.scoreLabelCashFlow'), color: "bg-primary" },
+    maturity: { label: t('dashboard.scoreLabelBusinessAge'), color: "bg-blue-500" },
+    legal_identity: { label: t('dashboard.scoreLabelDataCoverage'), color: "bg-amber-400" },
+  };
+  const scoreBreakdown = scoring?.credit_breakdown
+    ? Object.entries(scoring.credit_breakdown)
+        .filter(([k]) => breakdownMap[k])
+        .map(([k, v]) => ({
+          label: breakdownMap[k].label,
+          value: v.component_score,
+          color: breakdownMap[k].color,
+        }))
+    : [
+        { label: t('dashboard.scoreLabelPaymentHistory'), value: 82, color: "bg-emerald-500" },
+        { label: t('dashboard.scoreLabelCashFlow'),       value: 70, color: "bg-primary" },
+        { label: t('dashboard.scoreLabelBusinessAge'),    value: 65, color: "bg-blue-500" },
+        { label: t('dashboard.scoreLabelDataCoverage'),   value: 55, color: "bg-amber-400" },
+      ];
+
+  const greenProductCount = matches.filter((m) =>
+    loanProducts.find((p) => p.id === m.productId)?.requires_green_score
+  ).length || matches.filter((m) => m.tagColor.includes("emerald")).length;
 
   const monthsOfHistory = cashFlow.filter(m => m.income || m.expense).length;
   const nextSteps = twinCompleteness ? [
@@ -187,6 +250,12 @@ export default function Dashboard() {
     { label: t('dashboard.nextStep3'), impact: "+6 pts",  done: false },
     { label: t('dashboard.nextStep4'), impact: "+5 pts",  done: false },
   ];
+
+  const loanParts = partitionLoans(loanApps);
+  const pendingLoanCount = loanParts.pending.length;
+  const activeLoanCount = loanParts.active.length;
+  const scheduleLoan = loanParts.active[0] || loanParts.pending[0] || latestLoan;
+  const nextPay = scheduleLoan ? nextPayment(scheduleLoan) : null;
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
@@ -227,6 +296,13 @@ export default function Dashboard() {
                         <p className="text-xs font-medium truncate">{businessName}</p>
                         <p className="text-xs text-muted-foreground">{t('nav.freePlan')}</p>
                       </div>
+                      <Link
+                        href="/my-loans"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-3 text-sm hover:bg-muted/50 transition-colors w-full"
+                      >
+                        <CreditCard className="w-4 h-4" /> {t('dashboard.viewMyLoans')}
+                      </Link>
                       <Link
                         href="/profile"
                         onClick={() => setMenuOpen(false)}
@@ -278,6 +354,29 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {pendingLoanCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-amber-900">
+                {t('dashboard.pendingOffersBanner', { count: pendingLoanCount })}
+              </p>
+              <p className="text-xs text-amber-800/80 mt-0.5">{t('myLoans.pendingBannerSub')}</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-amber-300 text-amber-900 hover:bg-amber-100"
+              onClick={() => navigate('/my-loans')}
+            >
+              {t('dashboard.pendingOffersCta')} <ArrowRight className="w-3.5 h-3.5 ms-1 rtl:rotate-180" />
+            </Button>
+          </motion.div>
+        )}
+
         {/* Loan eligibility banner */}
         {creditScore >= 55 && (
           <motion.div
@@ -294,8 +393,7 @@ export default function Dashboard() {
                 <p className="text-sm font-medium truncate">
                   {t('dashboard.loanBannerText', {
                     score: creditScore,
-                    product: 'Murabaha Working Capital',
-                    rate: '6.5%',
+                    product: matches[0]?.label || loanProducts[0]?.name || t('dashboard.financingMatches'),
                   })}
                 </p>
                 <p className="text-xs text-muted-foreground">{t('dashboard.loanBannerSub')}</p>
@@ -305,9 +403,9 @@ export default function Dashboard() {
               size="sm"
               variant="outline"
               className="shrink-0 border-primary/30 text-primary hover:bg-primary/5 gap-1.5"
-              onClick={() => navigate('/loan-prescreening?productId=murabaha-arab-bank')}
+              onClick={() => navigate(pendingLoanCount > 0 ? '/my-loans' : '/loan-prescreening')}
             >
-              {t('dashboard.loanBannerCta')} <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
+              {pendingLoanCount > 0 ? t('dashboard.pendingOffersCta') : t('dashboard.loanBannerCta')} <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
             </Button>
           </motion.div>
         )}
@@ -316,38 +414,66 @@ export default function Dashboard() {
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
             {
+              id: "net",
               icon: Wallet,
               label: t('dashboard.netThisMonth'),
               value: `${netThisMonthAmt >= 0 ? "+" : "−"}${Math.abs(netThisMonthAmt).toLocaleString()} JOD`,
               sub: hasRealCashFlow ? t('dashboard.cashFlowSub') : t('dashboard.vsLastMonth', { pct: 14 }),
               subColor: "text-emerald-600",
+              viewAllHref: null as string | null,
             },
             {
+              id: "runway",
               icon: Timer,
               label: t('dashboard.runway'),
               value: runwayMonths != null ? `${runwayMonths.toFixed(1)} months` : "4.2 months",
               sub: totalAvailableBalance != null ? formatMoney(totalAvailableBalance) + " available" : t('dashboard.basedOnBurn'),
               subColor: "text-muted-foreground",
+              viewAllHref: null as string | null,
             },
-            { icon: CreditCard, label: t('dashboard.activeLoans'),    value: t('dashboard.loanLabel', { count: 1 }), sub: t('dashboard.nextPaymentDate', { date: 'Aug 1' }), subColor: "text-muted-foreground" },
+            {
+              id: "loans",
+              icon: CreditCard,
+              label: t('dashboard.activeLoans'),
+              value: t('dashboard.loanLabel', { count: activeLoanCount }),
+              sub: pendingLoanCount > 0
+                ? t('dashboard.pendingOffersBanner', { count: pendingLoanCount })
+                : nextPay
+                  ? t('dashboard.nextPaymentDate', { date: formatDueDate(nextPay.dueDate) })
+                  : t('dashboard.noLoanYet'),
+              subColor: pendingLoanCount > 0 ? "text-amber-600" : "text-muted-foreground",
+              viewAllHref: "/my-loans",
+            },
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
               <motion.div
-                key={stat.label}
+                key={stat.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="bg-card border rounded-2xl px-5 py-4 flex items-center gap-4"
+                className="bg-card border rounded-2xl px-5 py-4"
               >
-                <div className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-4 h-4 text-muted-foreground" />
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  </div>
+                  {stat.viewAllHref && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary text-xs h-7 px-1.5 shrink-0 -mt-1 -me-1"
+                      onClick={() => navigate(stat.viewAllHref!)}
+                    >
+                      {t('common.viewAll')} <ChevronRight className="w-3.5 h-3.5 ms-0.5 rtl:rotate-180" />
+                    </Button>
+                  )}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground mb-0.5">{stat.label}</p>
-                  <p className="font-bold text-base leading-tight">{stat.value}</p>
-                  <p className={`text-xs mt-0.5 ${stat.subColor}`}>{stat.sub}</p>
-                </div>
+                <p className="font-bold text-base leading-tight">{stat.value}</p>
+                <p className={`text-xs mt-0.5 ${stat.subColor}`}>{stat.sub}</p>
               </motion.div>
             );
           })}
@@ -369,7 +495,7 @@ export default function Dashboard() {
                       <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
                     </div>
                     <p className="text-xs text-amber-500 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />{t('dashboard.moderate')}
+                      <AlertCircle className="w-3 h-3" />{creditLabel(creditScore)}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -474,7 +600,7 @@ export default function Dashboard() {
 
                 <div className="mt-4 flex justify-between text-xs text-muted-foreground border-t pt-4">
                   <span>{t('dashboard.matchedGreenProducts')}</span>
-                  <span className="font-semibold text-foreground">{t('dashboard.available', { count: 2 })}</span>
+                  <span className="font-semibold text-foreground">{t('dashboard.available', { count: greenProductCount || matches.length })}</span>
                 </div>
               </motion.div>
             </div>
@@ -768,40 +894,110 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* Ongoing loan */}
+            {/* Ongoing loan / latest application */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="bg-card border rounded-3xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">{t('dashboard.ongoingLoan')}</h3>
-                <CreditCard className="w-4 h-4 text-muted-foreground" />
-              </div>
-
-              <p className="text-xs text-muted-foreground mb-1">{ongoingLoan.label}</p>
-              <p className="text-2xl font-bold mb-1">{ongoingLoan.remaining.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">{t('dashboard.jodLeft')}</span></p>
-
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden mb-1.5">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${((ongoingLoan.total - ongoingLoan.remaining) / ongoingLoan.total) * 100}%` }}
-                  transition={{ duration: 0.9, delay: 0.4 }}
-                  className="h-full bg-primary rounded-full"
-                />
-              </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-4">
-                <span>{t('dashboard.installmentsPaid', { paid: ongoingLoan.installments.paid, total: ongoingLoan.installments.total })}</span>
-                <span>{t('dashboard.paidOff')}</span>
-              </div>
-
-              <div className="bg-primary/5 rounded-2xl p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] text-muted-foreground">{t('dashboard.nextPayment')}</p>
-                  <p className="text-sm font-bold">{ongoingLoan.nextPayment.amount.toLocaleString()} JOD</p>
+                  <h3 className="font-semibold text-sm">{t('dashboard.ongoingLoan')}</h3>
+                  {(pendingLoanCount > 0 || activeLoanCount > 0) && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {pendingLoanCount > 0
+                        ? t('dashboard.pendingOffersBanner', { count: pendingLoanCount })
+                        : t('dashboard.loanLabel', { count: activeLoanCount })}
+                    </p>
+                  )}
                 </div>
-                <div className="text-end">
-                  <p className="text-[10px] text-muted-foreground">{ongoingLoan.nextPayment.date}</p>
-                  <Clock className="w-4 h-4 text-primary ms-auto mt-0.5" />
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary text-xs h-8 px-2"
+                  onClick={() => navigate("/my-loans")}
+                >
+                  {t('common.viewAll')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
+                </Button>
               </div>
+
+              {latestLoan ? (
+                <>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {(latestLoan.product_name || latestLoan.loan_type) +
+                      (latestLoan.product_bank ? ` — ${latestLoan.product_bank}` : "")}
+                  </p>
+                  <p className="text-2xl font-bold mb-1">
+                    {Number(latestLoan.requested_amount).toLocaleString()}{" "}
+                    <span className="text-sm font-normal text-muted-foreground">JOD</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {t('dashboard.loanStatusLabel', { status: latestLoan.status })}
+                    {latestLoan.reference_number ? ` · ${latestLoan.reference_number}` : ""}
+                  </p>
+                  {latestLoan.monthly_installment && (
+                    <div className="bg-primary/5 rounded-2xl p-3 flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">{t('dashboard.nextPayment')}</p>
+                        <p className="text-sm font-bold">
+                          {Number(latestLoan.monthly_installment).toLocaleString()} JOD
+                        </p>
+                      </div>
+                      <div className="text-end">
+                        <p className="text-[10px] text-muted-foreground">
+                          {latestLoan.quoted_rate || "—"}
+                          {latestLoan.quote_source === "sandbox"
+                            ? ` · ${t('dashboard.liveBankQuote')}`
+                            : ` · ${t('dashboard.estimatedQuote')}`}
+                        </p>
+                        <Clock className="w-4 h-4 text-primary ms-auto mt-0.5" />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-3">{t('dashboard.noLoanYet')}</p>
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => navigate("/loan-prescreening")}
+                  >
+                    {t('dashboard.applyForLoan')} <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
             </motion.div>
+
+            {/* Revenue concentration */}
+            {concentration && concentration.top_counterparties.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border rounded-3xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-sm">{t('dashboard.concentrationTitle')}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.concentrationSub')}</p>
+                  </div>
+                  <PieChart className="w-4 h-4 text-muted-foreground" />
+                </div>
+                {concentration.flagged && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-3">
+                    {t('dashboard.concentrationFlag', { pct: concentration.top_concentration_pct })}
+                  </p>
+                )}
+                <div className="space-y-2.5">
+                  {concentration.top_counterparties.slice(0, 4).map((c) => (
+                    <div key={c.counterparty} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium truncate me-2">{c.counterparty}</span>
+                        <span className="text-muted-foreground shrink-0">{c.pct}%</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${c.pct >= 40 ? "bg-amber-500" : "bg-primary"}`}
+                          style={{ width: `${Math.min(100, c.pct)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             {/* Financing matches */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="bg-card border rounded-3xl p-5 shadow-sm">
@@ -810,7 +1006,9 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.matchesSub')}</p>
               </div>
               <div className="space-y-3">
-                {matches.map(m => (
+                {matches.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">{t('dashboard.noLoanYet')}</p>
+                ) : matches.map(m => (
                   <div key={m.productId} className="border rounded-2xl p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className={`text-[10px] font-bold uppercase tracking-wider ${m.tagColor}`}>{m.tag}</span>
@@ -819,7 +1017,9 @@ export default function Dashboard() {
                     <p className="text-sm font-semibold leading-snug">{m.label}</p>
                     <p className="text-xs text-muted-foreground">{m.sub}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-primary">{t('dashboard.rateLabel', { rate: m.rate })}</span>
+                      <span className="text-sm font-bold text-primary">
+                        {m.rate ? t('dashboard.rateLabel', { rate: m.rate }) : t('prescreening.rateFromBank')}
+                      </span>
                       <Button
                         size="sm"
                         variant="outline"
