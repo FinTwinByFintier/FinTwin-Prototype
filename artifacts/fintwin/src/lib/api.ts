@@ -34,6 +34,7 @@ export type BusinessProfilePayload = {
   connected_cliq?: boolean;
   connected_jofotara?: boolean;
   connected_pos?: boolean;
+  connected_receipts?: boolean;
   pos_provider?: string;
   consent_given?: boolean;
 };
@@ -142,6 +143,84 @@ export function saveBusinessProfile(payload: BusinessProfilePayload) {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export type PreviewTransaction = {
+  temp_id: string;
+  direction: "debit" | "credit" | "unknown";
+  kind: string;
+  amount: number | string | null;
+  currency: string;
+  transaction_date: string | null;
+  due_date: string | null;
+  description: string;
+  counterparty: string;
+  reference_number: string;
+  account_number: string;
+  iban: string;
+  commission_amount: number | string | null;
+  source_filename?: string;
+};
+
+export type ExtractedTransaction = PreviewTransaction & {
+  id?: number;
+  upload_id?: number;
+  created_at?: string | null;
+};
+
+export type ReceiptExtractResponse = {
+  status: "complete" | "insufficient" | "error" | "pending";
+  document_type: string;
+  message?: string | null;
+  transaction_count: number;
+  transactions: PreviewTransaction[];
+};
+
+export async function extractReceipt(file: File): Promise<ReceiptExtractResponse> {
+  const headers = new Headers();
+  headers.set("ngrok-skip-browser-warning", "true");
+  const token = getToken();
+  if (token) headers.set("Authorization", `Token ${token}`);
+
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${getApiBase()}/api/v1/receipts/extract/`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new ApiError(
+      (typeof data.detail === "string" && data.detail) ||
+        data.message ||
+        "Receipt extraction failed",
+      res.status,
+      data.code,
+    );
+  }
+  return data as ReceiptExtractResponse;
+}
+
+export function importReceiptTransactions(payload: {
+  source_label?: string;
+  transactions: Array<Partial<PreviewTransaction>>;
+}) {
+  return apiFetch<{ imported: number; upload_id: number; transactions: ExtractedTransaction[] }>(
+    "/api/v1/receipts/import/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function fetchExtractedTransactions() {
+  return apiFetch<{ transactions: ExtractedTransaction[] }>(
+    "/api/v1/receipts/transactions/",
+  );
 }
 
 export function logout() {

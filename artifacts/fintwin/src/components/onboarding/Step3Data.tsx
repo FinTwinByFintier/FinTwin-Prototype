@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft, ArrowRight, FileText, Landmark, CreditCard,
-  CheckCircle2, Loader2, ShieldCheck, Wifi, Lock,
+  CheckCircle2, Loader2, ShieldCheck, Wifi, Lock, ScanLine,
 } from "lucide-react";
+import { Step4Receipts } from "@/components/onboarding/Step4Receipts";
 
-type SourceKey = 'jofotara' | 'cliq' | 'pos';
+type SourceKey = 'jofotara' | 'cliq' | 'pos' | 'receipts';
 
 // ── Bank — IBAN + OTP flow ─────────────────────────────────────────────────────
 function BankDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: (iban: string) => void }) {
@@ -372,9 +373,17 @@ export function Step3Data() {
       color: 'bg-purple-500/10 text-purple-600',
       successText: 'Monthly sales synced',
     },
+    {
+      id: 'receipts' as SourceKey,
+      label: 'Digitize receipts',
+      description: 'Upload bills, CliQ confirmations, or statement pages. AI extracts every debit and credit into your twin.',
+      icon: ScanLine,
+      color: 'bg-amber-500/10 text-amber-700',
+      successText: 'Receipts digitized',
+    },
   ];
 
-  const handleSuccess = (id: SourceKey, iban?: string) => {
+  const handleSuccess = (id: Exclude<SourceKey, 'receipts'>, iban?: string) => {
     const nextSources = { ...state.connectedSources, [id]: true };
     updateState({
       connectedSources: nextSources,
@@ -384,17 +393,21 @@ export function Step3Data() {
       connected_cliq: nextSources.cliq,
       connected_jofotara: nextSources.jofotara,
       connected_pos: nextSources.pos,
+      connected_receipts: nextSources.receipts,
       ...(id === 'cliq' && iban ? { iban } : {}),
     });
   };
 
-  const connectedCount = (['jofotara', 'cliq', 'pos'] as SourceKey[]).filter(k => state.connectedSources[k]).length;
+  const connectedCount = (['jofotara', 'cliq', 'pos', 'receipts'] as SourceKey[]).filter(
+    (k) => state.connectedSources[k],
+  ).length;
 
   const handleContinue = () => {
     void persistProfile({
       connected_cliq: state.connectedSources.cliq,
       connected_jofotara: state.connectedSources.jofotara,
       connected_pos: state.connectedSources.pos,
+      connected_receipts: state.connectedSources.receipts,
       iban: state.iban,
     });
     setCurrentStep(7);
@@ -427,7 +440,7 @@ export function Step3Data() {
       </div>
 
       {/* Source cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {sources.map(({ id, label, description, icon: Icon, color, successText }) => {
           const isConnected = state.connectedSources[id];
           return (
@@ -451,14 +464,18 @@ export function Step3Data() {
               </div>
               <p className="text-sm text-muted-foreground flex-1 mb-4">{description}</p>
 
-              {isConnected ? (
+              {isConnected && id !== 'receipts' ? (
                 <div className="bg-emerald-500/10 rounded-xl p-3 text-xs text-emerald-700">
                   <p className="font-medium">{successText}</p>
                   <p className="opacity-80">Last sync: Just now</p>
                 </div>
+              ) : isConnected && id === 'receipts' ? (
+                <Button variant="outline" size="sm" className="rounded-full w-full" onClick={() => setActiveModal('receipts')}>
+                  Upload more
+                </Button>
               ) : (
                 <Button variant="outline" size="sm" className="rounded-full w-full" onClick={() => setActiveModal(id)}>
-                  Connect
+                  {id === 'receipts' ? 'Upload & digitize' : 'Connect'}
                 </Button>
               )}
             </div>
@@ -492,6 +509,18 @@ export function Step3Data() {
         onClose={() => setActiveModal(null)}
         onSuccess={() => handleSuccess('pos')}
       />
+
+      <Dialog open={activeModal === 'receipts'} onOpenChange={() => setActiveModal(null)}>
+        <DialogContent className="!max-w-[min(98vw,92rem)] !w-[min(98vw,92rem)] rounded-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
+          <DialogHeader>
+            <DialogTitle>Digitize receipts</DialogTitle>
+          </DialogHeader>
+          <Step4Receipts
+            embedded
+            onDone={() => setActiveModal(null)}
+          />
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

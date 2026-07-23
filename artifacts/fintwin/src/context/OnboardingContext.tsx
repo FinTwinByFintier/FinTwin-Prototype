@@ -141,7 +141,7 @@ function profileToState(profile: BusinessProfile): Partial<OnboardingState> {
       jofotara: !!profile.connected_jofotara,
       cliq: !!profile.connected_cliq,
       pos: !!profile.connected_pos,
-      receipts: false,
+      receipts: !!profile.connected_receipts,
     },
     posProvider: profile.pos_provider || '',
   };
