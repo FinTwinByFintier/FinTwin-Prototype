@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import type { Commitment } from '@/lib/simulationEngine';
+import { getToken, saveOnboardingStep, setToken } from '@/lib/api';
 
 export type { Commitment };
 
@@ -20,6 +21,7 @@ export type EnterpriseCategory = 'Micro Enterprise' | 'Small Enterprise' | 'Medi
 export interface OnboardingState {
   // Auth
   authMethod: 'sanad' | 'email' | null;
+  nationalId: string;
 
   // Business Identity
   businessType: BusinessType | '';
@@ -64,6 +66,8 @@ interface OnboardingContextType {
   resetState: () => void;
   currentStep: number;
   setCurrentStep: (step: number) => void;
+  resumeAtStep: (step: number) => void;
+  isAuthenticated: boolean;
   addCommitment: (c: Omit<Commitment, 'id'>) => void;
   removeCommitment: (id: string) => void;
 }
@@ -78,6 +82,7 @@ const defaultCommitments: Commitment[] = [
 
 const initialState: OnboardingState = {
   authMethod: null,
+  nationalId: '',
   businessType: '',
   isOfficiallyRegistered: null,
   registrationNumber: '',
@@ -100,12 +105,33 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(undef
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OnboardingState>(initialState);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStepState] = useState(1);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!getToken());
 
   const updateState = (updates: Partial<OnboardingState>) =>
     setState(prev => ({ ...prev, ...updates }));
 
-  const resetState = () => { setState(initialState); setCurrentStep(1); };
+  const resetState = () => {
+    setState(initialState);
+    setCurrentStepState(1);
+    setToken(null);
+    setIsAuthenticated(false);
+  };
+
+  const resumeAtStep = useCallback((step: number) => {
+    setCurrentStepState(step);
+    setIsAuthenticated(!!getToken());
+  }, []);
+
+  const setCurrentStep = useCallback((step: number) => {
+    setCurrentStepState(step);
+    setIsAuthenticated(!!getToken());
+    if (getToken() && step >= 1) {
+      void saveOnboardingStep(step).catch(() => {
+        /* keep UI moving even if network blips during demo */
+      });
+    }
+  }, []);
 
   const addCommitment = (c: Omit<Commitment, 'id'>) => {
     const id = `c-${Date.now()}`;
@@ -116,7 +142,19 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, commitments: prev.commitments.filter(c => c.id !== id) }));
 
   return (
-    <OnboardingContext.Provider value={{ state, updateState, resetState, currentStep, setCurrentStep, addCommitment, removeCommitment }}>
+    <OnboardingContext.Provider
+      value={{
+        state,
+        updateState,
+        resetState,
+        currentStep,
+        setCurrentStep,
+        resumeAtStep,
+        isAuthenticated,
+        addCommitment,
+        removeCommitment,
+      }}
+    >
       {children}
     </OnboardingContext.Provider>
   );

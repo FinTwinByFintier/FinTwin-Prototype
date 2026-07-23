@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { StepAuth }           from "@/components/onboarding/StepAuth";
 import { Step1Identity }      from "@/components/onboarding/Step1Identity";
@@ -9,6 +11,7 @@ import { Step3Data }          from "@/components/onboarding/Step3Data";
 import { StepConsent }        from "@/components/onboarding/StepConsent";
 import { Step5Complete }      from "@/components/onboarding/Step5Complete";
 import { Navbar }             from "@/components/layout/Navbar";
+import { fetchMe, getToken, routeFromNextStep } from "@/lib/api";
 import { CheckCircle2 }       from "lucide-react";
 
 // Internal step map (Docs step removed):
@@ -33,7 +36,29 @@ function getVisibleIndex(s: number): number {
 }
 
 export default function Onboarding() {
-  const { currentStep } = useOnboarding();
+  const { currentStep, resumeAtStep } = useOnboarding();
+  const [, setLocation] = useLocation();
+
+  // Resume from backend if the user returns mid-flow (refresh / later visit).
+  useEffect(() => {
+    if (!getToken()) return;
+    let cancelled = false;
+    fetchMe()
+      .then((me) => {
+        if (cancelled) return;
+        if (routeFromNextStep(me.next_step) === "/dashboard") {
+          setLocation("/dashboard");
+          return;
+        }
+        resumeAtStep(me.next_step);
+      })
+      .catch(() => {
+        /* stay on current local step */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeAtStep, setLocation]);
 
   const visibleIdx   = getVisibleIndex(currentStep);
   const totalVisible = VISIBLE_STEPS.length;
