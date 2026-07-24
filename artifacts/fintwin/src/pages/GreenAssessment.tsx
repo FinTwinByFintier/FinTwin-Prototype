@@ -16,7 +16,7 @@ import { invalidateTwinData } from "@/lib/queryClient";
 import {
   Zap, Droplets, Car, Award,
   CheckCircle2, ChevronRight, ChevronLeft,
-  Loader2, AlertCircle,
+  Loader2, AlertCircle, Bug,
 } from "lucide-react";
 
 /* ─── Store result for GreenScore page ─────────────────────── */
@@ -179,6 +179,30 @@ function defaultForm(): GreenAssessmentPayload {
   };
 }
 
+/** Debug/demo answers that score in the A/B band on the real calculator. */
+function goodGreenAssessmentPrefill(): GreenAssessmentPayload {
+  return {
+    solar_panels: true,
+    energy_efficient_equipment: [...EQUIPMENT_OPTIONS],
+    monthly_electricity_consumption: 420,
+    energy_monitoring: true,
+    renewable_percentage: 85,
+    water_source: "rain",
+    water_recycling: true,
+    monthly_water_consumption: 12000,
+    water_monitoring: true,
+    employee_commute: "public_transit",
+    ev_charging: true,
+    delivery_methods: ["EV delivery", "Bike / cargo bike", "Hybrid van"],
+    route_optimization: true,
+    iso14001: true,
+    green_building: true,
+    local_green_awards: true,
+    environmental_audits: true,
+    sustainability_report: true,
+  };
+}
+
 function isStepValid(step: number, form: GreenAssessmentPayload): boolean {
   if (step === 0) {
     return (
@@ -206,6 +230,14 @@ export default function GreenAssessment() {
   const canAdvance = isStepValid(step, form);
   const isLastStep = step === STEPS.length - 1;
   const fillPct = (step / (STEPS.length - 1)) * 100;
+
+  const handleDebugPrefill = () => {
+    const good = goodGreenAssessmentPrefill();
+    setForm(good);
+    setRawRenewable(String(good.renewable_percentage));
+    setError(null);
+    setStep(STEPS.length - 1); // jump to Certifications so you can hit Submit
+  };
 
   const handleNext = () => {
     if (!canAdvance) return;
@@ -244,6 +276,22 @@ export default function GreenAssessment() {
 
       <main className="flex-grow container mx-auto px-4 py-10 max-w-2xl">
         <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Green Assessment</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sector-weighted score across energy, water, transport, and certifications
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDebugPrefill}
+              title="Demo: autofill strong green answers"
+              className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-full border border-dashed border-amber-400/60 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors flex items-center gap-1 shrink-0"
+            >
+              <Bug className="w-3 h-3" /> Debug fill
+            </button>
+          </div>
           <div className="flex items-center justify-between relative mb-4">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-muted rounded-full -z-10" />
             <motion.div
