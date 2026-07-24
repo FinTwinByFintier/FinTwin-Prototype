@@ -135,8 +135,10 @@ export default function Dashboard() {
     || "Your business";
   const category     = state.category       || t('dashboard.microEnterprise');
   const sector       = state.businessSector || "Food & Hospitality";
-  const creditScore  = scoring?.credit_score ?? 74;
+  const creditScore  = scoring?.credit_score ?? 0;
   const greenScore   = scoring?.green_score ?? 62;
+  const creditEligible = scoring?.credit_eligible !== false;
+  const liquidityScore = scoring?.liquidity_score ?? null;
 
   function greenLabel(score: number) {
     if (score >= 75) return t('dashboard.greenScoreLabels.strong');
@@ -229,8 +231,14 @@ export default function Dashboard() {
   }));
 
   const breakdownMap: Record<string, { label: string; color: string }> = {
-    banking_behavior: { label: t('dashboard.scoreLabelPaymentHistory'), color: "bg-emerald-500" },
+    credit_risk: { label: "Credit risk", color: "bg-emerald-500" },
     cash_flow: { label: t('dashboard.scoreLabelCashFlow'), color: "bg-primary" },
+    stability: { label: t('dashboard.scoreLabelBusinessAge'), color: "bg-blue-500" },
+    transparency: { label: t('dashboard.scoreLabelDataCoverage'), color: "bg-amber-400" },
+    sector_risk: { label: "Sector", color: "bg-violet-500" },
+    compliance: { label: "Compliance", color: "bg-teal-500" },
+    // legacy keys (pre rule-based engine)
+    banking_behavior: { label: t('dashboard.scoreLabelPaymentHistory'), color: "bg-emerald-500" },
     maturity: { label: t('dashboard.scoreLabelBusinessAge'), color: "bg-blue-500" },
     legal_identity: { label: t('dashboard.scoreLabelDataCoverage'), color: "bg-amber-400" },
   };
@@ -240,31 +248,44 @@ export default function Dashboard() {
         .map(([k, v]) => ({
           label: breakdownMap[k].label,
           value: v.component_score,
+          pts: v.contribution,
+          max: scoring.max_points?.[k] ?? v.weight,
           color: breakdownMap[k].color,
         }))
-    : [
-        { label: t('dashboard.scoreLabelPaymentHistory'), value: 82, color: "bg-emerald-500" },
-        { label: t('dashboard.scoreLabelCashFlow'),       value: 70, color: "bg-primary" },
-        { label: t('dashboard.scoreLabelBusinessAge'),    value: 65, color: "bg-blue-500" },
-        { label: t('dashboard.scoreLabelDataCoverage'),   value: 55, color: "bg-amber-400" },
-      ];
+    : [];
 
   const greenProductCount = matches.filter((m) =>
     loanProducts.find((p) => p.id === m.productId)?.requires_green_score
   ).length || matches.filter((m) => m.tagColor.includes("emerald")).length;
 
   const monthsOfHistory = cashFlow.filter(m => m.income || m.expense).length;
-  const nextSteps = twinCompleteness ? [
-    { label: t('dashboard.monthsOfHistory', { count: monthsOfHistory }), impact: "+8 pts", done: monthsOfHistory > 0 },
-    { label: t('dashboard.transactionsDetected', { count: twinCompleteness.transactions_imported }), impact: "+12 pts", done: twinCompleteness.transactions_imported > 0 },
-    { label: t('dashboard.standingOrdersOnTime', { count: twinCompleteness.standing_orders_tracked }), impact: "+6 pts", done: twinCompleteness.standing_orders_tracked > 0 },
-    { label: t('dashboard.nextStep4'), impact: "+5 pts", done: false },
-  ] : [
-    { label: t('dashboard.nextStep1'), impact: "+8 pts",  done: true },
-    { label: t('dashboard.nextStep2'), impact: "+12 pts", done: false },
-    { label: t('dashboard.nextStep3'), impact: "+6 pts",  done: false },
-    { label: t('dashboard.nextStep4'), impact: "+5 pts",  done: false },
-  ];
+  const gateFailures = scoring?.gate_failures ?? [];
+  const riskImproveSteps = (scoring?.risk_factors ?? [])
+    .filter((f) => f.contribution > 0 && f.factor !== "base_rate")
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 4)
+    .map((f) => ({
+      label: f.note,
+      impact: `−${Math.round(f.contribution * 100)} PD`,
+      done: false,
+    }));
+  const nextSteps = gateFailures.length
+    ? gateFailures.map((msg) => ({ label: msg, impact: "Required", done: false }))
+    : riskImproveSteps.length
+      ? riskImproveSteps
+      : twinCompleteness
+        ? [
+            { label: t('dashboard.monthsOfHistory', { count: monthsOfHistory }), impact: "+8 pts", done: monthsOfHistory > 0 },
+            { label: t('dashboard.transactionsDetected', { count: twinCompleteness.transactions_imported }), impact: "+12 pts", done: twinCompleteness.transactions_imported > 0 },
+            { label: t('dashboard.standingOrdersOnTime', { count: twinCompleteness.standing_orders_tracked }), impact: "+6 pts", done: twinCompleteness.standing_orders_tracked > 0 },
+            { label: t('dashboard.nextStep4'), impact: "+5 pts", done: false },
+          ]
+        : [
+            { label: t('dashboard.nextStep1'), impact: "+8 pts",  done: true },
+            { label: t('dashboard.nextStep2'), impact: "+12 pts", done: false },
+            { label: t('dashboard.nextStep3'), impact: "+6 pts",  done: false },
+            { label: t('dashboard.nextStep4'), impact: "+5 pts",  done: false },
+          ];
 
   const loanParts = partitionLoans(loanApps);
   const pendingLoanCount = loanParts.pending.length;
@@ -277,7 +298,9 @@ export default function Dashboard() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
+          <Link href="/dashboard" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
+            Fin<span className="text-primary">Twin</span>
+          </Link>
           <div className="flex items-center gap-3">
             <button
               onClick={toggleLanguage}
@@ -446,12 +469,14 @@ export default function Dashboard() {
               icon: Droplets,
               label: t('dashboard.liquidity'),
               value: liquidityAmount != null ? formatMoney(liquidityAmount) : "—",
-              sub: runwayMonths != null
-                ? t('dashboard.liquidityRunwaySub', { months: runwayMonths.toFixed(1) })
-                : liquidityAmount != null
-                  ? t('dashboard.liquidityFromBanks')
-                  : t('dashboard.liquidityEmpty'),
-              subColor: liquidityAmount != null && liquidityAmount > 0
+              sub: liquidityScore != null
+                ? `Liquidity score ${Math.round(liquidityScore)}/100`
+                : runwayMonths != null
+                  ? t('dashboard.liquidityRunwaySub', { months: runwayMonths.toFixed(1) })
+                  : liquidityAmount != null
+                    ? t('dashboard.liquidityFromBanks')
+                    : t('dashboard.liquidityEmpty'),
+              subColor: liquidityScore != null || (liquidityAmount != null && liquidityAmount > 0)
                 ? "text-emerald-600"
                 : "text-muted-foreground",
               viewAllHref: null as string | null,
@@ -516,12 +541,20 @@ export default function Dashboard() {
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('dashboard.creditReadiness')}</p>
                     <div className="flex items-end gap-1.5">
-                      <span className="text-4xl font-bold">{creditScore}</span>
+                      <span className="text-4xl font-bold">{creditEligible ? creditScore : "—"}</span>
                       <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
                     </div>
-                    <p className="text-xs text-amber-500 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />{creditLabel(creditScore)}
+                    <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${creditEligible ? "text-amber-500" : "text-red-500"}`}>
+                      <AlertCircle className="w-3 h-3" />
+                      {creditEligible
+                        ? creditLabel(creditScore)
+                        : "Not eligible yet"}
                     </p>
+                    {scoring?.default_probability != null && creditEligible && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Default risk {(scoring.default_probability * 100).toFixed(1)}%
+                      </p>
+                    )}
                   </div>
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                     <BarChart3 className="w-5 h-5 text-primary" />
@@ -530,21 +563,25 @@ export default function Dashboard() {
 
                 <div className="mb-4">
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${creditScore}%` }} transition={{ duration: 1, delay: 0.3, ease: "easeOut" }} className="h-full bg-primary rounded-full" />
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${creditEligible ? creditScore : 0}%` }} transition={{ duration: 1, delay: 0.3, ease: "easeOut" }} className="h-full bg-primary rounded-full" />
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground mt-1.5"><span>0</span><span>100</span></div>
                 </div>
 
                 <div className="space-y-2.5">
-                  {scoreBreakdown.map(item => (
+                  {scoreBreakdown.length > 0 ? scoreBreakdown.map(item => (
                     <div key={item.label} className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground w-28 shrink-0">{item.label}</span>
                       <div className="flex-grow h-1.5 bg-muted rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: `${item.value}%` }} transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }} className={`h-full rounded-full ${item.color}`} />
                       </div>
-                      <span className="text-xs font-medium w-8 text-end">{item.value}</span>
+                      <span className="text-xs font-medium w-14 text-end">{item.pts}/{item.max}</span>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-xs text-muted-foreground">
+                      Connect data sources and complete registration to unlock a credit score.
+                    </p>
+                  )}
                 </div>
 
                 {/* Next steps toggle */}
@@ -722,8 +759,10 @@ export default function Dashboard() {
                 <div>
                   <h3 className="font-semibold">{t('dashboard.recentTransactions')}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {realTransactions.length
-                      ? t('dashboard.transactionsDetected', { count: realTransactions.length })
+                    {(twinCompleteness?.transactions_imported ?? 0) > 0
+                      ? t('dashboard.transactionsDetected', {
+                          count: twinCompleteness?.transactions_imported ?? 0,
+                        })
                       : t('dashboard.transactionsSub')}
                   </p>
                 </div>
