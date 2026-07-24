@@ -466,6 +466,27 @@ export function fetchDashboardSummary() {
   return apiFetch<DashboardSummary>("/api/v1/openbanking/dashboard-summary/");
 }
 
+export async function exportFinancialReport() {
+  const token = getToken();
+
+  const response = await fetch(
+    `${getApiBase()}/api/v1/financial-reports/pdf/`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Token ${token}`,
+        "ngrok-skip-browser-warning": "true",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to export financial report");
+  }
+
+  return response.blob();
+}
+
 export type TwinTransaction = {
   id: number;
   source: string;

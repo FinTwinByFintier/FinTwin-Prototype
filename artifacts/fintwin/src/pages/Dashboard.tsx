@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
   fetchDashboardSummary, runDataSync,
-  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
+  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,exportFinancialReport,
   getToken,
   type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
   type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
@@ -22,6 +22,7 @@ import {
   Circle, FlaskConical, ReceiptText, Landmark, RefreshCw, CalendarClock,
   PieChart,
 } from "lucide-react";
+
 
 /* ── Fallback mock data (used until real twin data loads / if a source has none) ── */
 const MOCK_CASH_FLOW: MonthlyCashflowPoint[] = [
@@ -125,6 +126,27 @@ export default function Dashboard() {
       // best-effort — keep whatever we already have
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleExportReport = async () => {
+    try {
+      const pdfBlob = await exportFinancialReport();
+
+      const url = window.URL.createObjectURL(pdfBlob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Financial_Report.pdf";
+
+      document.body.appendChild(link);
+      link.click();
+
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to export report.");
     }
   };
 
@@ -383,7 +405,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportReport}>
               <FileText className="w-4 h-4 me-2" />{t('dashboard.exportReport')}
             </Button>
             <Button
