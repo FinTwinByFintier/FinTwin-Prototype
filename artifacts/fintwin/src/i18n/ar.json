@@ -187,7 +187,7 @@
     "highLabel": "75 · مرتفع",
     "commitmentsSummary": "{{count}} التزام · {{total}} دينار/شهر",
     "digitalTwinCompleteness": "اكتمال التوأم الرقمي",
-    "completenessSub": "{{pct}}% من مصادر بياناتك مرتبطة",
+    "completenessSub": "{{pct}}% من ملف التوأم الرقمي مكتمل",
     "accountsLinked": "الحسابات المرتبطة",
     "transactionsImported": "المعاملات المستوردة",
     "standingOrdersTracked": "الأوامر الدائمة المتتبَّعة",

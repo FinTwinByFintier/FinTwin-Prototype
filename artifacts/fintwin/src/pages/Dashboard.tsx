@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/tooltip";
 import {
   fetchDashboardSummary, runDataSync,
-  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
+  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications,
   fetchTransactions,
   getToken,
   type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
-  type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
+  type ScoringSummary, type LoanProduct, type LoanApplication,
   type TwinTransaction,
 } from "@/lib/api";
 import { twinQueryKeys, invalidateTwinData } from "@/lib/queryClient";
@@ -30,7 +30,7 @@ import {
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
   Wallet, Droplets, CreditCard, Plus, ChevronDown, ChevronUp,
   Circle, FlaskConical, ReceiptText, Landmark, RefreshCw, CalendarClock,
-  PieChart, Loader2, Info,
+  Loader2, Info,
 } from "lucide-react";
 
 
@@ -113,12 +113,6 @@ export default function Dashboard() {
       loanApps[0] || null
     );
   }, [loanApps]);
-  const { data: concentration } = useQuery<ConcentrationSummary>({
-    queryKey: twinQueryKeys.concentration,
-    queryFn: fetchConcentration,
-    retry: 0,
-  });
-
   useEffect(() => {
     if (!getToken()) {
       navigate("/login");
@@ -456,17 +450,35 @@ export default function Dashboard() {
   const hasCommitments = (state.commitments ?? []).length > 0;
 
   const twinCompleteness = summary?.twin_completeness ?? null;
+  const profile = summary?.profile;
+
+  // Prefer live twin profile flags over possibly-stale onboarding state, so the
+  // checklist matches what the backend actually has connected.
+  const bankConnected = !!(profile?.connected_cliq ?? state.connectedSources.cliq);
+  const jofotaraConnected = !!(profile?.connected_jofotara ?? state.connectedSources.jofotara);
+  const receiptsUploaded = !!(profile?.connected_receipts ?? state.connectedSources.receipts);
+  const identityDone = !!(
+    (profile?.business_name || state.businessName || "").trim()
+    && (profile?.business_sector || state.businessSector || "").trim()
+  );
+  const scaleDone = !!(
+    (profile?.employees ?? state.employees)
+    && (profile?.annual_revenue_jod ?? state.annualRevenue)
+  );
 
   const profileItems = [
-    { label: t('dashboard.businessIdentity'),   done: true },
-    { label: t('dashboard.sizeAndScale'),        done: true },
-    { label: t('dashboard.bankConnected'),       done: state.connectedSources.cliq },
-    { label: t('dashboard.jofotaraConnected'),   done: state.connectedSources.jofotara },
-    { label: t('dashboard.receiptsUploaded'),    done: state.connectedSources.receipts },
+    { label: t('dashboard.businessIdentity'),   done: identityDone },
+    { label: t('dashboard.sizeAndScale'),        done: scaleDone },
+    { label: t('dashboard.bankConnected'),       done: bankConnected },
+    { label: t('dashboard.jofotaraConnected'),   done: jofotaraConnected },
+    { label: t('dashboard.receiptsUploaded'),    done: receiptsUploaded },
     { label: t('dashboard.monthlyCommitments'),  done: hasCommitments, action: () => setCommitmentsOpen(true) },
   ];
   const completedCount = profileItems.filter(p => p.done).length;
-  const profilePct     = twinCompleteness?.percent ?? Math.round((completedCount / profileItems.length) * 100);
+  // Percent must follow the checklist (incl. monthly commitments) — never the
+  // backend "4 connection flags" alone, which could show 100% while commitments
+  // are still missing.
+  const profilePct = Math.round((completedCount / profileItems.length) * 100);
 
   /* Real cash flow from the twin (Balances + Transactions sync) — falls back to mock */
   const hasRealCashFlow = !!summary?.monthly_cashflow?.some(m => m.income || m.expense);
@@ -1435,40 +1447,6 @@ export default function Dashboard() {
                 </div>
               )}
             </motion.div>
-
-            {/* Revenue concentration */}
-            {concentration && concentration.top_counterparties.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border rounded-3xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-sm">{t('dashboard.concentrationTitle')}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.concentrationSub')}</p>
-                  </div>
-                  <PieChart className="w-4 h-4 text-muted-foreground" />
-                </div>
-                {concentration.flagged && (
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-3">
-                    {t('dashboard.concentrationFlag', { pct: concentration.top_concentration_pct })}
-                  </p>
-                )}
-                <div className="space-y-2.5">
-                  {concentration.top_counterparties.slice(0, 4).map((c) => (
-                    <div key={c.counterparty} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-medium truncate me-2">{c.counterparty}</span>
-                        <span className="text-muted-foreground shrink-0">{c.pct}%</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${c.pct >= 40 ? "bg-amber-500" : "bg-primary"}`}
-                          style={{ width: `${Math.min(100, c.pct)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
 
             {/* Financing matches */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="bg-card border rounded-3xl p-5 shadow-sm">

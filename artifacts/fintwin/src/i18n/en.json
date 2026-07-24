@@ -187,7 +187,7 @@
     "highLabel": "75 · High",
     "commitmentsSummary": "{{count}} commitments · {{total}} JOD/mo",
     "digitalTwinCompleteness": "Digital Twin Completeness",
-    "completenessSub": "{{pct}}% of your data sources connected",
+    "completenessSub": "{{pct}}% of your digital twin profile complete",
     "accountsLinked": "Accounts linked",
     "transactionsImported": "Transactions imported",
     "standingOrdersTracked": "Standing orders tracked",
