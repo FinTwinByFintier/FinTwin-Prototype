@@ -12,8 +12,9 @@ import { requestLoanQuote } from "@/lib/api";
 import {
   X, RotateCcw, BarChart3, Leaf, Wallet, Timer, TrendingUp, TrendingDown,
   Users, Zap, Home, CreditCard, Sun, Cpu, Clock, Bell, AlertCircle,
-  ChevronDown, Package, ReceiptText, Loader2,
+  ChevronDown, Package, ReceiptText, Loader2, Lock,
 } from "lucide-react";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 /* ── Delta chip ────────────────────────────────────────────── */
 function Delta({ sim, base, higherBetter = true, unit = '' }: {
@@ -182,9 +183,14 @@ export default function Simulation() {
     result, baseline, baseState, displayName,
   } = useSimulation();
 
+  const { hasPremium, setUpgradeOpen } = useSubscription();
+
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [quoting, setQuoting] = useState(false);
+
+  // Scenarios free for all plans; everything else requires Premium
+  const FREE_SCENARIOS = new Set(['New Hire', 'New Loan']);
 
   const businessName = displayName;
   const gc = useGreenColor(result.greenScore);
@@ -307,18 +313,29 @@ export default function Simulation() {
                   const Icon = icons[s] ?? Package;
                   const active = activeScenario === s;
                   const displayLabel = SCENARIO_T_KEYS[s] ? t(SCENARIO_T_KEYS[s]) : s;
+                  const locked = !hasPremium && !FREE_SCENARIOS.has(s);
                   return (
                     <button
                       key={s}
-                      onClick={() => applyScenario(s)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-start transition-all text-xs font-medium ${
-                        active
-                          ? 'border-primary bg-primary/8 text-primary shadow-sm'
-                          : 'hover:border-primary/30 hover:bg-muted/40'
+                      onClick={() => locked ? setUpgradeOpen(true) : applyScenario(s)}
+                      className={`relative flex flex-col gap-1 px-3 py-2.5 rounded-xl border text-start transition-all text-xs font-medium ${
+                        locked
+                          ? 'opacity-55 border-border cursor-pointer hover:opacity-70'
+                          : active
+                            ? 'border-primary bg-primary/8 text-primary shadow-sm'
+                            : 'hover:border-primary/30 hover:bg-muted/40'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className="leading-tight">{displayLabel}</span>
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 shrink-0 ${locked ? 'text-muted-foreground' : active ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <span className="leading-tight">{displayLabel}</span>
+                        {locked && <Lock className="w-3 h-3 text-muted-foreground ml-auto shrink-0" />}
+                      </div>
+                      {locked && (
+                        <span className="text-[10px] text-muted-foreground leading-tight">
+                          Upgrade to unlock
+                        </span>
+                      )}
                     </button>
                   );
                 })}

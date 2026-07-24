@@ -1,0 +1,216 @@
+Replit Agent Prompt
+
+Implement a complete Subscription & Billing Management experience without breaking the existing UI or onboarding flow. Reuse existing components and styling so the new pages blend naturally into the dashboard.
+
+1. User Subscription & Plan
+
+Add a new Subscription section inside the user's Profile (or Account page if one already exists).
+
+It should display:
+
+Current Plan
+Micro Enterprise (Free)
+Small Enterprise
+Medium Enterprise
+Plan Status
+Active
+Trial (if applicable)
+Expired
+Monthly Price
+Renewal Date
+Subscription Start Date
+Billing Cycle (Monthly)
+Business Rules
+Micro Enterprise
+Has FREE access to all platform scenarios.
+Display:
+Plan: Micro Enterprise
+Price: Free
+Badge: "All Features Included"
+Small Enterprise
+
+Without subscription:
+
+Free access ONLY to:
+
+Hire an Employee
+Apply for a Loan
+
+All other scenarios should display:
+
+Upgrade to unlock this feature.
+
+Subscription:
+
+100 JOD / month
+
+After subscribing:
+
+Unlock all scenarios.
+Medium Enterprise
+
+Same behavior as Small Enterprise.
+
+2. Billing Section
+
+Inside Profile, add a Billing tab.
+
+Display:
+
+Current Plan
+Monthly Cost
+Next Billing Date
+Payment Status
+Payment Method (placeholder)
+Billing History
+
+Example Billing History
+
+July 2026 — Paid — 100 JOD
+June 2026 — Paid — 100 JOD
+
+For now this can use mock data.
+
+Add buttons:
+
+Upgrade Plan
+Manage Subscription
+
+No payment gateway implementation is needed.
+
+3. Feature Access Logic
+
+Implement frontend access control.
+
+If user is:
+
+Micro
+
+All dashboard scenarios are enabled.
+
+Small or Medium without Premium
+
+Only enable:
+
+Hire Employee
+Apply for Loan
+
+Disable every other scenario.
+
+Disabled cards should:
+
+appear slightly faded
+show a lock icon
+show:
+
+"Upgrade to Premium to access this scenario."
+
+Clicking should open the Upgrade modal.
+
+4. Upgrade Modal
+
+Create a modern modal.
+
+Title:
+
+Upgrade to Premium
+
+Content:
+
+Premium unlocks:
+
+All financial scenarios
+Advanced AI insights
+Financial statements
+Green scoring recommendations
+Unlimited scenario simulations
+Future premium features
+
+Price:
+
+100 JOD / month
+
+Buttons:
+
+Subscribe Now
+Maybe Later
+
+No payment integration yet.
+
+5. Consent Management
+
+Inside
+
+Settings → Privacy & Security
+
+Create a new section called
+
+Data Consent
+
+Display:
+
+Current Status
+
+Connected via Open Banking
+
+Connected via JoFotara
+
+Connected POS
+
+Consent Granted Date
+
+Consent Expiration (if available)
+
+Add a large button:
+
+Revoke Consent
+
+Clicking opens confirmation dialog.
+
+Confirmation text:
+
+"Revoking consent will disconnect your financial data from the platform. Your imported financial information and connected banking services will no longer be synchronized until consent is granted again."
+
+Buttons:
+
+Cancel
+Revoke Consent
+
+For now, only update the frontend state. Backend API can be connected later.
+
+6. Settings Navigation
+
+The Settings page should contain:
+
+Profile
+Subscription
+Billing
+Privacy & Security
+Data Consent
+
+Keep the navigation consistent with the current dashboard.
+
+7. Future Backend Hooks
+
+Prepare placeholders for backend integration.
+
+Use interfaces/services such as:
+
+getCurrentSubscription()
+
+getBillingHistory()
+
+upgradeSubscription()
+
+revokeConsent()
+
+getConsentStatus()
+
+Do not implement backend logic yet.
+
+8. UI Requirements
+Match the current dashboard design.
+Reuse existing cards, buttons, typography, and spacing.
+Do not create a separate page unless necessary.
+Everything should feel like a natural extension of the existing product.
+The implementation should be responsive and consistent with the current design system.

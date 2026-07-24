@@ -19,6 +19,8 @@ import { OnboardingProvider } from '@/context/OnboardingContext';
 import { SimulationProvider } from '@/context/SimulationContext';
 import { PrescreeningProvider } from '@/context/PrescreeningContext';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { SubscriptionProvider } from '@/context/SubscriptionContext';
+import { UpgradeModal } from '@/components/UpgradeModal';
 
 const queryClient = new QueryClient();
 
@@ -48,13 +50,16 @@ function App() {
       <TooltipProvider>
         <LanguageProvider>
         <OnboardingProvider>
-          <SimulationProvider>
-            <PrescreeningProvider>
-              <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}>
-                <Router />
-              </WouterRouter>
-            </PrescreeningProvider>
-          </SimulationProvider>
+          <SubscriptionProvider>
+            <SimulationProvider>
+              <PrescreeningProvider>
+                <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}>
+                  <Router />
+                  <UpgradeModal />
+                </WouterRouter>
+              </PrescreeningProvider>
+            </SimulationProvider>
+          </SubscriptionProvider>
         </OnboardingProvider>
         </LanguageProvider>
         <Toaster />
