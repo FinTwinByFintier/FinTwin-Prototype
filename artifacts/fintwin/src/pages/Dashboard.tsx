@@ -15,9 +15,11 @@ import {
 import {
   fetchDashboardSummary, runDataSync,
   fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
+  fetchTransactions,
   getToken,
   type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
   type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
+  type TwinTransaction,
 } from "@/lib/api";
 import { nextPayment, partitionLoans, formatDueDate } from "@/lib/loanSchedule";
 import {
@@ -137,175 +139,314 @@ export default function Dashboard() {
 
   const handleExportReport = async () => {
     try {
+      // ── Fetch live transaction data ──────────────────────────────────────────
+      let txns: TwinTransaction[] = [];
+      try {
+        const res = await fetchTransactions("all");
+        txns = res.transactions ?? [];
+      } catch {
+        // proceed with empty — spec says generate PDF anyway
+      }
+
+      const businessName =
+        summary?.display_identity?.display_name ||
+        state.businessName ||
+        summary?.profile?.business_name ||
+        "Your Business";
+
+      // ── Reporting period ─────────────────────────────────────────────────────
+      const dates = txns
+        .map((tx) => tx.date)
+        .filter((d): d is string => !!d)
+        .map((d) => new Date(d).getTime())
+        .filter((t) => !isNaN(t));
+
+      const fmtDate = (ts: number) =>
+        new Date(ts).toLocaleDateString("en-GB", {
+          day: "2-digit", month: "short", year: "numeric",
+        });
+
+      const periodStr =
+        dates.length > 0
+          ? `For the Period ${fmtDate(Math.min(...dates))} – ${fmtDate(Math.max(...dates))}`
+          : "Current Reporting Period";
+
+      const today = new Date().toLocaleDateString("en-GB", {
+        day: "numeric", month: "long", year: "numeric",
+      });
+
+      // ── Statement calculations ───────────────────────────────────────────────
+      const credits = txns
+        .filter((tx) => tx.direction === "credit")
+        .reduce((s, tx) => s + parseFloat(tx.amount || "0"), 0);
+
+      const debits = txns
+        .filter((tx) => tx.direction === "debit")
+        .reduce((s, tx) => s + parseFloat(tx.amount || "0"), 0);
+
+      const operatingIncome = credits - debits;
+      const netIncome       = operatingIncome; // no taxes / COGS / depreciation per spec
+      const netCashFlow     = credits - debits;
+
+      const fmtMoney = (n: number) =>
+        n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " JOD";
+
+      const fmtParen = (n: number) =>
+        n < 0
+          ? `(${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} JOD)`
+          : fmtMoney(n);
+
+      // ── Build PDF ────────────────────────────────────────────────────────────
       const { jsPDF } = await import("jspdf");
+
+      // Helper constants
+      const PAGE_W   = 210;
+      const PAGE_H   = 297;
+      const MARGIN   = 20;
+      const CONTENT_W = PAGE_W - MARGIN * 2;
+      const RIGHT     = PAGE_W - MARGIN;
+      const COL_VALUE = RIGHT; // right-edge of right-aligned values
+      const DIVIDER_Y = (y: number) => {
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(MARGIN, y, RIGHT, y);
+      };
+      const THICK_DIVIDER = (y: number) => {
+        doc.setDrawColor(50, 50, 50);
+        doc.setLineWidth(0.6);
+        doc.line(MARGIN, y, RIGHT, y);
+      };
+
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      let pageNum = 1;
 
-      const name    = summary?.display_identity?.display_name || state.businessName || "Your Business";
-      const bSector = state.businessSector || "—";
-      const bCat    = state.category || "Micro-enterprise";
-      const cs      = scoring?.credit_score ?? 0;
-      const gs      = scoring?.green_score  ?? 0;
-      const ls      = scoring?.liquidity_score ?? null;
-      const today   = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+      // ── Page header (reusable) ───────────────────────────────────────────────
+      const drawPageHeader = (reportTitle: string) => {
+        // Top rule
+        doc.setFillColor(21, 128, 61);
+        doc.rect(0, 0, PAGE_W, 2, "F");
 
-      // ── Header bar ──
-      doc.setFillColor(21, 128, 61);   // green-700
-      doc.rect(0, 0, 210, 28, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text("FinTwin – Financial Readiness Report", 14, 12);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Generated: ${today}`, 14, 22);
-
-      // ── Business info ──
-      doc.setTextColor(30, 30, 30);
-      doc.setFontSize(13);
-      doc.setFont("helvetica", "bold");
-      doc.text("Business Profile", 14, 40);
-      doc.setDrawColor(21, 128, 61);
-      doc.setLineWidth(0.5);
-      doc.line(14, 42, 196, 42);
-
-      const profileRows: [string, string][] = [
-        ["Business Name", name],
-        ["Sector",        bSector],
-        ["Classification", bCat],
-      ];
-      let y = 50;
-      doc.setFontSize(10);
-      for (const [label, value] of profileRows) {
+        // Business name – centred, 18pt bold
         doc.setFont("helvetica", "bold");
-        doc.text(label + ":", 14, y);
+        doc.setFontSize(18);
+        doc.setTextColor(20, 20, 20);
+        doc.text(businessName, PAGE_W / 2, 18, { align: "center" });
+
+        // Report title – centred, 14pt bold
+        doc.setFontSize(14);
+        doc.text(reportTitle, PAGE_W / 2, 27, { align: "center" });
+
+        // Period – centred, 10pt normal
         doc.setFont("helvetica", "normal");
-        doc.text(value, 70, y);
-        y += 7;
-      }
-
-      // ── Scores ──
-      y += 4;
-      doc.setFontSize(13);
-      doc.setFont("helvetica", "bold");
-      doc.text("FinTwin Scores", 14, y);
-      y += 2;
-      doc.line(14, y, 196, y);
-      y += 8;
-
-      const scoreRows: [string, string, string][] = [
-        ["Credit Score",    `${cs} / 100`, cs >= 75 ? "Strong" : cs >= 55 ? "Moderate" : "Developing"],
-        ["Green Score",     `${gs} / 100`, gs >= 75 ? "Strong" : gs >= 50 ? "Developing" : "Low"],
-        ...(ls !== null ? [["Liquidity Score", `${ls} / 100`, ls >= 60 ? "Healthy" : "Monitor"] as [string, string, string]] : []),
-      ];
-
-      // Column headers
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(240, 240, 240);
-      doc.rect(14, y - 5, 182, 7, "F");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Metric", 16, y);
-      doc.text("Score", 90, y);
-      doc.text("Rating", 140, y);
-      y += 4;
-      doc.setDrawColor(200, 200, 200);
-      doc.line(14, y, 196, y);
-      y += 4;
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(30, 30, 30);
-      for (const [metric, score, rating] of scoreRows) {
-        doc.text(metric, 16, y);
-        doc.text(score, 90, y);
-        // colour-coded rating
-        if (rating === "Strong" || rating === "Healthy") doc.setTextColor(21, 128, 61);
-        else if (rating === "Moderate" || rating === "Developing") doc.setTextColor(180, 120, 0);
-        else doc.setTextColor(180, 40, 40);
-        doc.text(rating, 140, y);
-        doc.setTextColor(30, 30, 30);
-        y += 7;
-      }
-
-      // ── Twin Completeness ──
-      if (summary?.twin_completeness) {
-        const tc = summary.twin_completeness;
-        y += 4;
-        doc.setFontSize(13);
-        doc.setFont("helvetica", "bold");
-        doc.text("Digital Twin Completeness", 14, y);
-        y += 2;
-        doc.setDrawColor(21, 128, 61);
-        doc.line(14, y, 196, y);
-        y += 8;
-
-        const completenessRows: [string, string][] = [
-          ["Transactions imported", String(tc.transactions_imported ?? 0)],
-          ["Connected sources",     String(tc.connected_sources ?? 0)],
-          ["Profile complete",      tc.profile_complete ? "Yes" : "No"],
-          ["Completeness score",    tc.completeness_score != null ? `${tc.completeness_score}%` : "—"],
-        ];
         doc.setFontSize(10);
-        for (const [label, value] of completenessRows) {
-          doc.setFont("helvetica", "bold");
-          doc.text(label + ":", 14, y);
-          doc.setFont("helvetica", "normal");
-          doc.text(value, 100, y);
-          y += 7;
+        doc.setTextColor(80, 80, 80);
+        doc.text(periodStr, PAGE_W / 2, 35, { align: "center" });
+
+        // Separator
+        THICK_DIVIDER(40);
+      };
+
+      // ── Page footer (reusable) ───────────────────────────────────────────────
+      const drawPageFooter = () => {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8);
+        doc.setTextColor(140, 140, 140);
+        doc.text(
+          `Generated by FinTwin on ${today}  •  For informational purposes only`,
+          PAGE_W / 2,
+          PAGE_H - 8,
+          { align: "center" },
+        );
+        doc.text(`Page ${pageNum}`, RIGHT, PAGE_H - 8, { align: "right" });
+      };
+
+      // ── Row renderer – label left, value right-aligned ───────────────────────
+      const drawRow = (
+        label: string,
+        valueStr: string,
+        yPos: number,
+        opts: {
+          bold?: boolean;
+          indent?: number;
+          color?: [number, number, number];
+          bgColor?: [number, number, number];
+          fontSize?: number;
+        } = {},
+      ) => {
+        const { bold = false, indent = 0, color, bgColor, fontSize = 10.5 } = opts;
+
+        if (bgColor) {
+          doc.setFillColor(...bgColor);
+          doc.rect(MARGIN, yPos - 4.5, CONTENT_W, 6.5, "F");
         }
+
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", bold ? "bold" : "normal");
+        doc.setTextColor(...(color ?? [30, 30, 30]));
+        doc.text(label, MARGIN + indent, yPos);
+        doc.text(valueStr, COL_VALUE, yPos, { align: "right" });
+        doc.setTextColor(30, 30, 30);
+      };
+
+      // ════════════════════════════════════════════════════════════════════════
+      // PAGE 1 — Income Statement
+      // ════════════════════════════════════════════════════════════════════════
+      drawPageHeader("INCOME STATEMENT");
+      drawPageFooter();
+
+      let y = 52;
+
+      if (txns.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(10.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          "No financial transaction data is currently available.\nPlease synchronize your banking data before generating financial statements.",
+          PAGE_W / 2,
+          y + 20,
+          { align: "center", maxWidth: CONTENT_W },
+        );
+      } else {
+        // ── Revenue ──
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 20, 20);
+        doc.text("Revenue", MARGIN, y);
+        y += 6;
+
+        drawRow("   Total Revenue (all credit transactions)", fmtMoney(credits), y, {
+          bgColor: [248, 252, 248],
+        });
+        y += 8;
+        DIVIDER_Y(y);
+        y += 6;
+
+        // ── Operating Expenses ──
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 20, 20);
+        doc.text("Operating Expenses", MARGIN, y);
+        y += 6;
+
+        drawRow("   Total Operating Expenses (all debit transactions)", fmtMoney(debits), y, {
+          bgColor: [252, 248, 248],
+        });
+        y += 8;
+        THICK_DIVIDER(y);
+        y += 7;
+
+        // ── Operating Income ──
+        drawRow("Operating Income", fmtMoney(operatingIncome), y, {
+          bold: true,
+          fontSize: 11,
+          bgColor: [245, 245, 245],
+        });
+        y += 10;
+        DIVIDER_Y(y);
+        y += 7;
+
+        // ── N/A items per spec ──
+        drawRow("Other Expenses", "N/A", y, { color: [100, 100, 100] });
+        y += 7;
+        drawRow("Taxes", "N/A", y, { color: [100, 100, 100] });
+        y += 9;
+        THICK_DIVIDER(y);
+        y += 7;
+
+        // ── Net Income ──
+        drawRow("NET INCOME", fmtMoney(netIncome), y, {
+          bold: true,
+          fontSize: 12,
+          color: [15, 100, 40],   // dark green per spec
+          bgColor: [240, 252, 244],
+        });
+        y += 10;
+        THICK_DIVIDER(y);
+        y += 5;
+
+        // ── Footnote ──
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.setTextColor(110, 110, 110);
+        doc.text(
+          "* Other Expenses, Taxes, and Depreciation are not estimated. Net Income equals Operating Income\n  based solely on synchronized Open Banking transaction data.",
+          MARGIN,
+          y + 6,
+          { maxWidth: CONTENT_W },
+        );
       }
 
-      // ── Cash flow summary ──
-      const cashflow = summary?.monthly_cashflow ?? MOCK_CASH_FLOW;
-      if (cashflow.length > 0) {
-        y += 4;
-        doc.setFontSize(13);
+      // ════════════════════════════════════════════════════════════════════════
+      // PAGE 2 — Cash Flow Statement
+      // ════════════════════════════════════════════════════════════════════════
+      doc.addPage();
+      pageNum += 1;
+      drawPageHeader("CASH FLOW STATEMENT");
+      drawPageFooter();
+
+      y = 52;
+
+      if (txns.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(10.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          "No financial transaction data is currently available.\nPlease synchronize your banking data before generating financial statements.",
+          PAGE_W / 2,
+          y + 20,
+          { align: "center", maxWidth: CONTENT_W },
+        );
+      } else {
+        // Sub-heading
         doc.setFont("helvetica", "bold");
-        doc.text("Monthly Cash Flow Summary", 14, y);
-        y += 2;
-        doc.setDrawColor(21, 128, 61);
-        doc.line(14, y, 196, y);
+        doc.setFontSize(11);
+        doc.setTextColor(20, 20, 20);
+        doc.text("Operating Activities", MARGIN, y);
         y += 8;
 
-        // Table header
-        doc.setFontSize(9);
-        doc.setFillColor(240, 240, 240);
-        doc.rect(14, y - 5, 182, 7, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(60, 60, 60);
-        doc.text("Month", 16, y);
-        doc.text("Income (JOD)", 80, y);
-        doc.text("Expenses (JOD)", 130, y);
-        y += 4;
-        doc.setDrawColor(200, 200, 200);
-        doc.line(14, y, 196, y);
-        y += 4;
+        // Cash Inflows
+        drawRow("Cash Inflows  (sum of all credit transactions)", fmtMoney(credits), y, {
+          bgColor: [248, 252, 248],
+        });
+        y += 8;
 
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(30, 30, 30);
-        for (const row of cashflow) {
-          if (y > 270) break; // prevent overflow
-          doc.text(row.month, 16, y);
-          doc.setTextColor(21, 128, 61);
-          doc.text(row.income.toLocaleString(), 80, y);
-          doc.setTextColor(180, 40, 40);
-          doc.text(row.expense.toLocaleString(), 130, y);
-          doc.setTextColor(30, 30, 30);
-          y += 6;
-        }
+        // Cash Outflows — shown in parentheses if negative per spec
+        drawRow("Cash Outflows  (sum of all debit transactions)", `(${fmtMoney(debits)})`, y, {
+          bgColor: [252, 248, 248],
+          color: [140, 40, 40],
+        });
+        y += 8;
+
+        THICK_DIVIDER(y);
+        y += 7;
+
+        // Net Cash Flow
+        drawRow("NET CASH FLOW", fmtParen(netCashFlow), y, {
+          bold: true,
+          fontSize: 12,
+          color: netCashFlow >= 0 ? [0, 60, 140] : [140, 40, 40],  // dark blue (positive) per spec
+          bgColor: [242, 246, 255],
+        });
+        y += 10;
+        THICK_DIVIDER(y);
+        y += 5;
+
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.setTextColor(110, 110, 110);
+        doc.text(
+          "* This is a simplified Operating Cash Flow Statement based solely on synchronized Open Banking\n  transaction data. Investing and financing activities are not available.",
+          MARGIN,
+          y + 6,
+          { maxWidth: CONTENT_W },
+        );
       }
 
-      // ── Footer ──
-      doc.setFontSize(8);
-      doc.setTextColor(130, 130, 130);
-      doc.setFont("helvetica", "italic");
-      doc.text(
-        "This report is generated by FinTwin and is for informational purposes only. Scores are indicative and not a guarantee of credit approval.",
-        14, 285, { maxWidth: 182 }
-      );
-
-      doc.save(`FinTwin_Report_${name.replace(/\s+/g, "_")}_${new Date().getFullYear()}.pdf`);
+      // ── Save ─────────────────────────────────────────────────────────────────
+      const safeName = businessName.replace(/[^a-z0-9]/gi, "_").replace(/_+/g, "_");
+      doc.save(`Financial_Report_${safeName}_${new Date().getFullYear()}.pdf`);
     } catch (error) {
-      console.error(error);
+      console.error("Export report error:", error);
       alert("Failed to export report. Please try again.");
     }
   };

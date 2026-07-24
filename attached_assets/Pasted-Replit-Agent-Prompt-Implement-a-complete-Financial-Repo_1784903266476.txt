@@ -1,0 +1,308 @@
+Replit Agent Prompt
+
+Implement a complete Financial Report PDF Export feature for the FinTwin platform.
+
+Objective
+
+When the user clicks "Export Report" on the Dashboard, generate and download a professionally formatted PDF containing:
+
+Income Statement
+Cash Flow Statement
+
+Do NOT generate a Balance Sheet because our platform does not currently have sufficient asset information to produce an accurate one.
+
+The layout should resemble a professional accounting statement similar to the attached reference document, with a centered company title, report title, reporting period, clean tables, aligned monetary values, section headers, and totals.
+
+Data Sources
+
+Do NOT request any new information from the user.
+
+Use only existing backend APIs and already synchronized Open Banking data.
+
+Transactions
+
+Use
+
+GET /api/v1/openbanking/transactions/
+
+Each transaction contains:
+
+amount
+direction (credit/debit)
+date
+description
+counterparty
+source
+Dashboard Summary
+
+Use
+
+GET /api/v1/openbanking/dashboard-summary/
+
+Use this endpoint only for:
+
+business name
+reporting metadata
+current available balance if needed for informational purposes
+
+Do NOT generate a Balance Sheet.
+
+Income Statement
+
+Generate an Income Statement using transaction data.
+
+Revenue
+
+Revenue equals the sum of all transactions where
+
+direction == "credit"
+
+Formula
+
+Revenue = Σ Credits
+Operating Expenses
+
+Operating Expenses equal the sum of all transactions where
+
+direction == "debit"
+
+Formula
+
+Operating Expenses = Σ Debits
+Operating Income
+Operating Income = Revenue − Operating Expenses
+
+Since we do NOT have reliable accounting data for:
+
+depreciation
+taxes
+interest expense
+cost of goods sold
+
+Do NOT fabricate them.
+
+Instead display
+
+Other Expenses ............ N/A
+Taxes ..................... N/A
+Net Income
+
+Because no additional deductions exist,
+
+Net Income = Operating Income
+
+The final Income Statement should look similar to
+
+Business Name
+
+INCOME STATEMENT
+
+Reporting Period
+
+------------------------------------------------
+
+Revenue                           12,500.00 JOD
+
+Operating Expenses
+
+   Total Operating Expenses         8,450.00 JOD
+
+------------------------------------------------
+
+Operating Income                   4,050.00 JOD
+
+Other Expenses                         N/A
+
+Taxes                                  N/A
+
+------------------------------------------------
+
+NET INCOME                        4,050.00 JOD
+Cash Flow Statement
+
+Generate a simplified Operating Cash Flow Statement.
+
+Cash Inflows
+
+Sum all Credit transactions.
+
+Cash Inflows = Σ Credits
+Cash Outflows
+
+Sum all Debit transactions.
+
+Cash Outflows = Σ Debits
+Net Cash Flow
+Net Cash Flow = Cash Inflows − Cash Outflows
+
+Display
+
+Business Name
+
+CASH FLOW STATEMENT
+
+Reporting Period
+
+--------------------------------------------
+
+Cash Inflows               12,500.00 JOD
+
+Cash Outflows              (8,450.00 JOD)
+
+--------------------------------------------
+
+NET CASH FLOW               4,050.00 JOD
+
+Negative values should appear inside parentheses.
+
+Reporting Period
+
+Automatically determine
+
+Earliest Transaction Date
+
+↓
+
+Latest Transaction Date
+
+Display
+
+For the Period
+
+01 Jan 2025 – 31 Dec 2025
+
+If no dates exist
+
+Display
+
+Current Reporting Period
+Currency
+
+Always display
+
+JOD
+
+Format
+
+1,234.56 JOD
+
+Include commas.
+
+Round to two decimal places.
+
+Company Information
+
+Retrieve business name from the Business Profile.
+
+Display at the top of every page.
+
+Example
+
+ABC Coffee Roasters
+
+Financial Report
+
+Generated on:
+24 July 2026
+PDF Layout
+
+Generate an A4 portrait PDF.
+
+Professional formatting.
+
+Requirements:
+
+centered title
+centered business name
+generous margins
+section spacing
+bold headings
+right-aligned monetary values
+horizontal divider lines
+alternating row colors where appropriate
+page numbering
+generation timestamp in footer
+
+Font hierarchy:
+
+Title
+
+18–20 pt
+
+Section headers
+
+14 pt bold
+
+Body
+
+10–11 pt
+
+Totals
+
+Bold
+
+Net Income
+
+Dark green
+
+Net Cash Flow
+
+Dark blue
+
+Empty State
+
+If there are no transactions
+
+Generate the PDF anyway.
+
+Display
+
+No financial transaction data is currently available.
+
+Please synchronize your banking data before generating financial statements.
+Backend Endpoint
+
+Create
+
+GET /financial-reports/pdf/
+
+The endpoint should
+
+authenticate the user
+retrieve report data
+calculate statements
+generate PDF
+return
+Content-Type: application/pdf
+
+with
+
+Content-Disposition:
+attachment;
+filename="Financial_Report.pdf"
+Frontend
+
+When the Dashboard Export Report button is clicked
+
+Call
+
+GET /financial-reports/pdf/
+
+using the existing authenticated API helper.
+
+The browser should automatically download
+
+Financial_Report.pdf
+
+No preview screen is required.
+
+No additional user interaction is required.
+
+Important Constraints
+Do not create fake accounting values.
+Do not estimate taxes.
+Do not estimate depreciation.
+Do not estimate COGS.
+Do not generate a Balance Sheet.
+Use only synchronized Open Banking transaction data.
+The PDF should resemble a professional accounting report suitable for an SME loan application or financial review while remaining fully explainable from the available data.
