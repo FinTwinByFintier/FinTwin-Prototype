@@ -5,7 +5,9 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { type GreenAssessmentResult } from "@/lib/api";
 import { lastGreenAssessmentResult } from "@/pages/GreenAssessment";
-import { Leaf, BarChart3, Zap, Droplets, Car, Award, ArrowRight, RotateCcw } from "lucide-react";
+import { getGreenRecommendations, type Recommendation } from "@/utils/greenRecommendations";
+import { useOnboarding } from "@/context/OnboardingContext";
+import { Leaf, BarChart3, Zap, Droplets, Car, Award, ArrowRight, RotateCcw, AlertTriangle, Info, TrendingUp, ChevronRight } from "lucide-react";
 
 /* ─── Grade helpers ─────────────────────────────────────────── */
 function gradeColor(grade: string) {
@@ -75,9 +77,27 @@ function CategoryCard({
   );
 }
 
+/* ─── Priority badge ─────────────────────────────────────────── */
+function PriorityBadge({ priority }: { priority: Recommendation["priority"] }) {
+  if (priority === "high")   return <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-red-500/10 text-red-600">High priority</span>;
+  if (priority === "medium") return <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-600">Medium priority</span>;
+  return                            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">Low priority</span>;
+}
+
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  energy: Zap, water: Droplets, transportation: Car, certifications: Award,
+};
+
+function PriorityIcon({ priority }: { priority: Recommendation["priority"] }) {
+  if (priority === "high")   return <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />;
+  if (priority === "medium") return <Info className="w-4 h-4 text-amber-500 shrink-0" />;
+  return                            <TrendingUp className="w-4 h-4 text-blue-500 shrink-0" />;
+}
+
 /* ─── Main page ─────────────────────────────────────────────── */
 export default function GreenScore() {
   const [, navigate] = useLocation();
+  const { state: onboardingState } = useOnboarding();
 
   // Use the module-level result, or fall back to a stored copy in sessionStorage
   const [result, setResult] = useState<GreenAssessmentResult | null>(null);
@@ -119,6 +139,13 @@ export default function GreenScore() {
 
   const colors = gradeColor(result.grade);
   const categoryEntries = Object.entries(result.categories) as Array<[string, { score: number; weight: number }]>;
+
+  const recommendations = getGreenRecommendations({
+    sector: onboardingState.businessSector ?? "",
+    categories: Object.fromEntries(
+      categoryEntries.map(([id, cat]) => [id, { score: cat.score, weight: cat.weight }])
+    ) as Parameters<typeof getGreenRecommendations>[0]["categories"],
+  });
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background">
@@ -196,6 +223,54 @@ export default function GreenScore() {
             ))}
           </div>
         </div>
+
+        {/* Recommendations */}
+        {recommendations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="mb-6"
+          >
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
+              Recommendations
+            </h3>
+            <div className="space-y-3">
+              {recommendations.map((rec, i) => {
+                const CatIcon = CATEGORY_ICONS[rec.category] ?? Leaf;
+                return (
+                  <motion.div
+                    key={rec.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.48 + i * 0.05 }}
+                    className="bg-card border rounded-2xl p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                        <CatIcon className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <p className="font-semibold text-sm">{rec.title}</p>
+                          <PriorityBadge priority={rec.priority} />
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{rec.description}</p>
+                        <div className="flex items-start gap-1.5 bg-muted/50 rounded-xl px-3 py-2">
+                          <PriorityIcon priority={rec.priority} />
+                          <p className="text-xs text-foreground/80 leading-relaxed">
+                            <span className="font-semibold">Action: </span>{rec.action}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Weight legend */}
         <motion.div

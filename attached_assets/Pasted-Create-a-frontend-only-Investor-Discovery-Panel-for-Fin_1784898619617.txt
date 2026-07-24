@@ -1,0 +1,387 @@
+Create a frontend-only Investor Discovery Panel for FinTwin as a future-work/demo feature.
+
+Do not create or modify backend APIs, database models, authentication logic, or scoring calculations. Use realistic mock data stored in the frontend. Structure the code so the mock data can later be replaced by a backend endpoint without redesigning the feature.
+
+The feature should create a new page called “Investor Discovery” where investors can browse enterprises and individuals registered on FinTwin, view ranked public profiles, compare them, and express interest in connecting.
+
+The page must include two tabs:
+- Enterprises
+- Individuals
+
+Only show profiles that have opted into investor discovery.
+
+Add a visible note:
+“Only profiles that have opted into investor discovery are displayed.”
+
+Do not expose sensitive information. Do not display bank account numbers, IBANs, transaction history, identification numbers, exact balances, private email addresses, private phone numbers, or private onboarding data.
+
+Display only public or investor-approved information such as:
+- Display name
+- Profile type
+- Sector
+- City
+- Short description
+- FinTwin score
+- Financial health score
+- Green score
+- Growth readiness score
+- Risk level
+- Funding need range
+- Funding purpose
+- Sustainability strengths
+- Investment highlights
+- Verification status
+- Last updated date
+
+Create reusable frontend files similar to:
+- src/pages/InvestorDiscovery.tsx
+- src/components/investor/InvestorProfileCard.tsx
+- src/components/investor/InvestorProfileModal.tsx
+- src/components/investor/InvestorFilters.tsx
+- src/components/investor/InvestorLeaderboard.tsx
+- src/components/investor/CompareProfiles.tsx
+- src/data/mockInvestorProfiles.ts
+- src/utils/investorRanking.ts
+- src/types/investor.ts
+
+Adapt the exact paths to the existing project structure and do not put everything inside one large component.
+
+Create at least 20 realistic mock profiles:
+- 12 enterprises
+- 8 individuals
+
+Use Jordanian names, cities, sectors, and business contexts.
+
+Possible cities:
+- Amman
+- Zarqa
+- Irbid
+- Aqaba
+- Madaba
+- Salt
+
+Use the existing sectors where possible:
+- Retail & Trade
+- Food & Hospitality
+- Small Manufacturing
+- Services
+- Professional Services
+- Agriculture
+- Crafts & Trades
+- Other
+
+Use a profile structure similar to:
+
+type InvestorProfile = {
+  id: string;
+  profileType: "enterprise" | "individual";
+  displayName: string;
+  sector: string;
+  city: string;
+  description: string;
+  fintwinScore: number;
+  financialHealthScore: number;
+  greenScore: number;
+  growthReadinessScore: number;
+  riskLevel: "Low" | "Moderate" | "High";
+  fundingNeedMin: number;
+  fundingNeedMax: number;
+  fundingCurrency: "JOD";
+  fundingPurpose: string;
+  sustainabilityStrengths: string[];
+  investmentHighlights: string[];
+  yearsOperating?: number;
+  monthlyRevenueRange?: string;
+  verified: boolean;
+  investorDiscoveryEnabled: boolean;
+  lastUpdated: string;
+};
+
+Only display profiles where:
+investorDiscoveryEnabled === true
+
+Create ranking logic in src/utils/investorRanking.ts using this formula:
+
+rankingScore =
+  fintwinScore * 0.35 +
+  financialHealthScore * 0.30 +
+  growthReadinessScore * 0.20 +
+  greenScore * 0.15;
+
+Round the final score to one decimal place.
+
+Do not describe the ranking as an investment recommendation.
+
+Add this disclaimer:
+“Rankings are based on FinTwin platform indicators and are intended for discovery only. Investors should conduct their own due diligence.”
+
+The Investor Discovery page should include:
+
+1. Header
+
+Title:
+“Investor Discovery”
+
+Subtitle:
+“Discover promising enterprises and individuals using financial health, sustainability, and growth-readiness indicators.”
+
+2. Summary cards
+
+Show:
+- Total discoverable profiles
+- Enterprises
+- Individuals
+- Average FinTwin score
+- Low-risk profiles
+
+3. Tabs
+
+Add:
+- Enterprises
+- Individuals
+
+Switching tabs must update the ranking and displayed profiles.
+
+4. Search and filters
+
+Add:
+- Search by name
+- Sector filter
+- City filter
+- Risk level filter
+- Minimum FinTwin score
+- Minimum Green score
+- Verified profiles only
+- Funding need range
+- Sort dropdown
+- Reset Filters button
+
+Sort options:
+- Overall ranking
+- Highest FinTwin score
+- Highest Green score
+- Highest financial health
+- Highest growth readiness
+- Lowest risk
+- Lowest funding need
+- Highest funding need
+
+5. Leaderboard
+
+Show the top 3 profiles in a professional highlighted leaderboard.
+
+Display:
+- Rank
+- Name
+- Profile type
+- Sector
+- City
+- Ranking score
+- FinTwin score
+- Green score
+- Risk level
+- Verified badge
+
+The top 3 section should be professional and not overly flashy.
+
+6. Profile cards
+
+Below the leaderboard, show all matching profiles as cards.
+
+Each card should display:
+- Rank
+- Display name
+- Enterprise or Individual badge
+- Verified badge
+- Sector
+- City
+- Short description
+- FinTwin score
+- Financial health score
+- Green score
+- Growth readiness score
+- Risk level
+- Funding need range
+- Funding purpose
+- View Profile button
+- Add to Compare button
+- Express Interest button
+
+Use score bars or circular score indicators consistent with the existing FinTwin design.
+
+7. Detailed profile modal or page
+
+When the user clicks View Profile, open a detailed modal or page showing:
+- Public profile overview
+- Ranking score
+- All four score categories
+- Funding need
+- Funding purpose
+- Sustainability strengths
+- Investment highlights
+- Years operating when available
+- Monthly revenue range when available
+- Risk level
+- Verification status
+- Last updated date
+
+Add a section titled:
+“Why this profile stands out”
+
+Generate it using simple rule-based frontend logic.
+
+Examples:
+- If Green Score is above 80, show “Strong sustainability performance”
+- If Financial Health Score is above 80, show “Strong financial health indicators”
+- If Growth Readiness Score is above 80, show “High growth readiness”
+- If Risk Level is Low, show “Lower platform-indicated risk level”
+
+Do not use AI or external APIs.
+
+8. Express Interest feature
+
+When the user clicks Express Interest, open a modal containing:
+- Selected profile name
+- Investor name
+- Investor organization
+- Investor email
+- Optional message
+- Preferred connection type
+
+Connection type options:
+- Investment discussion
+- Partnership
+- Mentorship
+- Financing opportunity
+- General introduction
+
+Because this is frontend-only:
+- Do not send the form to a backend
+- Validate required fields
+- Save the request to localStorage
+- Use a key similar to fintwin-investor-interests
+- Show this success message:
+  “Your interest has been recorded for this prototype.”
+- Add a small label:
+  “Prototype connection request”
+- Do not claim that the selected profile has received the request
+
+9. Compare Profiles feature
+
+Allow the investor to select up to 3 profiles.
+
+Show the Compare button only when at least 2 profiles are selected.
+
+The comparison view should compare:
+- FinTwin score
+- Financial health score
+- Green score
+- Growth readiness score
+- Risk level
+- Funding need
+- Sector
+- Location
+- Funding purpose
+- Verification status
+
+Prevent selecting more than 3 profiles.
+
+Show:
+“You can compare up to 3 profiles.”
+
+10. Empty states
+
+If no profiles match the filters, show:
+“No profiles match your current filters.”
+
+Include a Reset Filters button.
+
+If mock data fails to load, show:
+“Investor profiles are currently unavailable.”
+
+Do not allow the page to crash.
+
+11. Navigation
+
+Add an “Investor Discovery” item to the existing application navigation.
+
+Use an appropriate existing icon.
+
+Do not remove or break existing navigation links.
+
+If the project already has role-based navigation, show this for an investor role.
+
+If no investor role exists, make the page accessible as a clearly labeled future-work/demo page without changing backend authentication.
+
+Add a badge:
+“Future Feature”
+
+12. Design
+
+Use the existing FinTwin colors, typography, cards, spacing, buttons, and responsive layout.
+
+The page should feel professional, trustworthy, financial, sustainable, and easy to scan.
+
+Make it responsive for desktop, tablet, and mobile.
+
+Do not create a separate design system.
+
+13. Product language
+
+Avoid language such as:
+- Guaranteed investment
+- Best investment
+- Safe investment
+- Approved investor opportunity
+- Guaranteed returns
+
+Use language such as:
+- Discovery
+- Platform indicators
+- Potential opportunity
+- Express interest
+- Subject to due diligence
+- Public profile information
+
+14. Future backend readiness
+
+Create a simple data service function such as:
+getInvestorProfiles()
+
+For now, it should return mock data.
+
+Add a clear comment showing where a future API call could replace the mock data, for example:
+GET /api/investor/profiles/
+
+Do not call a non-existing backend endpoint now.
+
+15. Testing
+
+Test:
+- Enterprise tab displays only enterprises
+- Individual tab displays only individuals
+- Search works
+- Sector filter works
+- City filter works
+- Score filters work
+- Ranking order is correct
+- Top 3 leaderboard updates after filtering
+- View Profile works
+- Express Interest validates required fields
+- Interest requests are stored in localStorage
+- Compare works with 2 profiles
+- Compare works with 3 profiles
+- A fourth profile cannot be selected
+- Empty results show the proper empty state
+- Mobile layout works
+- Existing Green Scoring and dashboard features still work
+
+After completing the feature, provide:
+- Every file created
+- Every file modified
+- The ranking formula used
+- Where mock data is stored
+- Where the future backend API should be connected
+- How the Express Interest prototype works
+- Confirmation that no backend API or database was changed
+- Confirmation that sensitive financial data is not displayed

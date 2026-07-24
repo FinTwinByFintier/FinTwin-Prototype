@@ -63,7 +63,7 @@ export function StepConsent() {
   const handleAgree = () => {
     updateState({ consentGiven: true });
     void persistProfile({ consent_given: true });
-    setCurrentStep(8);
+    setCurrentStep(7);
   };
 
   return (
@@ -134,7 +134,7 @@ export function StepConsent() {
       </div>
 
       <div className="flex justify-between">
-        <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(6)}>
+        <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(5)}>
           <ArrowLeft className="me-2 w-4 h-4" /> Back
         </Button>
         <Button className="rounded-full px-8" disabled={!termsChecked} onClick={handleAgree}>

@@ -197,6 +197,7 @@ export default function GreenAssessment() {
   const { state: onboardingState } = useOnboarding();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<GreenAssessmentPayload>(defaultForm);
+  const [rawRenewable, setRawRenewable] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -339,12 +340,24 @@ export default function GreenAssessment() {
                   <Label>Renewable energy share (%)</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     max={100}
-                    value={form.renewable_percentage}
-                    onChange={(e) =>
-                      set("renewable_percentage", Math.min(100, Math.max(0, Number(e.target.value) || 0)))
-                    }
+                    value={rawRenewable}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setRawRenewable(raw);
+                      if (raw !== "" && raw !== "-") {
+                        set("renewable_percentage", Math.min(100, Math.max(0, Number(raw) || 0)));
+                      }
+                    }}
+                    onBlur={() => {
+                      // Normalise on blur: empty → 0
+                      const n = Math.min(100, Math.max(0, Number(rawRenewable) || 0));
+                      set("renewable_percentage", n);
+                      setRawRenewable(String(n));
+                    }}
+                    placeholder="0"
                   />
                 </div>
                 <div className="space-y-2">

@@ -12,7 +12,7 @@ export function Navbar() {
   const { t } = useTranslation();
   const { isAuthenticated, signOut } = useOnboarding();
 
-  const brandHref = isAuthenticated ? "/dashboard" : "/";
+  const brandHref = "/";
 
   const goToHowItWorks = (e: React.MouseEvent) => {
     e.preventDefault();

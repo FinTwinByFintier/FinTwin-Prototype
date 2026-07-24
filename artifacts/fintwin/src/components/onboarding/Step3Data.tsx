@@ -709,7 +709,7 @@ export function Step3Data() {
       connected_receipts: state.connectedSources.receipts,
       iban: state.iban,
     });
-    setCurrentStep(7);
+    setCurrentStep(8);
   };
 
   return (
@@ -806,7 +806,7 @@ export function Step3Data() {
       </div>
 
       <div className="flex justify-between">
-        <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(5)}>
+        <Button variant="ghost" className="rounded-full" onClick={() => setCurrentStep(6)}>
           <ArrowLeft className="me-2 w-4 h-4" /> Back
         </Button>
         <Button className="rounded-full px-8" onClick={handleContinue}>

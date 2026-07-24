@@ -15,14 +15,14 @@ import { fetchMe, getToken, routeFromNextStep } from "@/lib/api";
 import { CheckCircle2 }       from "lucide-react";
 
 // Internal step map (Docs step removed):
-// 1=Auth  2=Identity  3=Verify(internal)  4=Scale  5=Classify(internal)  6=Connect  7=Consent  8=Complete
+// 1=Auth  2=Identity  3=Verify(internal)  4=Scale  5=Classify(internal)  6=Consent  7=Connect  8=Complete
 
 // Only these steps appear in the progress bar:
 const VISIBLE_STEPS = [
   { label: 'Identity', internalStep: 2 },
   { label: 'Scale',    internalStep: 4 },
-  { label: 'Connect',  internalStep: 6 },
-  { label: 'Consent',  internalStep: 7 },
+  { label: 'Consent',  internalStep: 6 },
+  { label: 'Connect',  internalStep: 7 },
   { label: 'Complete', internalStep: 8 },
 ];
 
@@ -30,8 +30,8 @@ const VISIBLE_STEPS = [
 function getVisibleIndex(s: number): number {
   if (s <= 2) return 0; // Identity
   if (s <= 4) return 1; // Scale
-  if (s <= 6) return 2; // Connect
-  if (s === 7) return 3; // Consent
+  if (s <= 6) return 2; // Consent
+  if (s === 7) return 3; // Connect
   return 4;              // Complete
 }
 
@@ -116,8 +116,8 @@ export default function Onboarding() {
               {currentStep === 3 && <StepVerification key="step-verify"   />}
               {currentStep === 4 && <Step2Size        key="step-size"     />}
               {currentStep === 5 && <StepClassification key="step-classify" />}
-              {currentStep === 6 && <Step3Data        key="step-data"     />}
-              {currentStep === 7 && <StepConsent      key="step-consent"  />}
+              {currentStep === 6 && <StepConsent      key="step-consent"  />}
+              {currentStep === 7 && <Step3Data        key="step-data"     />}
               {currentStep === 8 && <Step5Complete    key="step-complete" />}
             </AnimatePresence>
           </div>
