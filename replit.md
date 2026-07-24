@@ -1,45 +1,36 @@
-# [Project name]
+# FinTwin
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
-
-## Run & Operate
-
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+**Funding Readiness Platform** for Jordanian MSMEs — helps small businesses assess credit and Green Finance eligibility through simulation and mock data integration.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Frontend** (`artifacts/fintwin`): React 19, TypeScript, Vite, Tailwind CSS 4, Radix UI, Framer Motion, Recharts, Wouter, i18next (Arabic/English)
+- **Backend** (`artifacts/api-server`): Node.js, Express, Pino logging, Zod validation
+- **Shared libs** (`lib/`): Drizzle ORM schema (`lib/db`), OpenAPI spec + Orval codegen (`lib/api-spec`), S3 file uploads (`lib/object-storage-web`)
+- **Monorepo**: PNPM workspaces
 
-## Where things live
+## How to Run
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+Dependencies are installed via `pnpm install` at the root.
 
-## Architecture decisions
+Workflows:
+- **Frontend**: `artifacts/fintwin: web` — runs `vite --config vite.config.ts --host 0.0.0.0`
+- **API**: `artifacts/api-server: API Server` — builds and starts Express server
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+The frontend is accessible at `/` in preview. The API runs at `/api`.
 
-## Product
+## Key Features
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Multi-step onboarding (business classification, mock CliQ/Sanad data connections)
+- Credit & Green Finance scoring engine (`artifacts/fintwin/src/lib/simulationEngine.ts`)
+- Interactive simulation dashboard (what-if scenarios: hiring, loans, solar)
+- Loan pre-screening with PDF export (jspdf)
+- Arabic/English i18n support
 
-## User preferences
+## Current Limitations
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- **No persistence**: state is React Context only — resets on page refresh
+- **Mocked data**: CliQ/JoFotara connections and dashboard scores are hardcoded
+- **No live DB**: Drizzle schema exists in `lib/db` but no database is connected
 
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+## User Preferences
