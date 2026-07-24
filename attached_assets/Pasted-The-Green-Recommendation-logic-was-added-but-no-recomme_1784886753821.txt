@@ -1,0 +1,101 @@
+The Green Recommendation logic was added, but no recommendations appear after I complete the Green Assessment.
+
+Please debug and fix the frontend integration.
+
+Important: I do not want an AI chatbot or AI agent. I only want rule-based recommendations generated directly in the frontend from the Green Score result.
+
+Please do the following:
+
+Find the exact component that displays the Green Score results after assessment submission.
+Find the recommendation utility that was created, such as:
+greenRecommendations.ts
+Import the recommendation function into the Green Score results component.
+Generate recommendations using the actual Green Score API response.
+
+The API response contains data similar to:
+
+{
+  "green_score": 65,
+  "grade": "B",
+  "categories": {
+    "energy": {
+      "score": 55,
+      "weight": 0.3
+    },
+    "water": {
+      "score": 70,
+      "weight": 0.2
+    },
+    "transportation": {
+      "score": 45,
+      "weight": 0.25
+    },
+    "certifications": {
+      "score": 30,
+      "weight": 0.25
+    }
+  }
+}
+
+Use the real response structure already used in the project. Do not invent a new API response shape.
+
+Get the business sector from the authenticated user's business profile or existing onboarding data.
+Call the recommendation function only after both the Green Score result and sector are available.
+
+Example logic:
+
+const recommendations = getGreenRecommendations({
+  sector: businessSector,
+  categories: result.categories,
+  assessmentData: assessmentData
+});
+
+Adapt this to the actual variable names and structure in the project.
+
+Render the recommendations directly below the category scores on the results page.
+
+Add this section:
+
+Your Green Improvement Plan
+
+Add the text:
+
+These recommendations are prioritized using your sector and assessment results.
+
+Display every recommendation as a card containing:
+
+Category
+Title
+Description
+Priority
+Expected impact
+Action step
+Ensure this section appears:
+Immediately after a successful assessment submission
+When a returning user opens their previous Green Score
+After the user retakes the assessment
+Add temporary console logs for debugging:
+console.log("Green result:", result);
+console.log("Business sector:", businessSector);
+console.log("Generated recommendations:", recommendations);
+
+Use the actual variables in the project.
+
+Fix any mismatch between category names.
+
+The recommendation function must support these exact keys:
+
+energy
+water
+transportation
+certifications
+If the recommendations array is empty, display:
+No recommendations could be generated. Please verify your business sector and assessment details.
+Do not hide the recommendation section because renewable energy share is missing. Renewable energy share should only affect energy-specific recommendations.
+Do not modify the Green Score backend algorithm or API endpoint.
+After fixing it, tell me:
+Which results component was changed
+Which recommendation file was used
+What caused the recommendations not to display
+The exact API property names used
+Whether recommendations now appear after submission and for returning users

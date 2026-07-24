@@ -1,0 +1,387 @@
+I want to add a personalized Green Score Recommendations section to the existing Green Scoring results page.
+
+Please inspect the current frontend structure and reuse the existing Green Score API response, components, styling, authentication, and routing. Do not change the Green Scoring calculation logic.
+
+Objective
+
+After a user completes the Green Assessment and receives their score, show personalized recommendations based on:
+
+Their business sector
+Their energy score
+Their water score
+Their transportation score
+Their certifications score
+Their renewable energy share, when available
+
+The recommendations must be sector-specific because different business sectors have different operational priorities.
+
+Important Architecture Requirement
+
+For this version, implement the recommendation engine in the frontend as a separate reusable utility file.
+
+Create a file similar to:
+
+src/utils/greenRecommendations.ts
+
+or use the equivalent existing frontend folder structure.
+
+Do not place all recommendation logic directly inside the results component.
+
+The utility should expose a function similar to:
+
+getGreenRecommendations({
+  sector,
+  categories,
+  assessmentData
+})
+
+It should return an array of recommendation objects.
+
+Each recommendation object should follow this structure:
+
+{
+  id: string;
+  category: "energy" | "water" | "transportation" | "certifications";
+  title: string;
+  description: string;
+  priority: "high" | "medium" | "low";
+  impact: string;
+  action: string;
+}
+Recommendation Priority Logic
+
+Use the category score to determine priority:
+
+Score below 40: high priority
+Score from 40 to 69: medium priority
+Score 70 or above: low priority
+
+The weakest categories should appear first.
+
+Show a maximum of 6 recommendations.
+
+Do not display duplicate recommendations.
+
+Sector Values
+
+Use the exact existing backend sector values. Do not invent or rename sectors.
+
+The supported sectors are:
+
+Retail & Trade
+Food & Hospitality
+Small Manufacturing
+Services
+Professional Services
+Agriculture
+Crafts & Trades
+Other
+
+If the stored values use codes instead of labels, map the existing codes correctly without changing the values sent to the backend.
+
+General Recommendations by Category
+
+Use these as fallback recommendations when no more specific sector recommendation applies.
+
+Energy
+Switch to LED lighting.
+Install timers or motion sensors.
+Track monthly electricity consumption.
+Maintain cooling, heating, and electrical equipment.
+Increase renewable energy usage.
+Consider solar panels or a renewable electricity provider.
+
+If renewable energy share is below 20%, recommend gradually increasing renewable energy use.
+
+Water
+Inspect regularly for leaks.
+Install low-flow taps and fixtures.
+Track monthly water use.
+Reuse water where operationally appropriate.
+Train staff to report leaks and unnecessary water use.
+Transportation
+Combine deliveries and reduce unnecessary journeys.
+Encourage fuel-efficient routes.
+Maintain vehicles regularly.
+Use local suppliers where practical.
+Encourage shared transport, public transportation, cycling, or walking for staff where possible.
+Gradually introduce hybrid or electric vehicles where practical.
+Certifications
+Create a basic written environmental policy.
+Assign one person to monitor sustainability actions.
+Keep records of electricity, water, fuel, and waste.
+Set annual environmental targets.
+Explore relevant environmental certifications.
+Train employees on sustainability practices.
+Sector-Specific Recommendations
+Retail & Trade
+
+Energy:
+
+Replace shop lighting with LED lighting.
+Use occupancy sensors in storage rooms.
+Turn off displays, signs, and equipment outside opening hours.
+Improve refrigerator and freezer maintenance when applicable.
+
+Water:
+
+Install efficient fixtures in staff and customer washrooms.
+Monitor cleaning-related water consumption.
+
+Transportation:
+
+Consolidate supplier deliveries.
+prioritize nearby suppliers.
+Optimize last-mile delivery routes.
+
+Certifications:
+
+Introduce sustainable purchasing and packaging policies.
+Track packaging waste and recycling.
+Food & Hospitality
+
+Energy:
+
+Maintain ovens, refrigerators, freezers, and air-conditioning units.
+Use energy-efficient kitchen appliances.
+Avoid leaving cooking and cooling equipment running unnecessarily.
+Improve refrigeration temperature monitoring.
+
+Water:
+
+Install low-flow kitchen and bathroom fixtures.
+Repair leaking taps immediately.
+Optimize dishwashing and cleaning cycles.
+Reuse safe greywater only where appropriate and permitted.
+
+Transportation:
+
+Consolidate food supplier deliveries.
+Source ingredients locally where practical.
+Optimize food delivery routes.
+
+Certifications:
+
+Introduce food-waste measurement.
+Establish recycling and responsible sourcing policies.
+Explore relevant green hospitality certifications.
+Small Manufacturing
+
+Energy:
+
+Monitor the energy use of individual machines.
+Turn off idle machinery.
+Perform preventive maintenance.
+Replace inefficient motors and equipment when financially practical.
+Investigate rooftop solar for production facilities.
+
+Water:
+
+Measure water used during production.
+Detect process leaks.
+Reuse process water where safe and appropriate.
+Install shut-off controls.
+
+Transportation:
+
+Optimize raw-material deliveries.
+Improve vehicle load utilization.
+Reduce empty vehicle journeys.
+
+Certifications:
+
+Document environmental procedures.
+Track material waste.
+Explore ISO 14001 or other relevant environmental management standards.
+Services
+
+Energy:
+
+Enable energy-saving settings on computers.
+Turn off office equipment after working hours.
+Improve air-conditioning scheduling.
+Replace office lighting with LEDs.
+
+Water:
+
+Install low-flow office fixtures.
+Monitor washroom water usage.
+
+Transportation:
+
+Encourage remote meetings.
+Reduce unnecessary business travel.
+Support public transportation and shared commuting.
+
+Certifications:
+
+Create a paper reduction policy.
+Introduce responsible procurement guidelines.
+Track office energy and waste.
+Professional Services
+
+Energy:
+
+Reduce unnecessary lighting and device usage.
+Use energy-efficient laptops and office equipment.
+Improve heating and cooling schedules.
+
+Water:
+
+Install efficient washroom fixtures.
+Monitor office water bills for unusual increases.
+
+Transportation:
+
+Use virtual meetings where possible.
+Encourage flexible or remote work.
+Reduce unnecessary employee travel.
+
+Certifications:
+
+Introduce paperless workflows.
+Create a formal sustainability policy.
+Select environmentally responsible suppliers.
+Agriculture
+
+Energy:
+
+Use energy-efficient irrigation pumps.
+Maintain agricultural machinery.
+Explore solar-powered pumping systems.
+Track fuel and electricity use.
+
+Water:
+
+Use drip irrigation where suitable.
+Irrigate during cooler hours.
+Monitor soil moisture.
+Repair irrigation leaks.
+Consider rainwater harvesting.
+
+Transportation:
+
+Plan harvest and supply journeys efficiently.
+Consolidate deliveries.
+Maintain agricultural vehicles.
+
+Certifications:
+
+Record fertilizer, pesticide, water, and energy use.
+Explore sustainable or organic agriculture certifications where relevant.
+Create soil and water management plans.
+Crafts & Trades
+
+Energy:
+
+Turn off tools when not in use.
+Maintain electric tools and workshop machinery.
+Improve workshop lighting.
+Consider efficient replacement tools.
+
+Water:
+
+Reduce unnecessary water use during cleaning.
+Reuse water where safe and practical.
+Inspect workshop plumbing.
+
+Transportation:
+
+Combine customer visits.
+Optimize routes.
+Maintain work vehicles.
+Source materials locally when possible.
+
+Certifications:
+
+Track material waste.
+Improve safe disposal procedures.
+Create a basic environmental policy.
+Other
+
+Use the general category recommendations and prioritize the weakest categories.
+
+Results Page Design
+
+On the Green Score results page, add a section titled:
+
+Your Green Improvement Plan
+
+Add supporting text:
+
+These recommendations are prioritized using your sector and assessment results.
+
+For every recommendation, display:
+
+Category
+Title
+Short description
+Priority badge
+Expected impact
+Clear action step
+
+Use the existing application colors and card design.
+
+Priority badges should be visually distinct:
+
+High Priority
+Medium Priority
+Low Priority
+
+Do not show technical IDs or algorithm information.
+
+Do not show the simulation feature.
+
+Display Rules
+
+If there is no assessment result, do not display recommendations.
+
+If the sector is missing:
+
+Show a clear message asking the user to complete their business profile.
+Do not silently use a random sector.
+Do not break the page.
+
+If one category is missing from the API response, continue generating recommendations from the categories that are available.
+
+If the score is already high, recommendations should focus on maintaining performance and making gradual improvements instead of suggesting that the user is performing poorly.
+
+Returning Users
+
+When a returning user logs in and their previous Green Score is displayed, also display the recommendations associated with their latest score.
+
+When they retake the assessment, regenerate the recommendations using the new category scores.
+
+Optional Progress Feature
+
+Add a simple checkbox or “Mark as planned” button to each recommendation.
+
+For now, save this progress using local storage, namespaced by the user or business ID, so one user’s progress is not shown to another user.
+
+Example storage key:
+
+green-recommendation-progress-{businessId}
+
+Do not mark recommendations as completed automatically.
+
+Testing Requirements
+
+Test these cases:
+
+New user with no assessment.
+User with a completed assessment.
+Returning user viewing a previous score.
+User with a missing sector.
+A low energy score.
+A low water score.
+A high score in all categories.
+Food & Hospitality sector.
+Agriculture sector.
+Small Manufacturing sector.
+Retaking the assessment and receiving updated recommendations.
+
+After completing the changes, provide:
+
+A list of every file changed.
+A short explanation of the recommendation logic.
+Any assumptions made about the existing API response.
