@@ -1,0 +1,170 @@
+I want to improve the authentication experience by integrating Sanad branding into the Login and Sign Up flow.
+
+This is a frontend-only enhancement. Do not implement real Sanad authentication or backend integration yet. This is only a UI/UX improvement that prepares the application for future integration.
+
+## Objectives
+
+Whenever the user is asked to enter their Jordanian National ID number, clearly indicate that this step will eventually integrate with Sanad.
+
+Use the attached Sanad logo throughout the authentication flow.
+
+## Requirements
+
+### Login Page
+
+When the login method is National ID:
+
+- Display the Sanad logo directly above the National ID field.
+- Add a small caption underneath the logo:
+
+"Future integration with Sanad Digital Identity"
+
+Under the National ID input display a subtle helper text:
+
+"Use your Jordanian National ID. Future versions will verify your identity securely through Sanad."
+
+Do not make the logo excessively large.
+
+It should fit naturally within the existing authentication card.
+
+Maintain the current application styling.
+
+---
+
+### Sign Up Page
+
+When a new user creates an account:
+
+Immediately above the National ID field display:
+
+- Sanad logo
+- Title:
+
+"Identity Verification"
+
+Subtitle:
+
+"This account will be linked to your Jordanian Digital Identity through Sanad in future releases."
+
+Then display the National ID input.
+
+---
+
+### National ID Field
+
+Improve the field by:
+
+- Using a National ID icon if available
+- Placeholder:
+
+"Enter your Jordanian National ID"
+
+Validate only basic formatting.
+
+Do not implement real verification.
+
+---
+
+### Future Integration Card
+
+Below the National ID field show a small informational card.
+
+Title:
+
+"Future Sanad Integration"
+
+Body:
+
+"In future versions, FinTwin will securely verify your identity through the Sanad Digital Identity platform, eliminating the need for manual identity verification."
+
+Include a small shield/check icon.
+
+Style it as an informational component.
+
+---
+
+### Confirmation Screen
+
+After successful registration, before entering the dashboard, show:
+
+✓ Account Created Successfully
+
+Then display the Sanad logo.
+
+Below it write:
+
+"Your account has been created successfully.
+
+Future versions of FinTwin will allow secure identity verification through Sanad."
+
+Continue button:
+
+"Go to Dashboard"
+
+---
+
+### Login Success
+
+When logging in using National ID, briefly display:
+
+Sanad logo
+
+"Identity verified"
+
+This is only a visual animation.
+
+Do not perform any backend verification.
+
+Hide it automatically after about one second before entering the dashboard.
+
+---
+
+### Design
+
+Use the attached Sanad logo.
+
+Do not modify the logo colors.
+
+Respect its aspect ratio.
+
+Keep plenty of white space around it.
+
+The branding should feel official and trustworthy without overwhelming the FinTwin branding.
+
+---
+
+### Future Ready
+
+Structure the code so that the National ID input can later be replaced with an actual Sanad authentication flow.
+
+Add comments indicating where future API integration would occur.
+
+For example:
+
+// Future:
+// Authenticate user using Sanad Digital Identity API
+
+Do not implement any backend logic now.
+
+---
+
+### Accessibility
+
+Ensure:
+
+- Responsive layout
+- Proper alt text for the logo
+- Keyboard accessibility
+- Dark mode compatibility if supported
+
+---
+
+### Final
+
+After completing the changes, provide:
+
+- Every file modified
+- Where the Sanad logo was added
+- Where future Sanad authentication should be connected
+- Confirmation that no backend authentication was changed
+- Confirmation that this is currently a frontend-only prototype.
