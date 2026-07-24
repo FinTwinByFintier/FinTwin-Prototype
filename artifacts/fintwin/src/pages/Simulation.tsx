@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useSimulation, SCENARIOS } from "@/context/SimulationContext";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -226,7 +226,9 @@ export default function Simulation() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
+            <Link href="/dashboard" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
+              Fin<span className="text-primary">Twin</span>
+            </Link>
             <span className="text-[10px] font-bold uppercase tracking-widest bg-primary text-white px-2.5 py-1 rounded-full">
               {t('simulation.simulationMode')}
             </span>

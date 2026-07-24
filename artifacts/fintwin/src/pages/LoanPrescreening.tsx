@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { usePrescreening } from "@/context/PrescreeningContext";
 import { useTranslation } from "react-i18next";
@@ -507,7 +507,7 @@ function StepSelectProduct() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const preselect = params.get('productId');
-  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const CREDIT_SCORE = scoring?.credit_score ?? 0;
   const GREEN_SCORE = scoring?.green_score ?? 62;
   const catalogue = products.length ? products.map(apiProductToBank) : BANK_PRODUCTS;
 
@@ -615,7 +615,7 @@ function StepAutoProfile({ product }: { product: BankProduct }) {
   const { nextStep, prevStep, uploadedDocs, scoring, twinMetrics } = usePrescreening();
   const { t } = useTranslation();
   const [openSection, setOpenSection] = useState<string | null>('identity');
-  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const CREDIT_SCORE = scoring?.credit_score ?? 0;
   const GREEN_SCORE = scoring?.green_score ?? 62;
 
   const profile = buildAutoProfile(state, CREDIT_SCORE, GREEN_SCORE, twinMetrics);
@@ -876,7 +876,7 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
   const [quoting, setQuoting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const CREDIT_SCORE = scoring?.credit_score ?? 0;
   const GREEN_SCORE = scoring?.green_score ?? 62;
 
   useEffect(() => {
@@ -1111,7 +1111,7 @@ function ReadyPanel({ product, result, onSubmit, submitting }: {
   const businessName = twinMetrics.displayName || state.businessName || 'Your business';
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const uploadCount = Object.keys(uploadedDocs).length;
-  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const CREDIT_SCORE = scoring?.credit_score ?? 0;
   const GREEN_SCORE = scoring?.green_score ?? 62;
   const quotedRate = liveQuote?.rate || submittedApplication?.quoted_rate || '';
   const quotedAmount = quoteAmount || Number(submittedApplication?.requested_amount) || 0;
@@ -1218,7 +1218,7 @@ function SubmissionSuccess({ product, refNum, application }: { product: BankProd
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [responding, setResponding] = useState(false);
   const [appState, setAppState] = useState(application);
-  const CREDIT_SCORE = scoring?.credit_score ?? 74;
+  const CREDIT_SCORE = scoring?.credit_score ?? 0;
   const GREEN_SCORE = scoring?.green_score ?? 62;
   const result = appState
     ? readinessFromApplication(appState, product, CREDIT_SCORE, GREEN_SCORE, state, manualInputs)
@@ -1460,7 +1460,9 @@ export default function LoanPrescreening() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight">Fin<span className="text-primary">Twin</span></span>
+          <Link href="/dashboard" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
+            Fin<span className="text-primary">Twin</span>
+          </Link>
           <div className="flex items-center gap-3">
             <button
               type="button"

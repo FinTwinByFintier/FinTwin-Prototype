@@ -513,6 +513,25 @@ export function fetchTransactions(source: TransactionFilter = "all") {
 export type ScoringSummary = {
   credit_score: number;
   credit_band: string;
+  credit_eligible?: boolean;
+  gate_failures?: string[];
+  default_probability?: number | null;
+  risk_factors?: Array<{
+    factor: string;
+    contribution: number;
+    note: string;
+  }>;
+  max_points?: Record<string, number>;
+  liquidity_score?: number | null;
+  liquidity_eligible?: boolean;
+  liquidity_breakdown?: Record<string, number>;
+  liquidity_factors?: Array<{
+    factor: string;
+    contribution: number;
+    note: string;
+  }>;
+  liquidity_gate_failures?: string[];
+  liquidity_max_points?: Record<string, number>;
   green_score: number;
   green_band: string;
   credit_breakdown: Record<
@@ -525,6 +544,7 @@ export type ScoringSummary = {
   >;
   is_placeholder: boolean;
   computed_at: string | null;
+  engine?: string;
 };
 
 export function fetchScoringSummary() {

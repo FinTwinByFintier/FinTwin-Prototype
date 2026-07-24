@@ -334,9 +334,9 @@ export default function MyLoans() {
                 <ArrowLeft className="w-5 h-5" />
               </Link>
             </Button>
-            <span className="text-xl font-bold tracking-tight">
+            <Link href="/dashboard" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
               Fin<span className="text-primary">Twin</span>
-            </span>
+            </Link>
           </div>
           <div className="flex items-center gap-3">
             <button
