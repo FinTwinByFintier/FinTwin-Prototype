@@ -5,6 +5,8 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { twinQueryKeys } from '@/lib/queryClient';
 import {
   fetchSimulationBaseline,
+  fetchDashboardSummary,
+  fetchScoringSummary,
   runSimulation,
   listSimulationScenarios,
   getSimulationScenario,
@@ -14,6 +16,8 @@ import {
   type SimulationRunResult,
   type SimulationSideResult,
   type SimulationScenarioSummary,
+  type DashboardSummary,
+  type ScoringSummary,
 } from '@/lib/api';
 
 /* ── Result shape consumed by Simulation.tsx — backed by the real engine ── */
@@ -184,7 +188,19 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     () => (state.commitments ?? []).map((c) => ({ category: c.category, label: c.label, amount: c.amountJOD })),
     [state.commitments],
   );
-  const commitmentsSignature = useMemo(() => JSON.stringify(commitmentsPayload), [commitmentsPayload]);
+
+  // Same cached twin numbers the Dashboard uses — Simulation "no changes"
+  // must display these literally so the two pages never disagree.
+  const { data: dashSummary } = useQuery<DashboardSummary>({
+    queryKey: twinQueryKeys.dashboardSummary,
+    queryFn: fetchDashboardSummary,
+    retry: 0,
+  });
+  const { data: scoringSummary } = useQuery<ScoringSummary>({
+    queryKey: twinQueryKeys.scoringSummary,
+    queryFn: fetchScoringSummary,
+    retry: 0,
+  });
 
   // Cached, backend-computed identity info (employees/sector/avg salary/...) —
   // fetched once per login session and reused everywhere (survives page
@@ -210,16 +226,14 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baselineInfo]);
 
-  // The "no changes" run — same real engine, cached (not recomputed just
-  // because the user revisits the page or refreshes). Reused directly as
-  // both baseline *and* result whenever overrides haven't actually changed,
-  // so we only ever hit /simulation/run/ once until the user starts
-  // adjusting a lever.
+  // The "no changes" run — same real engine. Commitments intentionally omitted
+  // from the identity run so baseline cashflow matches Dashboard (observed
+  // last-month bank txs), not a rebuilt payroll/rent model.
   const { data: identityRun, isLoading: identityLoading } = useQuery<SimulationRunResult>({
-    queryKey: [...twinQueryKeys.simulationBaseline(commitmentsSignature), 'identity-run'],
+    queryKey: [...twinQueryKeys.simulationBaseline('identity-v3'), 'identity-run'],
     queryFn: () => runSimulation({
       overrides: toBackendOverrides(defaultOverrides(baseState)),
-      commitments: commitmentsPayload,
+      commitments: [],
     }),
     enabled: !!baselineInfo,
     retry: 0,
@@ -248,6 +262,9 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   );
 
   const runRef = useRef(0);
+  const dashPatchRef = useRef({ dashSummary, scoringSummary });
+  dashPatchRef.current = { dashSummary, scoringSummary };
+
   const runNow = useCallback(async (nextOverrides: SimOverrides) => {
     const runId = ++runRef.current;
     setLiveRunning(true);
@@ -257,7 +274,28 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
         commitments: commitmentsPayload,
       });
       if (runId !== runRef.current) return; // superseded by a newer call
-      setLiveResult({ baseline: mapSide(res.baseline), result: mapSide(res.scenario) });
+      // Baseline = Dashboard numbers; scenario = engine with levers applied.
+      const { dashSummary: ds, scoringSummary: ss } = dashPatchRef.current;
+      const cashflow = ds?.monthly_cashflow;
+      const last = cashflow?.length ? cashflow[cashflow.length - 1] : null;
+      const base = mapSide(res.baseline);
+      if (last) {
+        base.monthlyIncome = last.income;
+        base.monthlyExpenses = last.expense;
+        base.netCash = last.income - last.expense;
+      }
+      const rw = ss?.liquidity_metrics?.runway_days;
+      if (rw != null && Number.isFinite(Number(rw))) base.runwayDays = Number(rw);
+      if (ss?.liquidity_score != null) {
+        base.liquidityScore = ss.liquidity_score;
+        base.liquidityEligible = true;
+      }
+      if (ss?.credit_score != null) base.creditScore = ss.credit_score;
+      if (ss?.credit_eligible != null) base.creditEligible = ss.credit_eligible;
+      if (ss?.default_probability != null) base.defaultProbability = ss.default_probability;
+      if (ss?.green_score != null) base.greenScore = ss.green_score;
+
+      setLiveResult({ baseline: base, result: mapSide(res.scenario) });
       setLiveAiInsight(res.ai_insight);
     } catch {
       // best-effort — keep last good numbers on the screen
@@ -286,8 +324,39 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
   const identityMapped = useMemo(() => {
     if (!identityRun) return null;
-    return { baseline: mapSide(identityRun.baseline), result: mapSide(identityRun.scenario) };
-  }, [identityRun]);
+    const mapped = { baseline: mapSide(identityRun.baseline), result: mapSide(identityRun.scenario) };
+
+    // Force Net / Runway / Expenses to the exact Dashboard twin cache so the
+    // two pages can never disagree on "no changes".
+    const cashflow = dashSummary?.monthly_cashflow;
+    const last = cashflow?.length ? cashflow[cashflow.length - 1] : null;
+    const dashNet = last ? last.income - last.expense : null;
+    const dashIncome = last?.income ?? null;
+    const dashExpense = last?.expense ?? null;
+    const dashRunway = scoringSummary?.liquidity_metrics?.runway_days;
+    const dashLiq = scoringSummary?.liquidity_score ?? null;
+    const dashCredit = scoringSummary?.credit_score;
+    const dashEligible = scoringSummary?.credit_eligible;
+    const dashDefault = scoringSummary?.default_probability;
+    const dashGreen = scoringSummary?.green_score;
+
+    const patch = (side: SimResult): SimResult => ({
+      ...side,
+      ...(dashIncome != null ? { monthlyIncome: dashIncome } : {}),
+      ...(dashExpense != null ? { monthlyExpenses: dashExpense } : {}),
+      ...(dashNet != null ? { netCash: dashNet } : {}),
+      ...(dashRunway != null && Number.isFinite(Number(dashRunway))
+        ? { runwayDays: Number(dashRunway) }
+        : {}),
+      ...(dashLiq != null ? { liquidityScore: dashLiq, liquidityEligible: true } : {}),
+      ...(dashCredit != null ? { creditScore: dashCredit } : {}),
+      ...(dashEligible != null ? { creditEligible: dashEligible } : {}),
+      ...(dashDefault != null ? { defaultProbability: dashDefault } : {}),
+      ...(dashGreen != null ? { greenScore: dashGreen } : {}),
+    });
+
+    return { baseline: patch(mapped.baseline), result: patch(mapped.result) };
+  }, [identityRun, dashSummary, scoringSummary]);
 
   const active = liveResult ?? identityMapped;
   const baseline = active?.baseline ?? EMPTY_RESULT;

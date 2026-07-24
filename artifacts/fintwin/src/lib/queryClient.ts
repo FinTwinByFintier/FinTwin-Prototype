@@ -31,7 +31,7 @@ function getToken(): string | null {
  *    green assessment, onboarding save, ...) so the cache stays correct.
  */
 
-const CACHE_KEY = "fintwin_query_cache_v2";
+const CACHE_KEY = "fintwin_query_cache_v3";
 const MAX_CACHE_AGE_MS = 12 * 60 * 60 * 1000; // 12h safety valve
 
 export const queryClient = new QueryClient({
@@ -122,7 +122,6 @@ export const twinQueryKeys = {
     ["twin", "simulation-baseline", commitmentsSignature] as const,
   loanProducts: ["twin", "loan-products"] as const,
   loanApplications: ["twin", "loan-applications"] as const,
-  concentration: ["twin", "concentration"] as const,
   businessProfile: ["twin", "business-profile"] as const,
 };
 
