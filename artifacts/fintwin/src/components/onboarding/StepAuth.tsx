@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { ApiError, register, setToken } from "@/lib/api";
+import { SanadSignupHeader, SanadFutureCard } from "@/components/SanadBadge";
 import { Loader2, IdCard, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 
 const AUTH_STEPS = [
@@ -49,6 +50,7 @@ export function StepAuth() {
     }, STEP_INTERVAL_MS);
 
     try {
+      // Future: Authenticate user using Sanad Digital Identity API
       const data = await register(nationalId, password);
       setToken(data.token);
       updateState({ authMethod: "sanad", nationalId });
@@ -59,8 +61,6 @@ export function StepAuth() {
       window.clearInterval(anim);
       setStepIdx(AUTH_STEPS.length);
       // Always start at step 2 (Identity) after registration.
-      // Never trust next_step from the register endpoint — the backend may
-      // return a completed step value for returning users, which would skip onboarding.
       setCurrentStep(2);
     } catch (err) {
       window.clearInterval(anim);
@@ -103,34 +103,37 @@ export function StepAuth() {
             exit={{ opacity: 0 }}
             className="bg-card border rounded-3xl p-8"
           >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <IdCard className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">National ID registration</p>
-                <p className="text-xs text-muted-foreground">
-                  Your ID and password are encrypted on our servers
-                </p>
-              </div>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">National ID Number</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={nationalId}
-                  onChange={(e) => {
-                    setNationalId(e.target.value.replace(/\D/g, ""));
-                    setError("");
-                  }}
-                  placeholder="XXXXXXXXXX"
-                  className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-                  autoComplete="username"
-                />
+              {/* National ID section with Sanad branding */}
+              <div className="space-y-3">
+                {/* Future: Replace the block below with a Sanad Digital Identity
+                    OAuth/OIDC redirect — user clicks "Verify with Sanad" and is
+                    redirected to the Sanad IdP, then returns with a verified token. */}
+                <SanadSignupHeader />
+
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">National ID Number</label>
+                  <div className="relative">
+                    <IdCard className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={nationalId}
+                      onChange={(e) => {
+                        setNationalId(e.target.value.replace(/\D/g, ""));
+                        setError("");
+                      }}
+                      placeholder="Enter your Jordanian National ID"
+                      aria-label="Jordanian National ID Number"
+                      className="w-full ps-10 pe-4 py-3 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                      autoComplete="username"
+                    />
+                  </div>
+                </div>
+
+                {/* Future integration info card */}
+                <SanadFutureCard />
               </div>
 
               <div>
@@ -150,6 +153,7 @@ export function StepAuth() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     className="absolute inset-y-0 end-0 px-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
                     tabIndex={-1}
                   >

@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
 import { runDataSync } from "@/lib/api";
+import { SanadLogo } from "@/components/SanadBadge";
 import { CheckCircle2, ArrowRight, BarChart3, Zap, Leaf, Loader2 } from "lucide-react";
 
 const HIGHLIGHTS = [
@@ -120,18 +121,41 @@ export function Step5Complete() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-            <h2 className="text-4xl font-bold mb-3">Financial Twin Created Successfully</h2>
+            <p className="text-sm font-semibold text-emerald-600 mb-2 tracking-wide uppercase">
+              ✓ Account Created Successfully
+            </p>
+            <h2 className="text-4xl font-bold mb-3">Financial Twin Created</h2>
             <p className="text-lg text-muted-foreground mb-2">Your financial profile has been prepared successfully.</p>
-            <p className="text-muted-foreground mb-10 max-w-md mx-auto">
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               You can now explore financing opportunities, simulate financial decisions, and monitor your business health.
             </p>
           </motion.div>
 
-          {/* Summary card */}
+          {/* Sanad identity confirmation card */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
+            transition={{ delay: 0.32 }}
+            className="bg-card border rounded-3xl p-6 mb-6 flex flex-col items-center gap-3 text-center"
+          >
+            {/*
+             * Future integration point:
+             * Display Sanad-verified identity badge here once Sanad OAuth
+             * is implemented and a verified_identity token is available.
+             */}
+            <SanadLogo size={56} />
+            <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+              Your account has been created successfully.{" "}
+              Future versions of FinTwin will allow secure identity verification
+              through Sanad.
+            </p>
+          </motion.div>
+
+          {/* Business summary card */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
             className="bg-card border rounded-3xl p-6 mb-8 text-start"
           >
             <div className="flex items-center gap-3 mb-5">
@@ -168,7 +192,7 @@ export function Step5Complete() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
+            transition={{ delay: 0.48 }}
             className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"
           >
             {HIGHLIGHTS.map(({ icon: Icon, label }) => (
@@ -182,7 +206,7 @@ export function Step5Complete() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55 }}
+            transition={{ delay: 0.56 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3"
           >
             <Button size="lg" className="h-14 px-10 text-base rounded-full shadow-md w-full sm:w-auto" asChild>
@@ -190,7 +214,6 @@ export function Step5Complete() {
                 Go to Dashboard <ArrowRight className="ms-2 w-5 h-5 rtl:rotate-180" />
               </Link>
             </Button>
-            {/* "View Profile" navigates to the profile details page */}
             <Button size="lg" variant="outline" className="h-14 px-10 text-base rounded-full w-full sm:w-auto" asChild>
               <Link href="/profile">View Profile</Link>
             </Button>
