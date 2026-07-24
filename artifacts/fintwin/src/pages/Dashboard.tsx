@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   fetchDashboardSummary, runDataSync,
-  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,exportFinancialReport,
+  fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
   getToken,
   type DashboardSummary, type MonthlyCashflowPoint, type RecentTransaction,
   type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
@@ -137,22 +137,176 @@ export default function Dashboard() {
 
   const handleExportReport = async () => {
     try {
-      const pdfBlob = await exportFinancialReport();
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-      const url = window.URL.createObjectURL(pdfBlob);
+      const name    = summary?.display_identity?.display_name || state.businessName || "Your Business";
+      const bSector = state.businessSector || "—";
+      const bCat    = state.category || "Micro-enterprise";
+      const cs      = scoring?.credit_score ?? 0;
+      const gs      = scoring?.green_score  ?? 0;
+      const ls      = scoring?.liquidity_score ?? null;
+      const today   = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
 
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "Financial_Report.pdf";
+      // ── Header bar ──
+      doc.setFillColor(21, 128, 61);   // green-700
+      doc.rect(0, 0, 210, 28, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("FinTwin – Financial Readiness Report", 14, 12);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated: ${today}`, 14, 22);
 
-      document.body.appendChild(link);
-      link.click();
+      // ── Business info ──
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.text("Business Profile", 14, 40);
+      doc.setDrawColor(21, 128, 61);
+      doc.setLineWidth(0.5);
+      doc.line(14, 42, 196, 42);
 
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      const profileRows: [string, string][] = [
+        ["Business Name", name],
+        ["Sector",        bSector],
+        ["Classification", bCat],
+      ];
+      let y = 50;
+      doc.setFontSize(10);
+      for (const [label, value] of profileRows) {
+        doc.setFont("helvetica", "bold");
+        doc.text(label + ":", 14, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(value, 70, y);
+        y += 7;
+      }
+
+      // ── Scores ──
+      y += 4;
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.text("FinTwin Scores", 14, y);
+      y += 2;
+      doc.line(14, y, 196, y);
+      y += 8;
+
+      const scoreRows: [string, string, string][] = [
+        ["Credit Score",    `${cs} / 100`, cs >= 75 ? "Strong" : cs >= 55 ? "Moderate" : "Developing"],
+        ["Green Score",     `${gs} / 100`, gs >= 75 ? "Strong" : gs >= 50 ? "Developing" : "Low"],
+        ...(ls !== null ? [["Liquidity Score", `${ls} / 100`, ls >= 60 ? "Healthy" : "Monitor"] as [string, string, string]] : []),
+      ];
+
+      // Column headers
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(240, 240, 240);
+      doc.rect(14, y - 5, 182, 7, "F");
+      doc.setTextColor(60, 60, 60);
+      doc.text("Metric", 16, y);
+      doc.text("Score", 90, y);
+      doc.text("Rating", 140, y);
+      y += 4;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, y, 196, y);
+      y += 4;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      for (const [metric, score, rating] of scoreRows) {
+        doc.text(metric, 16, y);
+        doc.text(score, 90, y);
+        // colour-coded rating
+        if (rating === "Strong" || rating === "Healthy") doc.setTextColor(21, 128, 61);
+        else if (rating === "Moderate" || rating === "Developing") doc.setTextColor(180, 120, 0);
+        else doc.setTextColor(180, 40, 40);
+        doc.text(rating, 140, y);
+        doc.setTextColor(30, 30, 30);
+        y += 7;
+      }
+
+      // ── Twin Completeness ──
+      if (summary?.twin_completeness) {
+        const tc = summary.twin_completeness;
+        y += 4;
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.text("Digital Twin Completeness", 14, y);
+        y += 2;
+        doc.setDrawColor(21, 128, 61);
+        doc.line(14, y, 196, y);
+        y += 8;
+
+        const completenessRows: [string, string][] = [
+          ["Transactions imported", String(tc.transactions_imported ?? 0)],
+          ["Connected sources",     String(tc.connected_sources ?? 0)],
+          ["Profile complete",      tc.profile_complete ? "Yes" : "No"],
+          ["Completeness score",    tc.completeness_score != null ? `${tc.completeness_score}%` : "—"],
+        ];
+        doc.setFontSize(10);
+        for (const [label, value] of completenessRows) {
+          doc.setFont("helvetica", "bold");
+          doc.text(label + ":", 14, y);
+          doc.setFont("helvetica", "normal");
+          doc.text(value, 100, y);
+          y += 7;
+        }
+      }
+
+      // ── Cash flow summary ──
+      const cashflow = summary?.monthly_cashflow ?? MOCK_CASH_FLOW;
+      if (cashflow.length > 0) {
+        y += 4;
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.text("Monthly Cash Flow Summary", 14, y);
+        y += 2;
+        doc.setDrawColor(21, 128, 61);
+        doc.line(14, y, 196, y);
+        y += 8;
+
+        // Table header
+        doc.setFontSize(9);
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, y - 5, 182, 7, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(60, 60, 60);
+        doc.text("Month", 16, y);
+        doc.text("Income (JOD)", 80, y);
+        doc.text("Expenses (JOD)", 130, y);
+        y += 4;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, y, 196, y);
+        y += 4;
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 30, 30);
+        for (const row of cashflow) {
+          if (y > 270) break; // prevent overflow
+          doc.text(row.month, 16, y);
+          doc.setTextColor(21, 128, 61);
+          doc.text(row.income.toLocaleString(), 80, y);
+          doc.setTextColor(180, 40, 40);
+          doc.text(row.expense.toLocaleString(), 130, y);
+          doc.setTextColor(30, 30, 30);
+          y += 6;
+        }
+      }
+
+      // ── Footer ──
+      doc.setFontSize(8);
+      doc.setTextColor(130, 130, 130);
+      doc.setFont("helvetica", "italic");
+      doc.text(
+        "This report is generated by FinTwin and is for informational purposes only. Scores are indicative and not a guarantee of credit approval.",
+        14, 285, { maxWidth: 182 }
+      );
+
+      doc.save(`FinTwin_Report_${name.replace(/\s+/g, "_")}_${new Date().getFullYear()}.pdf`);
     } catch (error) {
       console.error(error);
-      alert("Failed to export report.");
+      alert("Failed to export report. Please try again.");
     }
   };
 
