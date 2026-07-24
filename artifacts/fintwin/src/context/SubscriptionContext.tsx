@@ -1,106 +1,89 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { useOnboarding } from '@/context/OnboardingContext';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useOnboarding } from './OnboardingContext';
 
 export type PlanTier = 'micro' | 'small' | 'medium';
-export type SubscriptionStatus = 'active' | 'trial' | 'expired' | 'none';
-
-export interface BillingRecord {
-  month: string;
-  status: 'paid' | 'pending' | 'failed';
-  amountJOD: number;
-}
 
 export interface SubscriptionState {
-  status: SubscriptionStatus;
+  status: 'active' | 'inactive' | 'trial' | 'expired';
   startDate: string | null;
   renewalDate: string | null;
-  billingCycle: 'monthly' | 'annual';
-  billingHistory: BillingRecord[];
   paymentMethod: string | null;
+}
+
+export interface BillingRecord {
+  id: string;
+  period: string;
+  date: string;
+  amount: number;
+  currency: string;
+  status: 'paid' | 'pending' | 'failed';
 }
 
 interface SubscriptionContextType {
   plan: PlanTier;
-  hasPremium: boolean;
-  monthlyPrice: number;
   subscription: SubscriptionState;
-  upgradeOpen: boolean;
-  setUpgradeOpen: (open: boolean) => void;
-  // Backend stubs — wire up when API is ready
-  getCurrentSubscription: () => Promise<SubscriptionState>;
-  getBillingHistory: () => Promise<BillingRecord[]>;
+  hasPremium: boolean;
+  billingHistory: BillingRecord[];
   upgradeSubscription: () => Promise<void>;
   revokeConsent: () => Promise<void>;
-  getConsentStatus: () => Promise<{ consentGiven: boolean; grantedDate: string | null }>;
+  getConsentStatus: () => Promise<{ granted: boolean; date: string | null }>;
 }
 
-const MOCK_BILLING_HISTORY: BillingRecord[] = [
-  { month: 'July 2026', status: 'paid', amountJOD: 100 },
-  { month: 'June 2026', status: 'paid', amountJOD: 100 },
+const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
+
+const MOCK_BILLING: BillingRecord[] = [
+  { id: 'b2', period: 'July 2026',  date: '2026-07-01', amount: 100, currency: 'JOD', status: 'paid' },
+  { id: 'b1', period: 'June 2026',  date: '2026-06-01', amount: 100, currency: 'JOD', status: 'paid' },
 ];
 
-const ACTIVE_SUBSCRIPTION: SubscriptionState = {
-  status: 'active',
-  startDate: '2026-06-01',
-  renewalDate: '2026-08-01',
-  billingCycle: 'monthly',
-  billingHistory: MOCK_BILLING_HISTORY,
-  paymentMethod: 'Visa •••• 4242',
-};
-
-const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
-
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { state } = useOnboarding();
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { state, updateState } = useOnboarding();
+
+  const plan: PlanTier =
+    state.category === 'Small Enterprise'  ? 'small'  :
+    state.category === 'Medium Enterprise' ? 'medium' : 'micro';
+
   const [subscription, setSubscription] = useState<SubscriptionState>({
-    status: 'none',
+    status: 'inactive',
     startDate: null,
     renewalDate: null,
-    billingCycle: 'monthly',
-    billingHistory: [],
     paymentMethod: null,
   });
 
-  const plan: PlanTier =
-    state.category === 'Medium Enterprise' ? 'medium' :
-    state.category === 'Small Enterprise'  ? 'small'  :
-    'micro';
+  // Micro always has full access; Small/Medium need an active subscription
+  const hasPremium = plan === 'micro' || subscription.status === 'active';
 
-  const hasPremium =
-    plan === 'micro' ||
-    subscription.status === 'active' ||
-    subscription.status === 'trial';
+  const upgradeSubscription = async () => {
+    // TODO: wire to backend POST /api/v1/subscriptions/upgrade
+    const today = new Date();
+    const renewal = new Date(today);
+    renewal.setMonth(renewal.getMonth() + 1);
+    setSubscription({
+      status: 'active',
+      startDate: today.toISOString().slice(0, 10),
+      renewalDate: renewal.toISOString().slice(0, 10),
+      paymentMethod: 'Card ending in 4242',
+    });
+  };
 
-  const monthlyPrice = plan === 'micro' ? 0 : 100;
+  const revokeConsent = async () => {
+    // TODO: wire to backend POST /api/v1/consent/revoke
+    updateState({
+      consentGiven: false,
+      connectedSources: { jofotara: false, cliq: false, pos: false, receipts: false },
+    });
+  };
 
-  const getCurrentSubscription = useCallback(async () => subscription, [subscription]);
-  const getBillingHistory = useCallback(async () => subscription.billingHistory, [subscription.billingHistory]);
-
-  const upgradeSubscription = useCallback(async () => {
-    // Placeholder — replace with real payment gateway call
-    setSubscription(ACTIVE_SUBSCRIPTION);
-    setUpgradeOpen(false);
-  }, []);
-
-  const revokeConsent = useCallback(async () => {
-    // Placeholder — frontend state only until backend is ready
-  }, []);
-
-  const getConsentStatus = useCallback(async () => ({
-    consentGiven: state.consentGiven,
-    grantedDate:
-      state.connectedSources.cliq || state.connectedSources.jofotara
-        ? '2026-06-01'
-        : null,
-  }), [state.consentGiven, state.connectedSources]);
+  const getConsentStatus = async () => {
+    // TODO: wire to backend GET /api/v1/consent/status
+    return { granted: state.consentGiven, date: '2026-06-15' };
+  };
 
   return (
     <SubscriptionContext.Provider value={{
-      plan, hasPremium, monthlyPrice, subscription,
-      upgradeOpen, setUpgradeOpen,
-      getCurrentSubscription, getBillingHistory, upgradeSubscription,
-      revokeConsent, getConsentStatus,
+      plan, subscription, hasPremium,
+      billingHistory: subscription.status === 'active' ? MOCK_BILLING : [],
+      upgradeSubscription, revokeConsent, getConsentStatus,
     }}>
       {children}
     </SubscriptionContext.Provider>
@@ -109,6 +92,6 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
 export function useSubscription() {
   const ctx = useContext(SubscriptionContext);
-  if (!ctx) throw new Error('useSubscription must be used within SubscriptionProvider');
+  if (!ctx) throw new Error('useSubscription must be used inside SubscriptionProvider');
   return ctx;
 }

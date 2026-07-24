@@ -20,7 +20,6 @@ import { SimulationProvider } from '@/context/SimulationContext';
 import { PrescreeningProvider } from '@/context/PrescreeningContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { SubscriptionProvider } from '@/context/SubscriptionContext';
-import { UpgradeModal } from '@/components/UpgradeModal';
 
 const queryClient = new QueryClient();
 
@@ -55,7 +54,6 @@ function App() {
               <PrescreeningProvider>
                 <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}>
                   <Router />
-                  <UpgradeModal />
                 </WouterRouter>
               </PrescreeningProvider>
             </SimulationProvider>
