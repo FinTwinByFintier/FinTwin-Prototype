@@ -1,0 +1,252 @@
+Here's a detailed prompt you can give directly to the Replit Agent:
+
+---
+
+# Improve FinTwin Onboarding Flow
+
+I want you to update the onboarding flow to make it more realistic, professional, and aligned with how Jordanian financial institutions onboard MSMEs for financing. Please preserve the existing UI design and styling as much as possible while implementing the following functional improvements.
+
+---
+
+## 1. Add "Continue with Sanad" Authentication (Step 1)
+
+The first onboarding screen should become an authentication screen.
+
+### Layout
+
+Display two options:
+
+* **Continue with Sanad** (Primary button, recommended)
+* Continue with Email (Secondary button)
+
+Under the Sanad button add:
+
+> Recommended for faster verification.
+
+When the user clicks **Continue with Sanad**, simulate a successful authentication flow (until APIs are connected later).
+
+After successful authentication:
+
+* Store a mock authenticated user
+* Auto-fill:
+
+  * Full Name
+  * National ID
+* Continue automatically to the Business Information step.
+
+For now this should be a mock implementation with clean architecture so it can later be replaced with the real Sanad OAuth flow.
+
+---
+
+## 2. Auto-Fill Years in Operation from Registration Number
+
+When the user enters a **Business Registration Number**, simulate verifying it against the Companies Control Department.
+
+Create a mock verification service that returns:
+
+```
+Business Name
+Business Type
+Registration Date
+Registration Status
+```
+
+Example:
+
+```
+Business Name:
+Jordan Tech Solutions
+
+Business Type:
+LLC
+
+Registration Date:
+12 May 2018
+
+Status:
+Active
+```
+
+If verification succeeds:
+
+* Auto-fill the Business Name.
+* Store the Registration Date.
+* In Step 3 (Business Size & Scale), automatically calculate **Years in Operation**.
+
+Example:
+
+Current Year: 2026
+
+Registration:
+
+2018
+
+Years in Operation:
+
+8
+
+The Years in Operation field should become read-only if calculated automatically.
+
+If the registration number cannot be verified:
+
+* Display a warning.
+* Allow the user to manually enter Years in Operation.
+
+---
+
+## 3. Redesign the POS Connection Step
+
+The current POS connection does not reflect how businesses actually connect their POS data.
+
+Replace it with a more realistic flow.
+
+Display:
+
+### Connect POS Provider
+
+Description:
+
+> Connect your Point of Sale provider to securely share sales history and transaction activity. This helps improve your Credit Readiness Score.
+
+Instead of asking for technical information immediately:
+
+Provide:
+
+* Select POS Provider
+
+Examples:
+
+* Network International
+* HyperPay
+* MadfooatCom
+* Other
+
+After selecting a provider:
+
+Display
+
+Connect
+
+button.
+
+Since APIs are not implemented yet:
+
+Simulate a successful connection.
+
+After success show:
+
+✅ POS Connected
+
+Estimated monthly sales synced.
+
+Do NOT ask for serial numbers.
+
+If additional information is needed later, only ask for:
+
+* Merchant ID
+* Terminal ID
+
+---
+
+## 4. Replace Step 5 with a Proper Consent Page
+
+The current consent page should look like an actual financial consent agreement.
+
+Create a professional consent layout.
+
+Title:
+
+Data Sharing Consent
+
+Description:
+
+> To generate your Credit Readiness Score, FinTwin requires your permission to securely access selected financial and business information.
+
+Display each permission with a checkbox.
+
+Example:
+
+☑ Access Open Banking transaction history
+
+☑ Access JoFotara invoices
+
+☑ Access POS transaction summaries
+
+☑ Verify business registration
+
+☑ Use uploaded documents for financial analysis
+
+Each item should include a short explanation underneath.
+
+Example:
+
+Open Banking
+
+Used only to calculate cash flow, income stability and financing readiness.
+
+At the bottom include a highlighted notice:
+
+> Your data is encrypted, securely stored, and will never be shared with lenders without your explicit approval.
+
+Require the user to check every consent box before continuing.
+
+---
+
+## 5. Add Terms & Conditions + Privacy Policy Agreement
+
+At the bottom of the Consent page add another required section.
+
+Display:
+
+☐ I have read and agree to the Terms & Conditions.
+
+☐ I have read and agree to the Privacy Policy.
+
+Both "Terms & Conditions" and "Privacy Policy" should be clickable links.
+
+Since the final documents are not ready yet:
+
+Create placeholder PDF/document pages that open in a modal or separate page.
+
+Each should contain professional placeholder text explaining:
+
+Terms & Conditions
+
+* Platform usage
+* Data processing
+* User responsibilities
+* Financing disclaimer
+
+Privacy Policy
+
+* Data collection
+* Data storage
+* Encryption
+* Third-party integrations
+* User rights
+
+The Continue button must remain disabled until:
+
+* All consent checkboxes are checked.
+* Terms & Conditions is accepted.
+* Privacy Policy is accepted.
+
+---
+
+## 6. General Requirements
+
+* Preserve the current design language.
+* Maintain responsiveness on desktop and mobile.
+* Keep animations consistent with the rest of the onboarding.
+* Do not break the existing navigation.
+* Store all new onboarding data in the existing state management.
+* Use mock services for Sanad authentication, registration verification, and POS connection so they can easily be replaced with real APIs later.
+* Keep the code modular and reusable by separating:
+
+  * Authentication service
+  * Registration verification service
+  * Consent components
+  * POS connection component
+* Ensure validation is implemented before allowing the user to proceed to the next step.
+
+The end result should feel like a production-grade fintech onboarding flow that follows best practices for Jordanian MSME financing while remaining ready for future integration with Sanad, Open Banking, JoFotara, POS providers, and the Companies Control Department.

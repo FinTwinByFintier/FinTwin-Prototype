@@ -1,0 +1,228 @@
+MSMEs FUNDING READINESS PLATFORM
+Turning Jordan's Financially Invisible SMEs into Fundable Businesses
+Abstract:
+We are building a digital twin platform for Jordanian SMEs. It creates a live financial model of a business from its real data: transactions, expenses, employees, assets, and liabilities, aggregated manually or automatically from JoPACC open banking APIs and Fotara API, then lets the owner simulate financial decisions before making them. Should the business take out a loan, and would it strengthen its finances or strain them? How would going green affect its loan eligibility? What happens to cash flow if it hires someone new or raises salaries? Every change ripples across a unified dashboard in real time. The platform also generates credit and green taxonomy scores under CBJ's green taxonomy framework (February 2026), matching MSMEs to the financing products they actually qualify for. 
+
+1  THE PROBLEM
+
+Jordan's MSMEs Are Viable But Financially Invisible
+Jordan's MSME sector represents over 99.5% of all registered businesses and provides over 60% of the total workforce. Yet despite this scale, MSMEs are systematically excluded from formal finance. The numbers make this stark: 
+48.2%
+28.3%
+~0%
+of formal MSMEs have a bank account
+have any outstanding loan
+for informal enterprises, near zero access
+
+
+Only 31.5% of MSMEs used digital payments as recently as 2022. Across every metric, the smaller the business, the worse the access. The CBJ's National Financial Inclusion Strategy 2023–2028 explicitly calls for programs that make MSMEs bankable. Yet the gap remains wide open.
+
+The Core Insight
+Many Jordanian MSMEs’ records span cash receipts, informal ledgers, bank statements, and digital payment logs, making them invisible to lenders who need structured, verifiable data. 
+
+
+
+
+
+2  WHO WE SERVE
+
+Target Users: Micro, Medium and Small Enterprises in Jordan
+Our platform targets the micro and small tiers of Jordan's MSME ecosystem, the businesses with the largest financing gap and the least existing support:
+Category
+Employees
+Annual Revenue
+Our Priority
+Micro
+1–4
+Under 100,000 JOD
+Primary
+Small
+5–19
+100,000 – 1M JOD
+Primary
+Medium
+20–99
+1M – 3M JOD
+Secondary
+
+
+Our target user is a Jordanian micro or small business owner, a bakery in Amman, a small garment workshop in Zarqa, a home-based product seller, a service contractor who generates real revenue but has never had a structured way to present that revenue to a lender.
+Sectors With the Highest Benefit
+High Priority Sectors
+• Retail and trade (grocery, clothing, electronics)
+• Food and hospitality (restaurants, cafes, catering)
+• Small manufacturing (garments, furniture, food processing)
+• Service businesses (salons, repair workshops, printing)
+Also Served
+• Professional services (accounting, legal, IT)
+• Agriculture and food production
+• Craftsmen and tradespeople
+• Women-owned home businesses
+
+
+3  THE SOLUTION
+
+The Platform: How It Works 
+The platform is built around a digital twin, a live financial model constructed from the MSME's actual data. The owner can simulate decisions and see financial outcomes before committing. The platform also generates a credit readiness score and a green taxonomy score, connecting MSMEs to the right financing products.  
+
+
+Step 1: Build the Financial Profile
+The MSME connects their financial data through whichever channel fits their reality:
+Cliq API integration: automatically imports digital transaction history for businesses already using Cliq payments, using open banking APIs.
+JoPACC open banking API: pulls existing loan status and credit history to complete the picture.
+JoFotara integration: automatically pulls invoice and billing data directly through the JoFotara API, structured and ready for analysis, managed by the Income and Sales Tax Department. 
+Manual input: for cash-based businesses, guided entry with pattern-checking.
+
+The profile also includes asset disclosure. The MSME documents their movable assets: 
+Equipment and machinery
+Inventory and stock
+Vehicles
+Any other business assets
+
+Why Asset Disclosure Matters
+Jordan has a collateral registry, but banks have been hesitant to use it because MSMEs do not always document what they own. Our platform changes this by making asset disclosure a natural, rewarded part of building a profile, not a regulatory burden. The more a MSME discloses, the more accurate and favorable their score becomes. 
+
+
+We are aware that many Jordanian MSMEs are cautious about disclosing assets due to concerns around income tax (ضريبة الدخل) and regulatory obligations. Our platform handles this carefully. Asset disclosure is framed through the lens of financial benefit, not regulatory exposure. The simulation shows the SME owner directly how disclosure improves their score and what financing it unlocks, letting them make an informed decision. For tax-related questions the platform surfaces helpful guidance and where relevant refers to a qualified accountant, rather than acting as a tax authority.
+
+
+
+
+
+
+Step 2: Generate Two Readiness Scores
+The platform generates two scores instantly from the MSME's profile:
+
+Credit Readiness Score / 100
+• Legal Identity (20 points)
+• Banking Behavior (25 points) 
+• Cash Flow and Feasibility (25 points)
+• Business Maturity (15 points) 
+• Collateral and Guarantees (10 points) 
+• Experience and Sector Alignment (5 points)
+Green Taxonomy Score / 100
+• Energy and Emissions (30 points) 
+• Waste and Resource Management (20 points) 
+• Supply Chain and Procurement (20 points) 
+• Business Operations (20 points) 
+• Green Finance Readiness (10 points) 
+
+
+
+The Credit Readiness Score is built directly from the actual lending criteria of Jordanian banks, specifically Jordan Kuwait Bank, scoring an MSME across six categories totaling 100 points.
+The Green Taxonomy Score is aligned with CBJ's green taxonomy framework (February 2026), reflecting its core environmental objectives: climate change mitigation, resource efficiency, and pollution prevention.
+Green classification thresholds:
+Score 
+Classification
+What It Unlocks
+75 to 100
+Green
+Energy Efficiency & Renewable Energy loans at 2.5% to 3.5%
+50 to 74
+Yellow
+Standards loans with green improvement pathway
+Below 50
+Red
+Simulation shows specific steps to reach yellow to green
+
+Green-classified SMEs access CBJ-backed lending products at 2.5% to 3.5%, compared to standard SME financing rates of 9% to 10.5%.
+The scoring model distinguishes between three financing paths:
+Conventional loans: scored against standard bank credit criteria
+Islamic finance products: scored against Murabaha, Ijara, and Musharaka eligibility. Islamic finance is the preferred financing mode for the majority of Jordanian SME borrowers.
+Green lending: scored against CBJ green taxonomy classification thresholds
+
+
+Step 3: Simulate the Path Forward
+The simulation is the core of the platform. The MSME owner models real financial decisions: hiring, expansion, seasonal changes, loan affordability, green upgrades. The scores update based on the decisions made, giving the owner a clear picture of what their business looks like under any scenario. 
+Cash Flow and Liquidity:
+When will the business run out of cash at the current burn rate?
+What happens to cash flow if a major client pays 60 or 90 days late?
+Can the business afford a new hire, and when does it pay back?
+What is the impact of buying new equipment now versus later?
+Seasonality and Shocks:
+How do Ramadan and seasonal demand shifts affect liquidity?
+What if sales drop 20% next quarter?
+What if energy costs or rent increase by 20%?
+Financing:
+Can the business service a loan of X JOD, and what is the safe maximum?
+How does a new loan's monthly repayment affect cash flow?
+What financing can equipment or inventory unlock as collateral?
+Green Finance:
+If solar panels are installed, what is the payback period versus energy savings?
+Does the business qualify for a green loan under CBJ's green taxonomy framework (February 2026), and at what rate?
+How much does the interest rate drop if green sustainability targets are met?
+
+Our Approach 
+We do not penalize MSMEs for being informal. We show them exactly what they gain by becoming more compliant; bigger loans, better rates, more opportunities. Every step toward financial transparency is rewarded visibly.
+
+
+
+
+
+
+
+4  GREEN FINANCE & THE TAXONOMY
+
+Why Green Applies to Every MSME, Not Just Manufacturers
+Jordan's green taxonomy framework applies to how any business operates, regardless of sector. A restaurant that reduces food waste and sources locally is greener than one that does not. A salon using eco-friendly products scores higher than one that does not. A retailer switching to LED lighting and an electric delivery vehicle improves their taxonomy classification.
+Green compliance is not an environmental obligation, it is a financial opportunity. Green-classified businesses in Jordan access loan products with significantly better terms. Our simulation makes this tangible by showing exactly which green changes unlock which financing products, calculated to the specific interest rate difference.
+Green lending products available through Jordan Kuwait Bank and CBJ-backed programs include:
+Energy Efficiency Loans: up to 4,000,000 JOD at 2.5%–3.5% (outside Amman) or 3%–4% (within Amman), tenure up to 10 years
+Renewable Energy Loans: same terms, specifically for solar and wind energy projects
+These rates are dramatically lower than conventional SME financing rates (typically 9%–10.5%), giving green-compliant SMEs a concrete financial incentive that our platform quantifies clearly.
+
+5  TECHNICAL ARCHITECTURE
+
+
+Data Layer
+• Cliq API: real-time transaction ingestion
+• JOPACC API: loan status and credit history
+• JoFotara API: invoice and billing data ingestion
+• Manual input engine with pattern-checking
+• Asset disclosure module with collateral valuation
+Intelligence Layer
+• Credit readiness scoring model (JKB criteria calibrated)
+• Green taxonomy scoring engine (CBJ Feb 2026 framework)
+• Live simulation engine: real-time score recalculation
+• Loan product matching: conventional, Islamic, green
+• Forecasting module: projected score trajectory over time
+
+
+
+User Experience
+• Arabic-first interface designed for accessibility
+• Digital-literacy friendly onboarding
+• Visual score dashboard with clear indicators
+• Guided action list with prioritized next steps
+•automatic financial account syncing.
+Compliance & Advisory
+• Tax guidance 
+• Regulatory compliance checklist per business type
+• Green taxonomy classification with visual indicator
+• Islamic finance eligibility filter
+
+
+
+
+
+6  WHY NOW
+
+CBJ National Financial Inclusion Strategy 2023–2028. It explicitly targets MSME credit access and digital financial inclusion.
+Jordan National E-Invoicing System (Fawtara), managed by the Income and Sales Tax Department (دائرة ضريبة الدخل والمبيعات). JoFotara is mandatory for registered businesses in Jordan and is expanding in scope. FinTwin integrates directly with the JoFotara API to pull government-verified invoice data, giving SME financial profiles a level of credibility that manual input cannot match. 
+Jordan Green Taxonomy, introduced February 2026. No platform currently helps SMEs understand or improve their taxonomy classification.
+JOPACC Ecosystem Expansion. Cliq adoption is growing. More SMEs have digital transaction history than ever before. The data layer is becoming more powerful every month.
+SME Financing Gap, named as a national priority. The problem is acknowledged. The solution does not yet exist at scale.
+Green Lending Products. CBJ-backed energy efficiency and renewable energy loans offer dramatically lower rates (2.5%–3.5%) than conventional products. SMEs do not know how to access them. We show them exactly how.
+
+21/6/2026
+
+
+
+
+
+
+
+
+
+
+

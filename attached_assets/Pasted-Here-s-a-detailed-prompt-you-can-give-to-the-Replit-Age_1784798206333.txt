@@ -1,0 +1,229 @@
+Here's a detailed prompt you can give to the Replit Agent. It clearly specifies the desired behavior, UI changes, and implementation details.
+
+---
+
+## Prompt for Replit Agent
+
+We need to update the onboarding flow and dashboard of the FinTwin application. Please implement the following changes while keeping the current design language consistent and professional.
+
+### 1. Authentication (Step 1)
+
+* Remove the option to sign up or log in using email.
+* Authentication should be **only through Sanad**.
+* The Sanad login represents the **individual owner/authorized representative**, not the company.
+* Keep the existing UI but only display:
+
+  * **Continue with Sanad**
+* After successful authentication, proceed to the Business Information step.
+
+---
+
+### 2. Business Registration (Step 2)
+
+Before asking for business details, ask:
+
+> **Is your business officially registered?**
+
+Buttons:
+
+* Yes
+* No
+
+#### If Yes
+
+Display:
+
+* Registration Number input
+
+When the registration number is entered:
+
+* Call a dummy API to retrieve company information.
+* Automatically populate:
+
+  * Business Name
+  * Business Type
+  * Business Sector
+  * Registration Date (hidden if desired)
+  * Years of Operation (calculated automatically)
+
+The auto-filled fields should be editable if needed.
+
+#### If No
+
+Hide the Registration Number field.
+
+Instead, allow the user to manually enter:
+
+* Business Name
+* Business Type
+* Business Sector
+* Years of Operation
+
+Years of operation should only be manually entered for unregistered businesses.
+
+---
+
+### 3. Dummy Registration API
+
+Create a dummy service that simulates retrieving company information.
+
+Example response:
+
+```json
+{
+  "businessName": "ABC Trading LLC",
+  "businessType": "LLC",
+  "sector": "Retail",
+  "registrationDate": "2018-03-15"
+}
+```
+
+Use the registration date to calculate:
+
+Years of Operation = Current Year - Registration Year
+
+Do not ask the user to enter this manually if data exists.
+
+---
+
+### 4. Bank Connection
+
+Replace the current bank connection flow.
+
+Instead:
+
+Ask the user for:
+
+* Company IBAN
+
+After entering the IBAN:
+
+1. Simulate sending an OTP.
+2. Display an OTP verification modal.
+3. User enters OTP.
+4. Show:
+
+   * Connected successfully
+   * Green success indicator
+
+Keep this as a simulated Open Banking connection.
+
+---
+
+### 5. Research POS & JoFotara
+
+Review the current POS and JoFotara connection screens.
+
+Improve them to better represent realistic integrations.
+
+Specifically:
+
+POS
+
+* Explain that connecting POS allows verification of sales activity.
+* Keep it optional.
+* Use professional wording.
+
+JoFotara
+
+* Explain that connecting JoFotara verifies electronic invoices and revenue.
+* Keep it optional.
+* Improve descriptions and UI.
+
+Do not redesign completely—just make them more realistic and professional.
+
+---
+
+### 6. Consent Screen
+
+Remove the existing checkbox list used for consent.
+
+Instead create a professional consent section similar to banking applications.
+
+Display a short paragraph such as:
+
+> By continuing, you authorize FinTwin to securely retrieve and process your business information from the connected services solely for generating your Credit Readiness Score and financing insights.
+
+Below this paragraph keep ONLY:
+
+☐ I agree to the Terms & Conditions
+
+The consent itself should not require multiple checkboxes.
+
+---
+
+### 7. Final Page
+
+Currently:
+
+"View Your Profile"
+
+should simply close onboarding.
+
+Instead:
+
+When clicking
+
+**View Your Profile**
+
+Navigate to the Profile Details page.
+
+This page should display all onboarding information and allow editing.
+
+---
+
+### 8. Dashboard Profile
+
+On the main dashboard:
+
+Add a Profile button/icon in the top navigation.
+
+Clicking it should open the Profile page.
+
+The Profile page should allow editing:
+
+* Business Name
+* Business Type
+* Sector
+* Years of Operation (only if manually entered)
+* Contact information
+* Connected services status
+* Company IBAN
+* Registration Number (if applicable)
+
+---
+
+### 9. Remove Documents Step
+
+Remove the "Upload Documents" step from onboarding entirely.
+
+Instead:
+
+Create a Documents section inside the dashboard.
+
+This page should always be accessible after onboarding.
+
+Users can upload:
+
+* Paper invoices
+* Financial statements
+* Contracts
+* Purchase orders
+* Other supporting documents
+
+This allows businesses to keep their Financial Twin updated over time rather than only during onboarding.
+
+---
+
+### 10. General Requirements
+
+* Preserve the existing UI style and branding.
+* Keep all animations and transitions.
+* Ensure responsiveness.
+* Do not break the current onboarding flow.
+* Use mock APIs where backend integrations do not yet exist.
+* Keep the code modular and reusable.
+* Add comments where new logic is introduced.
+* Ensure all forms include proper validation and loading states for API simulations.
+
+The goal is to make the onboarding experience resemble a real fintech application used for MSME financing in Jordan while maintaining a clean, modern, and professional user experience.

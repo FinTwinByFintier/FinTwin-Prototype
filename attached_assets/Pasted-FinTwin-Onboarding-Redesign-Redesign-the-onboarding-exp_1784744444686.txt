@@ -1,0 +1,434 @@
+FinTwin Onboarding Redesign
+
+Redesign the onboarding experience to follow the flow and behavior below. **Do not change the overall design language, theme, typography, colors, spacing, or component styling unless explicitly mentioned.** Keep the UI consistent with the existing application.
+
+The goal is to make onboarding more realistic, professional, and aligned with Jordan's Open Finance ecosystem.
+
+---
+
+# Overall Onboarding Flow
+
+Update the onboarding sequence to the following:
+
+1. Welcome
+2. Authentication (NEW)
+3. Business Identity
+4. Automatic Registration Verification
+5. Business Size & Scale
+6. Business Classification
+7. Connect Data Sources
+
+   * Bank
+   * JoFotara
+   * POS
+8. Optional Document Upload
+9. Review Permissions & Consent (NEW)
+10. Financial Twin Created
+11. Dashboard Introduction / Next Steps
+
+Maintain smooth transitions and progress indicators throughout the flow.
+
+---
+
+# Step 0 – Authentication (NEW)
+
+Create a new authentication screen before onboarding begins.
+
+The screen should present two login methods:
+
+### Continue with Sanad (Recommended)
+
+Display this as the primary option.
+
+Explain that users who already have a Sanad account can securely sign in using Jordan's national digital identity.
+
+After successful authentication, continue directly to onboarding.
+
+### Continue with Email
+
+Provide:
+
+* Email
+* Password
+
+Include:
+
+* Remember Me
+* Forgot Password
+
+Keep the layout clean and minimal.
+
+---
+
+# Step 1 – Business Identity
+
+Rename the page to:
+
+**Business Information**
+
+Replace the current form with the following fields.
+
+## Business Type
+
+Dropdown containing:
+
+* LLC
+* Sole Proprietorship
+* Partnership
+* Other
+
+---
+
+## Registration Question
+
+Instead of asking immediately for a registration number, ask:
+
+**Is your business officially registered?**
+
+Radio buttons:
+
+* Yes
+* No
+
+If user selects **No**
+
+Hide every registration-related field.
+
+If user selects **Yes**
+
+Show:
+
+Registration Number
+
+or
+
+Commercial Registration Number
+
+depending on business type.
+
+Design the form so future automatic detection of registration type can easily be added.
+
+---
+
+Do NOT ask for Business Name manually.
+
+This will be populated automatically after verification.
+
+---
+
+# Registration Verification
+
+After pressing Continue:
+
+Display a loading state.
+
+Examples:
+
+Verifying business registration...
+
+Checking official records...
+
+After verification succeeds, display a verification card showing:
+
+* Company Name
+* Legal Entity
+* Registration Status
+* Registration Date (if available)
+
+Use a success icon.
+
+If verification fails, allow the user to edit and retry.
+
+---
+
+# Auto-fill Business Information
+
+Once verification succeeds automatically populate:
+
+* Business Name
+* Business Type
+* Registration Date
+* Sector
+
+Do not ask users to manually enter information that can be retrieved automatically.
+
+---
+
+# Step 2 – Business Size & Scale
+
+Keep these fields:
+
+* Number of Employees
+* Years in Operation
+* Annual Revenue
+
+Improve the UI.
+
+### Employees
+
+Use a stepper or slider.
+
+Prevent impossible values.
+
+### Years
+
+Use a stepper.
+
+Prevent negative values.
+
+### Annual Revenue
+
+Format currency while typing.
+
+Example:
+
+25,000 JOD
+
+instead of
+
+25000
+
+Add helper text:
+
+Approximate annual revenue before taxes.
+
+---
+
+# Business Classification Screen
+
+Keep this page.
+
+Improve the wording.
+
+Replace:
+
+"This looks right"
+
+with
+
+Your business is classified as:
+
+**Small Enterprise**
+
+Based on Jordan's MSME classification.
+
+This helps us match you with suitable financing products.
+
+Buttons:
+
+* Edit Information
+* Continue
+
+---
+
+# Connect Data Sources
+
+Before displaying connection options, add a trust section.
+
+Title:
+
+**Your data is secure**
+
+Explain:
+
+* Bank access is read-only.
+* Authentication happens directly with your bank.
+* FinTwin never stores your banking credentials.
+* Data is encrypted.
+
+If available, display:
+
+* Sanad logo
+* Jordan Open Banking logo
+
+---
+
+# Bank Connection
+
+Keep bank selection.
+
+After selecting a bank:
+
+Do NOT request:
+
+* IBAN
+* Account Number
+
+Instead simulate the real Open Banking flow.
+
+Sequence:
+
+Redirecting to your bank...
+
+↓
+
+Authenticating...
+
+↓
+
+Granting consent...
+
+↓
+
+Importing transactions...
+
+↓
+
+Connected
+
+After completion display:
+
+✅ Connected
+
+Bank Name
+
+Last Sync: Just now
+
+Include a green success card.
+
+---
+
+# JoFotara Connection
+
+Keep Sanad authentication.
+
+After successful authentication do not simply close the popup.
+
+Instead display:
+
+Connected
+
+Invoices Imported
+
+Last Synchronization Time
+
+Use a success card.
+
+---
+
+# POS Connection
+
+Keep provider selection.
+
+If provider supports API:
+
+Redirect to provider authentication.
+
+Authenticate.
+
+Request consent.
+
+Return connected.
+
+If provider has no API:
+
+Request only:
+
+Merchant ID (MID)
+
+Terminal ID (TID)
+
+Do NOT ask for device serial number.
+
+---
+
+# Optional Document Upload
+
+Keep this page.
+
+No major changes.
+
+Maintain current functionality.
+
+---
+
+# Consent Screen (NEW)
+
+Create a dedicated permissions page before onboarding finishes.
+
+Title:
+
+Review Permissions
+
+Explain clearly that FinTwin requests permission only to read financial data.
+
+Display two sections.
+
+### We will access
+
+✓ Read bank transactions
+
+✓ Read JoFotara invoices
+
+✓ Read POS sales
+
+---
+
+### We will never
+
+✗ Move your money
+
+✗ Make payments
+
+✗ Modify your bank accounts
+
+Below this display links:
+
+* Privacy Policy
+* Terms & Conditions
+
+Primary button:
+
+Agree & Continue
+
+---
+
+# Completion Screen
+
+Update final onboarding success page.
+
+Display:
+
+Financial Twin Created Successfully
+
+Short description:
+
+Your financial profile has been prepared successfully.
+
+You can now explore financing opportunities, simulate financial decisions, and monitor your business health.
+
+Primary button:
+
+Go to Dashboard
+
+Secondary:
+
+View Profile
+
+---
+
+# UX Improvements
+
+Throughout onboarding:
+
+* Add smooth loading animations.
+* Use skeleton loaders where appropriate.
+* Add success checkmarks after completed integrations.
+* Validate every required field.
+* Prevent impossible numeric values.
+* Keep progress indicator synchronized with the new steps.
+* Ensure the onboarding works well on desktop and mobile.
+* Preserve the current visual identity.
+
+---
+
+# Implementation Notes
+
+* Reuse existing components whenever possible instead of rebuilding them.
+* Do not break existing navigation.
+* Keep all existing backend integrations compatible.
+* Use placeholder/mock data where APIs are not yet available.
+* Structure the code cleanly and keep components modular for future API integration.
+* Ensure every step can later be connected to the real Jordan Open Banking, JoFotara, and Sanad APIs with minimal changes.
+
+also fix the main page where it says already have an account take them to log in page not directly into the dashboaard.

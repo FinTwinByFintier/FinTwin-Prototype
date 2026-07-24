@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "FinTwin"
+version = "1.0.0"
+id = "artifacts/fintwin"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20425
+
+[services.development]
+run = "pnpm --filter @workspace/fintwin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fintwin", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/fintwin/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20425"
+BASE_PATH = "/"

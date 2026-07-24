@@ -1,0 +1,120 @@
+I need you to improve the frontend onboarding and Green Scoring flow. Do not modify the Green Scoring algorithm or backend calculations unless absolutely necessary. Reuse the existing architecture and components wherever possible.
+
+1. Fix the Sign-Up Flow (High Priority)
+
+The sign-up flow is currently broken.
+
+Current behavior:
+
+After signing up, the user is immediately taken to the dashboard.
+
+Expected behavior:
+
+A new user should complete the full onboarding flow before reaching the dashboard.
+Authentication should work normally.
+Do not automatically skip onboarding.
+
+Please identify why onboarding is being bypassed and restore the correct flow.
+
+2. First-Time Dashboard Experience
+
+When a user reaches the dashboard for the first time after completing onboarding, they have not yet completed a Green Assessment.
+
+Instead of showing an empty dashboard:
+
+Display a welcome card.
+Explain that they need to complete their Green Assessment to receive their Green Score.
+Include a clear "Start Green Assessment" button.
+
+The dashboard should guide first-time users to complete the assessment.
+
+3. Returning Users
+
+If the user has already completed an assessment:
+
+Display their latest Green Score immediately.
+Show the latest grade.
+Show the category scores.
+Show the assessment date if available.
+Include a prominent "Retake Assessment" button.
+
+The previous score should remain visible until they choose to retake the assessment.
+
+4. Energy Assessment Form
+
+In the Energy section of the assessment, add an input field for:
+
+Renewable Energy Share (%)
+
+Requirements:
+
+Numeric input
+Accept values between 0 and 100
+Save the value correctly
+Send it to the backend together with the assessment
+
+This field already exists in the backend, so ensure the frontend maps it correctly.
+
+5. Green Score Results Page
+
+Simplify the results page.
+
+Remove the following items from the UI:
+
+Assessment ID
+Algorithm Version
+
+Keep:
+
+Green Score
+Grade
+Confidence
+Category scores
+Category weights
+
+The page should focus only on information that is meaningful to the user.
+
+6. Remove Simulation Button
+
+At the end of the Green Score page there is an option to run a simulation.
+
+Remove this feature completely from the Green Score results page because it is unrelated to the Green Assessment workflow.
+
+7. Business Sector (Important)
+
+The Green Scoring backend uses different scoring weights depending on the business sector.
+
+The frontend must guarantee that every business has a sector before an assessment can be submitted.
+
+Requirements:
+
+During onboarding, require the user to select their business sector.
+If the sector is missing, prevent the assessment from being submitted.
+Use the existing backend values and do not create new sector names.
+
+The available sectors are:
+
+Retail & Trade
+Food & Hospitality
+Small Manufacturing
+Services
+Professional Services
+Agriculture
+Crafts & Trades
+Other
+8. General Requirements
+Reuse existing components instead of creating duplicates.
+Keep the current UI/UX style consistent.
+Do not change backend API endpoints.
+Do not change the Green Scoring calculation logic.
+Do not introduce breaking changes.
+Test the full flow after implementation:
+New user signs up.
+Completes onboarding.
+Business sector is selected.
+Dashboard asks them to complete the assessment.
+Assessment is submitted successfully.
+Dashboard displays the Green Score.
+Returning users see their previous score and can retake the assessment.
+
+Finally, provide a summary of every file modified and explain why each change was made.

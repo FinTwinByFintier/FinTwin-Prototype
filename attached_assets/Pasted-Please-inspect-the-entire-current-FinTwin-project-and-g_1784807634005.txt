@@ -1,0 +1,93 @@
+Please inspect the entire current FinTwin project and give me a complete, accurate description of what is already implemented.
+
+Do not modify any files, generate new code, or redesign anything yet.
+
+I need the explanation in simple language, but technically precise.
+
+Please organize the answer into these sections:
+
+1. Current user journey
+- What happens from the landing page until the user reaches the dashboard?
+- List every onboarding step in the exact order.
+- What information is collected at each step?
+- Which fields are required and which are optional?
+- What happens for registered and unregistered businesses?
+
+2. Current pages and features
+- List every page, route, modal, tab, and major component.
+- Explain what each one does.
+- Identify anything that is only visual or currently non-functional.
+
+3. Data sources and integrations
+- What data sources are represented in the app?
+- Open Banking
+- JoFotara
+- POS
+- ERP
+- PDF or CSV uploads
+- Manual entry
+- Company registration verification
+- Any other source
+- For each source, explain whether it is live, mocked, hard-coded, uploaded, or not implemented.
+
+4. Data model
+- What business and financial data does the app currently store?
+- List the main objects, fields, TypeScript types, interfaces, database tables, and schemas.
+- Explain where the data is stored: frontend state, local storage, database, mock files, or backend.
+- Explain whether the data persists after refreshing.
+
+5. Financial calculations
+- List every calculation currently performed.
+- Include revenue, expenses, profit, cash flow, runway, debt, loan affordability, scores, ratios, green readiness, and simulations.
+- For each calculation, show:
+  - the exact formula
+  - the input fields used
+  - the file/function where it is implemented
+  - whether it uses real data, mock data, or hard-coded values
+
+6. Simulation engine
+- List all simulation scenarios currently available.
+- Explain how each scenario changes the financial data.
+- Explain which outputs update after a simulation.
+- Identify scenarios that are only UI placeholders and do not have real calculations yet.
+
+7. Funding and scoring
+- Explain exactly how the Funding Readiness Score is calculated.
+- Explain exactly how the Green Readiness Score is calculated.
+- Explain whether there is a Data Confidence score.
+- List all weights, thresholds, assumptions, and hard-coded rules.
+- Clearly state anything that is not technically or financially validated.
+
+8. Backend and API structure
+- List all backend endpoints and services.
+- Explain what each endpoint receives and returns.
+- Identify all external API calls.
+- Identify all dummy or mock APIs.
+- Explain whether authentication exists.
+
+9. File structure
+- Show the important project folders and files.
+- Explain which files control:
+  - onboarding
+  - dashboard
+  - simulations
+  - scoring
+  - data import
+  - API calls
+  - mock data
+
+10. Gaps and inconsistencies
+- Identify missing steps, broken flows, duplicated logic, conflicting data models, placeholder data, and calculations that may be technically incorrect.
+- Do not fix them yet.
+- Separate:
+  - implemented and working
+  - partially implemented
+  - mocked
+  - not implemented
+
+11. Final summary
+- Give me a concise explanation of FinTwin as it currently exists.
+- Explain what the product currently does from a user and technical perspective.
+- Do not describe planned features as if they already exist.
+
+Please reference the exact filenames and function names throughout the answer so another developer can verify everything.
