@@ -86,7 +86,6 @@ function OpenBankingDialog({
     if (!open) return;
     let cancelled = false;
     void (async () => {
-      // Instant reopen: use in-memory list if we already loaded this session.
       if (accounts.length && !cancelled) {
         setPhase("select");
         setError("");
@@ -209,9 +208,13 @@ function OpenBankingDialog({
                 </p>
               ) : (
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    Non-zero balance accounts are pre-selected when available — you can change the selection before saving.
+                  </p>
                   {accounts.map((a) => {
                     const checked = selected.has(a.account_id);
                     const bal = formatBalance(a);
+                    const usable = Boolean(a.usable);
                     return (
                       <button
                         key={a.account_id}
@@ -221,7 +224,9 @@ function OpenBankingDialog({
                         className={`w-full text-start rounded-2xl border p-4 transition-colors ${
                           checked
                             ? "border-emerald-500/40 bg-emerald-500/5"
-                            : "border-border hover:border-primary/30"
+                            : usable
+                              ? "border-border hover:border-primary/30"
+                              : "border-border/60 opacity-70 hover:border-primary/20"
                         }`}
                       >
                         <div className="flex items-start gap-3">
@@ -235,10 +240,26 @@ function OpenBankingDialog({
                             {checked && <CheckCircle2 className="w-3.5 h-3.5" />}
                           </div>
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="font-semibold text-sm truncate">
-                              {a.bank_name_en || "Bank"}
-                              {a.account_type_name ? ` · ${a.account_type_name}` : ""}
-                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-sm truncate">
+                                {a.bank_name_en || "Bank"}
+                                {a.account_type_name ? ` · ${a.account_type_name}` : ""}
+                              </p>
+                              {usable ? (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700">
+                                  Balance + activity
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                  {[
+                                    a.has_balance ? "Balance" : null,
+                                    a.has_transactions ? "Tx" : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ") || "No activity"}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               {a.iban_masked || a.iban}
                               {a.account_status ? ` · ${a.account_status}` : ""}

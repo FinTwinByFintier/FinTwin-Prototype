@@ -18,7 +18,7 @@ import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
   Bell, ChevronRight, Coffee, ShoppingBag, Truck, Zap, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
-  Wallet, Timer, CreditCard, Plus, ChevronDown, ChevronUp,
+  Wallet, Droplets, CreditCard, Plus, ChevronDown, ChevronUp,
   Circle, FlaskConical, ReceiptText, Landmark, RefreshCw, CalendarClock,
   PieChart,
 } from "lucide-react";
@@ -180,11 +180,19 @@ export default function Dashboard() {
   const lastMonth        = cashFlow[cashFlow.length - 1];
   const netThisMonthAmt  = lastMonth ? lastMonth.income - lastMonth.expense : 0;
 
-  const totalAvailableBalance = summary ? parseFloat(summary.total_available_balance || "0") : null;
-  const avgMonthlyExpense = totalExpenseSum > 0 ? totalExpenseSum / cashFlow.length : 0;
-  const runwayMonths = totalAvailableBalance && avgMonthlyExpense > 0
-    ? (totalAvailableBalance / avgMonthlyExpense)
+  const hasLiquidity = summary != null && summary.total_available_balance != null && summary.total_available_balance !== "";
+  const totalAvailableBalance = hasLiquidity
+    ? parseFloat(summary!.total_available_balance || "0")
     : null;
+  const liquidityAmount =
+    totalAvailableBalance != null && Number.isFinite(totalAvailableBalance)
+      ? totalAvailableBalance
+      : null;
+  const avgMonthlyExpense = totalExpenseSum > 0 ? totalExpenseSum / cashFlow.length : 0;
+  const runwayMonths =
+    liquidityAmount != null && liquidityAmount > 0 && avgMonthlyExpense > 0
+      ? liquidityAmount / avgMonthlyExpense
+      : null;
 
   /* Real recent transactions from the twin — falls back to mock */
   const realTransactions: RecentTransaction[] = summary?.recent_transactions ?? [];
@@ -434,12 +442,18 @@ export default function Dashboard() {
               viewAllHref: null as string | null,
             },
             {
-              id: "runway",
-              icon: Timer,
-              label: t('dashboard.runway'),
-              value: runwayMonths != null ? `${runwayMonths.toFixed(1)} months` : "4.2 months",
-              sub: totalAvailableBalance != null ? formatMoney(totalAvailableBalance) + " available" : t('dashboard.basedOnBurn'),
-              subColor: "text-muted-foreground",
+              id: "liquidity",
+              icon: Droplets,
+              label: t('dashboard.liquidity'),
+              value: liquidityAmount != null ? formatMoney(liquidityAmount) : "—",
+              sub: runwayMonths != null
+                ? t('dashboard.liquidityRunwaySub', { months: runwayMonths.toFixed(1) })
+                : liquidityAmount != null
+                  ? t('dashboard.liquidityFromBanks')
+                  : t('dashboard.liquidityEmpty'),
+              subColor: liquidityAmount != null && liquidityAmount > 0
+                ? "text-emerald-600"
+                : "text-muted-foreground",
               viewAllHref: null as string | null,
             },
             {

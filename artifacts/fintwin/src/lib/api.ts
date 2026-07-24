@@ -253,6 +253,9 @@ export type OpenBankingAccount = {
   shared_account?: boolean;
   locked_for_credit?: boolean;
   locked_for_debit?: boolean;
+  has_balance?: boolean;
+  has_transactions?: boolean;
+  usable?: boolean;
 };
 
 export type OpenBankingAccountsResponse = {
@@ -260,6 +263,7 @@ export type OpenBankingAccountsResponse = {
   message?: string | null;
   accounts: OpenBankingAccount[];
   selected_account_ids: string[];
+  recommended_account_ids?: string[];
   jopacc_customer_id?: string | null;
   cached?: boolean;
 };
