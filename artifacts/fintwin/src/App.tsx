@@ -14,6 +14,7 @@ import GreenAssessment from '@/pages/GreenAssessment';
 import GreenScore from '@/pages/GreenScore';
 import Transactions from '@/pages/Transactions';
 import MyLoans from '@/pages/MyLoans';
+import InvestorDiscovery from '@/pages/InvestorDiscovery';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { SimulationProvider } from '@/context/SimulationContext';
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/green-assessment" component={GreenAssessment} />
       <Route path="/green-score" component={GreenScore} />
+      <Route path="/investor-discovery" component={InvestorDiscovery} />
       <Route component={NotFound} />
     </Switch>
   );

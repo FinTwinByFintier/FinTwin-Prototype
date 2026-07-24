@@ -1,0 +1,383 @@
+I want to redesign the Investor Discovery feature so that it is presented as a future vision of FinTwin rather than part of the current user workflow.
+
+This is a frontend-only demonstration feature.
+
+Do not connect it to authentication, onboarding, backend APIs, databases, or user registration.
+
+The purpose is to demonstrate our product roadmap during the hackathon presentation.
+
+## Navigation
+
+Create a separate top-level navigation tab called:
+
+Future Vision
+
+Inside it, create a page called:
+
+Investor Discovery Platform
+
+Add a small badge next to the title:
+
+Future Work
+
+This page should not appear as part of onboarding or the normal dashboard flow.
+
+It should simply be accessible from the navigation so that during the demo we can open it independently.
+
+---
+
+## Hero Section
+
+At the top display:
+
+# Investor Discovery Platform
+
+Subtitle:
+
+Connecting promising SMEs and entrepreneurs with investors through trusted financial and sustainability insights.
+
+Below it add an information banner:
+
+"This is a prototype demonstrating a future expansion of the FinTwin ecosystem. It is not part of the current MVP."
+
+Style this as an elegant informational card.
+
+---
+
+## Overview
+
+Add three cards explaining the concept.
+
+Card 1
+
+Title:
+For Businesses
+
+Description:
+Build a trusted public investment profile using FinTwin's financial and sustainability indicators.
+
+Card 2
+
+Title:
+For Investors
+
+Description:
+Discover promising SMEs and entrepreneurs using standardized platform insights instead of scattered information.
+
+Card 3
+
+Title:
+For the Ecosystem
+
+Description:
+Strengthen investment opportunities while encouraging financial health and sustainable business practices.
+
+---
+
+## Investor Discovery
+
+Display mock profiles only.
+
+Do not connect to any backend.
+
+Generate realistic mock Jordanian businesses and entrepreneurs.
+
+Use the existing FinTwin sectors:
+
+- Retail & Trade
+- Food & Hospitality
+- Small Manufacturing
+- Services
+- Professional Services
+- Agriculture
+- Crafts & Trades
+- Other
+
+Create:
+
+12 enterprises
+
+8 individual entrepreneurs
+
+Use Jordanian cities.
+
+---
+
+## Ranking
+
+Rank profiles using only:
+
+FinTwin Score (40%)
+
+Financial Health Score (30%)
+
+Green Score (20%)
+
+Growth Readiness Score (10%)
+
+Remove every reference to:
+
+Risk Level
+
+Do not display risk anywhere.
+
+Do not calculate risk.
+
+Do not mention risk.
+
+Ranking formula:
+
+Ranking =
+(FinTwin × 0.40)
++
+(Financial Health × 0.30)
++
+(Green Score × 0.20)
++
+(Growth Readiness × 0.10)
+
+Display ranking with one decimal.
+
+---
+
+## Leaderboard
+
+Highlight the Top 10 profiles.
+
+Each profile should display:
+
+Rank
+
+Business Name
+
+Enterprise or Individual badge
+
+Sector
+
+City
+
+FinTwin Score
+
+Financial Health Score
+
+Green Score
+
+Growth Readiness Score
+
+Overall Ranking
+
+Verified Badge
+
+Funding Goal
+
+Short Description
+
+---
+
+## Filters
+
+Allow filtering by:
+
+Enterprise / Individual
+
+Sector
+
+Business Classification
+
+City
+
+Minimum FinTwin Score
+
+Minimum Green Score
+
+Verified Only
+
+Sort By:
+
+Overall Ranking
+
+FinTwin Score
+
+Green Score
+
+Financial Health
+
+Growth Readiness
+
+Funding Goal
+
+---
+
+## Profile Page
+
+When opening a profile display:
+
+Business overview
+
+Sector
+
+Business Classification
+
+City
+
+Description
+
+Funding Goal
+
+Funding Range
+
+FinTwin Score
+
+Financial Health Score
+
+Green Score
+
+Growth Readiness Score
+
+Sustainability Highlights
+
+Investment Highlights
+
+Years Operating
+
+Verification Status
+
+Last Updated
+
+---
+
+## Why This Business Stands Out
+
+Generate this using simple frontend rules.
+
+Examples:
+
+Green Score above 80
+
+"Excellent sustainability performance."
+
+Financial Health above 80
+
+"Strong financial health."
+
+Growth Readiness above 80
+
+"Prepared for growth and scaling."
+
+FinTwin Score above 85
+
+"Among the highest ranked businesses on the platform."
+
+Do not use AI.
+
+---
+
+## Express Interest
+
+The investor can click:
+
+Express Interest
+
+Open a frontend-only modal.
+
+Collect:
+
+Investor Name
+
+Organization
+
+Email
+
+Message
+
+Interest Type
+
+Store locally.
+
+Do not send anything.
+
+Show:
+
+"Prototype request recorded."
+
+---
+
+## Compare
+
+Allow comparison of up to three profiles.
+
+Compare:
+
+FinTwin Score
+
+Financial Health
+
+Green Score
+
+Growth Readiness
+
+Funding Goal
+
+Funding Range
+
+Sector
+
+City
+
+Verification Status
+
+Do not include Risk.
+
+---
+
+## Design
+
+This page should look premium and investor-oriented.
+
+Think Bloomberg, Crunchbase, or LinkedIn rather than social media.
+
+Use the existing FinTwin design language.
+
+Professional.
+
+Minimal.
+
+Trustworthy.
+
+Responsive.
+
+---
+
+## Footer
+
+At the bottom of the page add:
+
+Future Roadmap
+
+"This prototype illustrates how FinTwin could evolve into an investment discovery ecosystem where SMEs and entrepreneurs voluntarily share trusted financial and sustainability indicators to increase visibility and access to funding."
+
+Below that add another small note:
+
+"Profiles, rankings, and investment interactions shown here are demonstration data and do not represent real investment recommendations."
+
+---
+
+## Technical Requirements
+
+Everything must remain frontend-only.
+
+Use reusable components.
+
+Store mock data separately.
+
+Do not modify backend code.
+
+Do not change authentication.
+
+Do not change Green Scoring.
+
+Do not affect the existing dashboard.
+
+This page should function completely independently from the MVP.
+
+Finally, provide a summary of every file created and modified, and explain where a future backend API could replace the mock data.
