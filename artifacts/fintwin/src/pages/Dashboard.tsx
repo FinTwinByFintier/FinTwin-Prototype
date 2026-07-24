@@ -627,6 +627,14 @@ export default function Dashboard() {
                   <span>{t('dashboard.matchedGreenProducts')}</span>
                   <span className="font-semibold text-foreground">{t('dashboard.available', { count: greenProductCount || matches.length })}</span>
                 </div>
+
+                <button
+                  onClick={() => navigate('/green-assessment')}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 bg-emerald-500/8 hover:bg-emerald-500/12 border border-emerald-500/20 rounded-xl py-2 transition-colors"
+                >
+                  <Leaf className="w-3.5 h-3.5" />
+                  Take Green Assessment
+                </button>
               </motion.div>
             </div>
 

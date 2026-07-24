@@ -10,6 +10,8 @@ import Simulation from '@/pages/Simulation';
 import LoanPrescreening from '@/pages/LoanPrescreening';
 import Login from '@/pages/Login';
 import Profile from '@/pages/Profile';
+import GreenAssessment from '@/pages/GreenAssessment';
+import GreenScore from '@/pages/GreenScore';
 import Transactions from '@/pages/Transactions';
 import MyLoans from '@/pages/MyLoans';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
@@ -33,6 +35,8 @@ function Router() {
       <Route path="/my-loans" component={MyLoans} />
       <Route path="/login" component={Login} />
       <Route path="/profile" component={Profile} />
+      <Route path="/green-assessment" component={GreenAssessment} />
+      <Route path="/green-score" component={GreenScore} />
       <Route component={NotFound} />
     </Switch>
   );

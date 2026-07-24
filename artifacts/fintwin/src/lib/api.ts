@@ -678,6 +678,58 @@ export function fetchConcentration() {
   return apiFetch<ConcentrationSummary>("/api/v1/lending/concentration/");
 }
 
+/* ── Green Scoring ──────────────────────────────────────── */
+
+export type GreenAssessmentPayload = {
+  // Energy (weight 30)
+  energy_source: string;           // "grid" | "solar" | "mixed" | "other"
+  renewable_energy_pct: string;    // "0" | "1-25" | "26-50" | "51-75" | "76-100"
+  energy_efficient_lighting: boolean;
+  energy_monitoring: boolean;
+  // Water (weight 15)
+  water_efficient_fixtures: boolean;
+  water_monitoring: boolean;
+  water_recycling: boolean;
+  // Transportation (weight 30)
+  primary_transport: string;       // "none" | "personal_car" | "company_fleet" | "public"
+  has_electric_vehicles: boolean;
+  supports_remote_work: boolean;
+  monthly_business_trips: string;  // "0" | "1-5" | "6-20" | "20+"
+  // Certifications (weight 25)
+  has_iso_14001: boolean;
+  has_green_star: boolean;
+  has_other_green_cert: boolean;
+  has_sustainability_policy: boolean;
+};
+
+export type GreenCategoryResult = {
+  score: number;
+  weight: number;
+};
+
+export type GreenAssessmentResult = {
+  message: string;
+  assessment_id: number;
+  business_id: number;
+  green_score: number;
+  grade: string;
+  confidence: number;
+  algorithm_version: string;
+  categories: {
+    energy: GreenCategoryResult;
+    water: GreenCategoryResult;
+    transportation: GreenCategoryResult;
+    certifications: GreenCategoryResult;
+  };
+};
+
+export function submitGreenAssessment(payload: GreenAssessmentPayload) {
+  return apiFetch<GreenAssessmentResult>("/api/green-scoring/assessment/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function logout() {
   return apiFetch<void>("/api/v1/auth/logout/", { method: "POST" }).finally(() =>
     setToken(null),
