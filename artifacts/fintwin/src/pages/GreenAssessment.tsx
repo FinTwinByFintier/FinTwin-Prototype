@@ -5,7 +5,6 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useOnboarding } from "@/context/OnboardingContext";
 import {
   ApiError,
   getToken,
@@ -13,6 +12,7 @@ import {
   type GreenAssessmentPayload,
   type GreenAssessmentResult,
 } from "@/lib/api";
+import { invalidateTwinData } from "@/lib/queryClient";
 import {
   Zap, Droplets, Car, Award,
   CheckCircle2, ChevronRight, ChevronLeft,
@@ -194,7 +194,6 @@ function isStepValid(step: number, form: GreenAssessmentPayload): boolean {
 
 export default function GreenAssessment() {
   const [, navigate] = useLocation();
-  const { state: onboardingState } = useOnboarding();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<GreenAssessmentPayload>(defaultForm);
   const [rawRenewable, setRawRenewable] = useState<string>("0");
@@ -219,20 +218,13 @@ export default function GreenAssessment() {
       navigate("/login");
       return;
     }
-    // Sector is required — the backend uses it to apply sector-specific weights
-    if (!onboardingState.businessSector) {
-      setError(
-        "Your business sector is required before submitting an assessment. " +
-        "Please complete your business profile first.",
-      );
-      return;
-    }
     setSubmitting(true);
     setError(null);
     try {
       const result = await submitGreenAssessment(form);
       lastGreenAssessmentResult = result;
       sessionStorage.setItem("ft_green_result", JSON.stringify(result));
+      void invalidateTwinData(); // green score changed — refresh cached dashboard/scoring/simulation
       navigate("/green-score");
     } catch (err) {
       setError(

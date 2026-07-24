@@ -119,6 +119,7 @@ export function register(nationalId: string, password: string) {
   // Drop any stale token — DRF rejects AllowAny routes if Authorization is invalid.
   setToken(null);
   clearOpenBankingAccountsCache();
+  clearTwinCacheHook?.();
   return apiFetch<AuthResponse>("/api/v1/auth/register/", {
     method: "POST",
     body: JSON.stringify({ national_id: nationalId, password }),
@@ -129,11 +130,23 @@ export function register(nationalId: string, password: string) {
 export function login(nationalId: string, password: string) {
   setToken(null);
   clearOpenBankingAccountsCache();
+  clearTwinCacheHook?.();
   return apiFetch<AuthResponse>("/api/v1/auth/login/", {
     method: "POST",
     body: JSON.stringify({ national_id: nationalId, password }),
     skipAuth: true,
   });
+}
+
+/**
+ * Set by lib/queryClient.ts at app startup (avoids a circular import — this
+ * module is loaded before that one). Clears the shared twin-data cache
+ * whenever a *new* login/register happens, so a second user in the same tab
+ * never sees the previous user's cached balances/scores.
+ */
+let clearTwinCacheHook: (() => void) | null = null;
+export function registerTwinCacheClearer(fn: () => void): void {
+  clearTwinCacheHook = fn;
 }
 
 export function fetchMe() {
@@ -781,6 +794,156 @@ export function submitGreenAssessment(payload: GreenAssessmentPayload) {
   return apiFetch<GreenAssessmentResult>("/api/v1/green-scoring/assessment/", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+/* ── Simulation (real backend what-if engine) ───────────────── */
+
+export type SimulationBaseline = {
+  display_name: string;
+  employees: number;
+  avg_salary_jod: number;
+  years_in_operation: number | null;
+  sector: string;
+  monthly_revenue: number;
+  existing_loan_monthly_payment: number;
+  available_cash: number;
+  connected_sources_count: number;
+  has_receipts: boolean;
+  credit_score: number;
+  credit_eligible: boolean;
+  gate_failures?: string[];
+  default_probability: number | null;
+  liquidity_score: number | null;
+  green_score: number;
+};
+
+export type SimulationOverrides = {
+  revenue_multiplier: number;
+  extra_employees: number;
+  avg_salary_jod: number;
+  rent_multiplier: number;
+  utilities_multiplier: number;
+  one_off_purchase_jod: number;
+  new_loan_amount: number;
+  loan_term_months: number;
+  late_payment_days: number;
+  late_payment_amount: number;
+  solar_panels: boolean;
+  energy_efficiency: boolean;
+};
+
+export type SimulationCommitment = {
+  category: string;
+  label?: string;
+  amount: number;
+};
+
+export type SimulationLoanInfo = {
+  amount: number;
+  tenor_months: number;
+  rate: string;
+  monthly_installment: number;
+  total_repayment: number;
+} | null;
+
+export type SimulationSideResult = {
+  credit_score: number;
+  credit_eligible: boolean;
+  gate_failures: string[];
+  category_scores: Record<string, number> | null;
+  default_probability: number;
+  risk_factors: Array<{ factor: string; contribution: number; note: string }>;
+  liquidity_score: number | null;
+  liquidity_eligible: boolean;
+  liquidity_category_scores: Record<string, number> | null;
+  liquidity_metrics: Record<string, number | string | null>;
+  green_score: number;
+  monthly_income: number;
+  monthly_expenses: number;
+  net_cash: number;
+  runway_days: number | null;
+  num_employees: number;
+  payroll_total: number;
+  loan: SimulationLoanInfo;
+  dti_pct: number;
+  dti_category: "pass" | "marginal" | "fail" | string;
+  cash_flow_projection: Array<{ month: string; income: number; expense: number }>;
+};
+
+export type SimulationDeltas = {
+  credit_score: number;
+  default_probability: number;
+  liquidity_score: number | null;
+  green_score: number;
+  net_cash: number;
+};
+
+export type SimulationRunResult = {
+  baseline: SimulationSideResult;
+  scenario: SimulationSideResult;
+  deltas: SimulationDeltas;
+  ai_insight: string;
+  overrides: SimulationOverrides;
+  scenario_id?: number;
+  scenario_name?: string;
+};
+
+export function fetchSimulationBaseline() {
+  return apiFetch<SimulationBaseline>("/api/v1/simulation/baseline/");
+}
+
+export function runSimulation(payload: {
+  overrides?: Partial<SimulationOverrides>;
+  commitments?: SimulationCommitment[];
+  save?: boolean;
+  name?: string;
+}) {
+  return apiFetch<SimulationRunResult>("/api/v1/simulation/run/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type SimulationScenarioSummary = {
+  id: number;
+  name: string;
+  created_at: string;
+  credit_score_delta: number | null;
+  net_cash_delta: number | null;
+  liquidity_score_delta: number | null;
+  green_score_delta: number | null;
+};
+
+export function listSimulationScenarios() {
+  return apiFetch<{ scenarios: SimulationScenarioSummary[] }>(
+    "/api/v1/simulation/scenarios/",
+  );
+}
+
+export type SimulationScenarioDetail = {
+  id: number;
+  name: string;
+  overrides: SimulationOverrides;
+  result: SimulationRunResult;
+  ai_insight: string;
+  created_at: string;
+};
+
+export function getSimulationScenario(id: number) {
+  return apiFetch<SimulationScenarioDetail>(`/api/v1/simulation/scenarios/${id}/`);
+}
+
+export function renameSimulationScenario(id: number, name: string) {
+  return apiFetch<{ id: number; name: string }>(`/api/v1/simulation/scenarios/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteSimulationScenario(id: number) {
+  return apiFetch<void>(`/api/v1/simulation/scenarios/${id}/`, {
+    method: "DELETE",
   });
 }
 

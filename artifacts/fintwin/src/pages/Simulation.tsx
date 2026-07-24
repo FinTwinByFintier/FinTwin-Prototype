@@ -14,7 +14,8 @@ import { requestLoanQuote } from "@/lib/api";
 import {
   X, RotateCcw, BarChart3, Leaf, Wallet, Timer, TrendingUp, TrendingDown,
   Users, Zap, Home, CreditCard, Sun, Cpu, Clock, Bell, AlertCircle,
-  ChevronDown, Package, ReceiptText, Loader2, Lock,
+  ChevronDown, Package, ReceiptText, Loader2, Lock, Sparkles, Save,
+  History, Trash2, ShieldAlert,
 } from "lucide-react";
 
 /* Scenarios free for all tiers */
@@ -186,12 +187,27 @@ export default function Simulation() {
   const {
     overrides, setOverride, resetOverrides, applyScenario, activeScenario,
     result, baseline, baseState, displayName,
+    isRunning, aiInsight, scenarios, saveScenario, loadScenario, deleteScenario,
   } = useSimulation();
 
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [quoting, setQuoting] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [scenariosOpen, setScenariosOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveScenario = async () => {
+    const name = window.prompt("Name this scenario", `Scenario ${scenarios.length + 1}`);
+    if (name === null) return;
+    setSaving(true);
+    try {
+      await saveScenario(name);
+      setScenariosOpen(true);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const businessName = displayName;
   const gc = useGreenColor(result.greenScore);
@@ -256,12 +272,30 @@ export default function Simulation() {
       {/* Baseline banner */}
       <div className="border-b bg-primary/5">
         <div className="container mx-auto px-4 h-12 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
             <span className="font-semibold text-foreground">{t('simulation.digitalTwin')}</span>
             {' · '}{t('simulation.simulating', { name: businessName })}
             {' · '}{t('simulation.baseline')}
+            {isRunning && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
           </p>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm" className="h-8 text-xs gap-1.5 relative"
+              onClick={() => setScenariosOpen(o => !o)}
+            >
+              <History className="w-3.5 h-3.5" />My Scenarios
+              {scenarios.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
+                  {scenarios.length}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+              disabled={saving} onClick={handleSaveScenario}
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save
+            </Button>
             <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5" onClick={resetOverrides}>
               <RotateCcw className="w-3.5 h-3.5" />{t('simulation.resetButton')}
             </Button>
@@ -271,6 +305,59 @@ export default function Simulation() {
           </div>
         </div>
       </div>
+
+      {/* My Scenarios panel */}
+      <AnimatePresence>
+        {scenariosOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-b bg-muted/20"
+          >
+            <div className="container mx-auto px-4 py-4">
+              {scenarios.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  No saved scenarios yet — adjust the levers below and hit Save to keep a what-if for later.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {scenarios.map((s) => (
+                    <div key={s.id} className="bg-card border rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate">{s.name}</p>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          {s.credit_score_delta != null && s.credit_score_delta !== 0 && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${s.credit_score_delta > 0 ? 'text-emerald-700 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                              {s.credit_score_delta > 0 ? '+' : ''}{s.credit_score_delta} credit
+                            </span>
+                          )}
+                          {s.net_cash_delta != null && Math.abs(s.net_cash_delta) >= 1 && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${s.net_cash_delta > 0 ? 'text-emerald-700 bg-emerald-100' : 'text-red-600 bg-red-100'}`}>
+                              {s.net_cash_delta > 0 ? '+' : ''}{Math.round(s.net_cash_delta)} JOD
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => loadScenario(s.id)}>
+                          Load
+                        </Button>
+                        <button
+                          onClick={() => deleteScenario(s.id)}
+                          className="w-7 h-7 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 flex items-center justify-center"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* No-commitments nudge */}
       <AnimatePresence>
@@ -539,7 +626,20 @@ export default function Simulation() {
           </div>
 
           {/* ── Right panel: Live metrics (3/5) ── */}
-          <div className="lg:col-span-3 space-y-5">
+          <div className={`lg:col-span-3 space-y-5 transition-opacity duration-200 ${isRunning ? 'opacity-60' : 'opacity-100'}`}>
+
+            {/* AI Insight */}
+            <motion.div layout className="bg-primary/5 border border-primary/20 rounded-3xl p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">FinTwin Insight</p>
+                <p className="text-xs text-foreground leading-relaxed">
+                  {aiInsight || 'Adjust the levers on the left to see how this decision would really score with your lender.'}
+                </p>
+              </div>
+            </motion.div>
 
             {/* Stat strip */}
             <div className="grid grid-cols-3 gap-3">
@@ -552,11 +652,11 @@ export default function Simulation() {
                 },
                 {
                   icon: Timer, label: t('simulation.runway'),
-                  val: result.runwayMonths === null ? t('simulation.runwayInfinity') : t('simulation.months', { n: result.runwayMonths }),
-                  delta: result.runwayMonths !== null && baseline.runwayMonths !== null
-                    ? <Delta sim={result.runwayMonths} base={baseline.runwayMonths} unit=" mo" />
+                  val: result.runwayDays === null ? '—' : `${Math.round(result.runwayDays)} days`,
+                  delta: result.runwayDays !== null && baseline.runwayDays !== null
+                    ? <Delta sim={result.runwayDays} base={baseline.runwayDays} unit="d" />
                     : null,
-                  alert: result.runwayMonths !== null && result.runwayMonths < 2,
+                  alert: result.runwayDays !== null && result.runwayDays < 7,
                 },
                 {
                   icon: CreditCard, label: t('simulation.monthlyExpenses'),
@@ -616,6 +716,15 @@ export default function Simulation() {
                     <span>0</span><span className="text-muted-foreground/60">{t('simulation.baselineMarker')}</span><span>100</span>
                   </div>
                 </div>
+                {!result.creditEligible && result.gateFailures.length > 0 && (
+                  <div className="mt-3 rounded-lg bg-red-50 text-red-600 px-3 py-2 text-[11px] flex items-start gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>{result.gateFailures[0]}</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Default risk: {(result.defaultProbability * 100).toFixed(1)}%
+                </p>
               </motion.div>
 
               {/* Green */}
@@ -685,18 +794,30 @@ export default function Simulation() {
                     <p className="font-bold text-lg">{fmt(result.newLoanMonthlyPayment)}</p>
                     <p className="text-[10px] text-muted-foreground">JOD/mo</p>
                   </div>
-                  <div className={`rounded-xl p-3 text-center ${result.netCash > 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                    <p className="text-[10px] text-muted-foreground mb-1">{t('simulation.loanCoverage')}</p>
-                    <p className={`font-bold text-lg ${result.netCash > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {result.netCash > 0
-                        ? `${Math.round((result.netCash / result.newLoanMonthlyPayment) * 10) / 10}×`
-                        : '—'}
+                  <div className={`rounded-xl p-3 text-center ${
+                    result.dtiCategory === 'pass' ? 'bg-emerald-50' : result.dtiCategory === 'marginal' ? 'bg-amber-50' : 'bg-red-50'
+                  }`}>
+                    <p className="text-[10px] text-muted-foreground mb-1">Debt-to-income</p>
+                    <p className={`font-bold text-lg ${
+                      result.dtiCategory === 'pass' ? 'text-emerald-600' : result.dtiCategory === 'marginal' ? 'text-amber-600' : 'text-red-500'
+                    }`}>
+                      {result.dtiPct}%
                     </p>
-                    <p className="text-[10px] text-muted-foreground">{t('simulation.loanCoverageSub')}</p>
+                    <p className="text-[10px] text-muted-foreground">of monthly income</p>
                   </div>
                 </div>
-                <div className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium text-center ${result.netCash > result.newLoanMonthlyPayment ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {result.netCash > result.newLoanMonthlyPayment ? t('simulation.affordable') : t('simulation.tightCashFlow')}
+                <div className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium text-center ${
+                  result.dtiCategory === 'pass'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : result.dtiCategory === 'marginal'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-red-100 text-red-700'
+                }`}>
+                  {result.dtiCategory === 'pass'
+                    ? t('simulation.affordable')
+                    : result.dtiCategory === 'marginal'
+                      ? 'Marginal — close to the 40% comfort limit'
+                      : 'Debt-to-income exceeds 40% — a lender would likely flag this'}
                 </div>
               </motion.div>
             )}

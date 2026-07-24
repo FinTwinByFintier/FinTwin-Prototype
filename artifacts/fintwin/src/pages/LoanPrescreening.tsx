@@ -19,6 +19,7 @@ import {
   fetchDashboardSummary, requestLoanQuote, fetchBusinessProfile,
   type LoanApplication, type LoanProduct,
 } from "@/lib/api";
+import { queryClient, twinQueryKeys, invalidateTwinData } from "@/lib/queryClient";
 import {
   Bell, X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle,
   XCircle, Leaf, BarChart3, FileText, Users, Globe, Target,
@@ -1019,6 +1020,7 @@ function StepReadinessGate({ product }: { product: BankProduct }) {
       setSubmittedApplication(app);
       setReferenceNumber(app.reference_number);
       setSubmitted(true);
+      void invalidateTwinData(); // new application — refresh cached loan/dashboard data everywhere
     } catch (e: any) {
       setSubmitError(e?.message || 'Submit failed');
     } finally {
@@ -1404,8 +1406,12 @@ export default function LoanPrescreening() {
   // Reset flow state on every entry so repeat visits always start fresh
   useEffect(() => {
     reset();
-    fetchScoringSummary().then(setScoring).catch(() => {});
-    fetchLoanProducts().then((r) => setProducts(r.products || [])).catch(() => {});
+    // Reuse the same cached queries Dashboard/Simulation use — don't refetch
+    // scoring/dashboard/products every time this page is (re)visited.
+    queryClient.fetchQuery({ queryKey: twinQueryKeys.scoringSummary, queryFn: fetchScoringSummary })
+      .then(setScoring).catch(() => {});
+    queryClient.fetchQuery({ queryKey: twinQueryKeys.loanProducts, queryFn: fetchLoanProducts })
+      .then((r) => setProducts(r.products || [])).catch(() => {});
 
     const hydrateProfile = (profile?: Parameters<typeof hydrateFromProfile>[0]) => {
       if (!profile) return;
@@ -1423,7 +1429,7 @@ export default function LoanPrescreening() {
       .then((res) => hydrateProfile(res.profile))
       .catch(() => {});
 
-    fetchDashboardSummary()
+    queryClient.fetchQuery({ queryKey: twinQueryKeys.dashboardSummary, queryFn: fetchDashboardSummary })
       .then((summary) => {
         hydrateProfile(summary.profile);
         const name = summary.display_identity?.display_name;

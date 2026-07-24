@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { Button } from "@/components/ui/button";
-import { runDataSync } from "@/lib/api";
+import { runDataSync, fetchDashboardSummary, fetchScoringSummary } from "@/lib/api";
+import { queryClient, twinQueryKeys } from "@/lib/queryClient";
 import { SanadLogo } from "@/components/SanadBadge";
 import { CheckCircle2, ArrowRight, BarChart3, Zap, Leaf, Loader2 } from "lucide-react";
 
@@ -50,6 +51,15 @@ export function Step5Complete() {
     const startedAt = Date.now();
     Promise.race([runDataSync(), timeout(BUILD_TIMEOUT_MS)])
       .catch(() => undefined)
+      .then(() =>
+        // First login — warm the shared cache once here so Dashboard,
+        // Simulation, and Loan Prescreening open instantly with numbers
+        // already in hand instead of each firing their own request.
+        Promise.allSettled([
+          queryClient.prefetchQuery({ queryKey: twinQueryKeys.dashboardSummary, queryFn: fetchDashboardSummary }),
+          queryClient.prefetchQuery({ queryKey: twinQueryKeys.scoringSummary, queryFn: fetchScoringSummary }),
+        ])
+      )
       .then(async () => {
         const remaining = Math.max(0, BUILD_MIN_MS - (Date.now() - startedAt));
         if (remaining > 0) await sleep(remaining);
