@@ -1,0 +1,86 @@
+I want to fix the PDF generation for the final Prescreening Application Package.
+
+Currently, some fields in the generated PDF are populated with random placeholder values or incorrect data.
+
+I want the PDF generation to follow these rules consistently.
+
+1. Every field in the PDF should first attempt to retrieve the real value from the user's application, onboarding data, business profile, assessment results, or any existing stored data.
+
+2. If a valid value exists, display the correct value.
+
+3. If the value is missing, null, undefined, an empty string, whitespace, placeholder text, or dummy/mock data, display:
+
+"Not Available"
+
+instead.
+
+Never leave random values in the PDF.
+
+Never display placeholder strings.
+
+Never display undefined, null, NaN, "-", "N/A", "Lorem Ipsum", "Test", "Example", "Sample", "Unknown", random city names, or any mock/demo values.
+
+4. Apply this rule to every field in the PDF, including but not limited to:
+
+- Business Name
+- Owner Name
+- National ID
+- Business Sector
+- Business Classification
+- Business Address
+- City
+- Years in Operation
+- Monthly Revenue
+- Employees
+- Funding Amount
+- Funding Purpose
+- Business Plan
+- Financial Information
+- Sustainability Information
+- Green Assessment
+- Connected Data Sources
+- Banking Information
+- Any Applicant-Provided Information
+- Any optional section
+
+5. Create a reusable helper function such as:
+
+getDisplayValue(value)
+
+The function should:
+
+- Trim whitespace.
+- Detect null.
+- Detect undefined.
+- Detect empty strings.
+- Detect placeholder/demo values.
+- Return "Not Available" whenever the value is invalid.
+- Otherwise return the cleaned value.
+
+Use this helper for every displayed field instead of repeating validation logic.
+
+6. Do not hardcode values anywhere inside the PDF template.
+
+Every displayed value should come from the application data model.
+
+7. If nested objects are used, safely access them using optional chaining or equivalent safe access to prevent crashes when values are missing.
+
+8. Do not generate blank labels followed by empty values.
+
+Every field should either contain the real value or "Not Available."
+
+9. Preserve the current PDF layout, styling, colors, icons, formatting, and branding.
+
+Only improve the data mapping and validation.
+
+10. After implementing the fix, review every field used in the PDF and verify that it is mapped to the correct property from the application data.
+
+11. Remove every remaining piece of mock or random data from the generated PDF.
+
+12. Finally, provide a summary including:
+
+- Every file modified.
+- The helper function that was created.
+- Every field whose data source was corrected.
+- Confirmation that no placeholder or random values will appear in the PDF anymore.
+- Confirmation that missing values are now displayed as "Not Available" instead of incorrect data.

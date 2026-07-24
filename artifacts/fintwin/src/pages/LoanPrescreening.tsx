@@ -203,6 +203,32 @@ function DocUploadRow({ label, status }: { label: string; status: 'complete' | '
   );
 }
 
+/* ── getDisplayValue helper ──────────────────────────────── */
+/**
+ * Sanitises any value before it is printed in the PDF.
+ * Returns "Not Available" for null, undefined, empty strings, whitespace,
+ * and known placeholder / demo / mock strings.
+ * Otherwise returns the trimmed string representation.
+ */
+const PLACEHOLDER_SET = new Set([
+  'n/a', '-', '--', '—', '–', 'na', 'none', 'null', 'undefined',
+  'lorem ipsum', 'test', 'example', 'sample', 'unknown', 'demo',
+  'your business', 'placeholder', 'not provided', 'tbd',
+  'to be determined', 'demo msme trading co.', 'demo msme trading co',
+  'food & hospitality', 'micro enterprise', 'your business name',
+  '0 jod', '0', '—', '0 jod/mo',
+]);
+
+function getDisplayValue(value: unknown): string {
+  if (value === null || value === undefined) return 'Not Available';
+  const str = String(value).trim();
+  if (!str) return 'Not Available';
+  if (PLACEHOLDER_SET.has(str.toLowerCase())) return 'Not Available';
+  // Catch bare zero amounts shown as "0 ..." or just "0"
+  if (/^0(\s+(jod|jod\/mo))?$/i.test(str)) return 'Not Available';
+  return str;
+}
+
 /* ── PDF generator ───────────────────────────────────────── */
 function generateApplicationPDF(params: {
   businessName: string;
@@ -218,10 +244,13 @@ function generateApplicationPDF(params: {
     businessName, product, referenceNumber, result, uploadedDocs, manualInputs,
     quotedRate, quotedAmount,
   } = params;
-  const amountLabel = quotedAmount
+
+  const safeBusinessName = getDisplayValue(businessName);
+  const amountLabel = (quotedAmount && quotedAmount > 0)
     ? `${quotedAmount.toLocaleString()} JOD`
-    : 'Amount set at bank quote';
-  const rateLabel = quotedRate || '';
+    : 'Not Available';
+  const rateLabel = getDisplayValue(quotedRate);
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210;
   const margin = 20;
@@ -240,7 +269,8 @@ function generateApplicationPDF(params: {
     doc.setTextColor(r, g, b);
     doc.text(str, x, y);
   };
-  const kv = (key: string, value: string) => {
+  const kv = (key: string, rawValue: unknown) => {
+    const value = getDisplayValue(rawValue);
     text(key, margin, false, 9, 100, 100, 100);
     text(value, col2, true, 9, 40, 40, 40);
     nl(6);
@@ -300,12 +330,12 @@ function generateApplicationPDF(params: {
   doc.text('APPLICATION DETAILS', margin + 4, y);
   nl(6);
 
-  kv('Business Name', businessName);
+  kv('Business Name', safeBusinessName);
   kv('Reference', referenceNumber);
   kv('Product', `${product.name} — ${product.bank}`);
   kv('Amount', amountLabel);
-  if (rateLabel) kv('Rate', `${rateLabel} per year`);
-  kv('Status', result.overallVerdict === 'ready' ? '✓ All Criteria Met' : '✓ Ready with Minor Caveats');
+  if (rateLabel !== 'Not Available') kv('Rate', `${rateLabel} per year`);
+  kv('Status', result.overallVerdict === 'ready' ? 'All Criteria Met' : 'Ready with Minor Caveats');
   kv('Application Score', `${result.applicationScore} / 100`);
   kv('Generated', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
 
@@ -321,7 +351,7 @@ function generateApplicationPDF(params: {
 
   sectionTitle('PRESCREENING RESULTS — CREDIT CRITERIA');
 
-  const verdictLabel = (v: Verdict) => v === 'pass' ? '✓ Pass' : v === 'marginal' ? '~ Marginal' : '✗ Fail';
+  const verdictLabel = (v: Verdict) => v === 'pass' ? 'Pass' : v === 'marginal' ? 'Marginal' : 'Fail';
   const verdictColors: Record<Verdict, [number, number, number]> = {
     pass: [34, 139, 34],
     marginal: [184, 134, 11],
@@ -343,7 +373,9 @@ function generateApplicationPDF(params: {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
-    doc.text(`Actual: ${c.actual}   Required: ${c.required}`, margin, y);
+    const actualDisplay = getDisplayValue(c.actual);
+    const requiredDisplay = getDisplayValue(c.required);
+    doc.text(`Actual: ${actualDisplay}   Required: ${requiredDisplay}`, margin, y);
     nl(4);
     if (c.fix && c.verdict !== 'pass') {
       doc.setFont('helvetica', 'italic');
@@ -374,7 +406,9 @@ function generateApplicationPDF(params: {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Actual: ${c.actual}   Required: ${c.required}`, margin, y);
+      const actualDisplay = getDisplayValue(c.actual);
+      const requiredDisplay = getDisplayValue(c.required);
+      doc.text(`Actual: ${actualDisplay}   Required: ${requiredDisplay}`, margin, y);
       nl(4);
       line(margin, y, W - margin, y, 235, 235, 235);
       nl(5);
@@ -382,10 +416,15 @@ function generateApplicationPDF(params: {
   }
 
   // ─── Business Plan & Loan Purpose ────────────────────────
-  if (manualInputs.businessPlan || manualInputs.loanPurposeDescription) {
+  const safePlan = manualInputs.businessPlan?.trim();
+  const safePurpose = manualInputs.loanPurposeDescription?.trim();
+  const safePurposeCategory = getDisplayValue(manualInputs.loanPurposeCategory);
+
+  if (safePlan || safePurpose || safePurposeCategory !== 'Not Available') {
     ensurePage(30);
     sectionTitle('APPLICANT-PROVIDED INFORMATION');
-    if (manualInputs.businessPlan) {
+
+    if (safePlan) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
@@ -394,15 +433,18 @@ function generateApplicationPDF(params: {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(60, 60, 60);
-      const bpLines = doc.splitTextToSize(manualInputs.businessPlan, W - margin * 2);
+      const bpLines = doc.splitTextToSize(safePlan, W - margin * 2);
       for (const l of bpLines.slice(0, 10)) {
         ensurePage(6);
         doc.text(l, margin, y);
         nl(5);
       }
       nl(2);
+    } else {
+      kv('Business Plan', 'Not Available');
     }
-    if (manualInputs.loanPurposeDescription) {
+
+    if (safePurpose) {
       ensurePage(20);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
@@ -412,11 +454,49 @@ function generateApplicationPDF(params: {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(60, 60, 60);
-      const lpLines = doc.splitTextToSize(manualInputs.loanPurposeDescription, W - margin * 2);
+      const lpLines = doc.splitTextToSize(safePurpose, W - margin * 2);
       for (const l of lpLines.slice(0, 6)) {
         ensurePage(6);
         doc.text(l, margin, y);
         nl(5);
+      }
+    } else {
+      kv('Loan Purpose', safePurposeCategory !== 'Not Available' ? safePurposeCategory : 'Not Available');
+    }
+
+    if (manualInputs.mgmtYearsExperience || manualInputs.mgmtBackground || manualInputs.mgmtTeamSize) {
+      ensurePage(20);
+      nl(3);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Management Information', margin, y);
+      nl(5);
+      kv('Years of experience', manualInputs.mgmtYearsExperience);
+      kv('Team size', manualInputs.mgmtTeamSize);
+      kv('Prior loans repaid', manualInputs.mgmtPriorLoansRepaid);
+      kv('Background', manualInputs.mgmtBackground);
+    }
+
+    if (manualInputs.industrySector || manualInputs.industryDescription) {
+      ensurePage(20);
+      nl(3);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Market & Industry Context', margin, y);
+      nl(5);
+      kv('Target market / sector', manualInputs.industrySector);
+      if (manualInputs.industryDescription?.trim()) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(60, 60, 60);
+        const idLines = doc.splitTextToSize(manualInputs.industryDescription.trim(), W - margin * 2);
+        for (const l of idLines.slice(0, 6)) {
+          ensurePage(6);
+          doc.text(l, margin, y);
+          nl(5);
+        }
       }
     }
   }
@@ -436,12 +516,12 @@ function generateApplicationPDF(params: {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
-      doc.text(`• ${label}`, margin, y);
+      doc.text(`\u2022 ${label}`, margin, y);
       nl(5);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text(`  File: ${info.fileName}`, margin, y);
+      doc.text(`  File: ${getDisplayValue(info.fileName)}`, margin, y);
       nl(5);
     }
     nl(3);

@@ -106,6 +106,14 @@ export interface AutoProfile {
   documents: (product: BankProduct) => DocumentItem[];
 }
 
+/** Returns 'Not Available' for empty/missing profile values shown in the UI and PDF. */
+function profileVal(value: string | number | null | undefined, suffix = ''): string {
+  if (value === null || value === undefined) return 'Not Available';
+  const str = String(value).trim();
+  if (!str || str === '0' || str === '-' || str === '—') return 'Not Available';
+  return suffix ? `${str} ${suffix}` : str;
+}
+
 export function buildAutoProfile(
   state: OnboardingState,
   creditScore: number,
@@ -125,18 +133,22 @@ export function buildAutoProfile(
     registrationNumber?: string;
   },
 ): AutoProfile {
-  const businessName = twin?.displayName || state.businessName || 'Your business';
-  const sector = state.businessSector || 'Food & Hospitality';
-  const category = state.category || 'Micro Enterprise';
-  const employees = state.employees || '4';
-  const years = state.yearsInOperation || '3';
+  // ── Core identity values — no hardcoded fallbacks ─────────
+  const businessName = twin?.displayName || state.businessName || '';
+  const sector       = state.businessSector || '';
+  const category     = state.category || '';
+  const employees    = state.employees || '';
+  const years        = state.yearsInOperation || '';
+
   const monthlyRev = twin?.monthlyRevenue
     ?? (state.annualRevenue ? parseInt(state.annualRevenue, 10) / 12 : 0);
   const revenue = monthlyRev > 0
     ? `${Math.round(monthlyRev).toLocaleString()} JOD/mo`
-    : '—';
+    : 'Not Available';
+
   const registrationNumber = (twin?.registrationNumber || state.registrationNumber || '').trim();
   const hasReg = !!registrationNumber;
+
   const connected = Object.values(state.connectedSources).filter(Boolean).length;
   const commitments = state.commitments ?? [];
   const existingDebt = twin?.monthlyDebt ?? 0;
@@ -147,7 +159,7 @@ export function buildAutoProfile(
   const cashBalance = twin?.cashBalance;
   const debtLabel = existingDebt > 0
     ? `${Math.round(existingDebt).toLocaleString()} JOD`
-    : '0 JOD';
+    : 'Not Available';
   const openBankingConnected =
     twin?.openBankingConnected ?? state.connectedSources.cliq;
   const accountsLinked = twin?.accountsLinked ?? 0;
@@ -156,14 +168,18 @@ export function buildAutoProfile(
     {
       id: 'identity',
       title: 'Business Identity',
-      status: 'complete',
+      status: businessName && sector ? 'complete' : 'partial',
       items: [
-        { label: 'Business name', value: businessName },
-        { label: 'Sector', value: sector },
-        { label: 'Enterprise size', value: category },
-        { label: 'Years in operation', value: `${years} years` },
-        { label: 'Employees', value: `${employees} employees` },
-        { label: 'Registration number', value: hasReg ? registrationNumber : 'Not provided', source: hasReg ? 'Ministry of Industry' : undefined },
+        { label: 'Business name',      value: profileVal(businessName) },
+        { label: 'Sector',             value: profileVal(sector) },
+        { label: 'Enterprise size',    value: profileVal(category) },
+        { label: 'Years in operation', value: years ? `${years} years` : 'Not Available' },
+        { label: 'Employees',          value: employees ? `${employees} employees` : 'Not Available' },
+        {
+          label: 'Registration number',
+          value: hasReg ? registrationNumber : 'Not Available',
+          source: hasReg ? 'Ministry of Industry' : undefined,
+        },
       ],
     },
     {
@@ -171,34 +187,47 @@ export function buildAutoProfile(
       title: 'Cash Flow & Financial Health',
       status: connected >= 2 ? 'complete' : 'partial',
       items: [
-        { label: 'Monthly revenue', value: revenue, source: state.connectedSources.jofotara ? 'JoFotara' : 'Estimated' },
-        { label: 'Monthly expenses', value: `${totalExpenses.toLocaleString()} JOD`, source: 'FinTwin profile' },
-        { label: 'Net monthly cash', value: netCash == null ? '—' : `${netCash >= 0 ? '+' : ''}${netCash.toLocaleString()} JOD` },
+        {
+          label: 'Monthly revenue',
+          value: revenue,
+          source: state.connectedSources.jofotara ? 'JoFotara' : (monthlyRev > 0 ? 'Estimated' : undefined),
+        },
+        {
+          label: 'Monthly expenses',
+          value: totalExpenses > 0 ? `${totalExpenses.toLocaleString()} JOD` : 'Not Available',
+          source: 'FinTwin profile',
+        },
+        {
+          label: 'Net monthly cash',
+          value: netCash == null ? 'Not Available' : `${netCash >= 0 ? '+' : ''}${netCash.toLocaleString()} JOD`,
+        },
         {
           label: 'Cash balance',
-          value: cashBalance != null ? `${Math.round(cashBalance).toLocaleString()} JOD` : '—',
-          source: openBankingConnected ? 'Open banking' : 'Estimated',
+          value: cashBalance != null && cashBalance > 0
+            ? `${Math.round(cashBalance).toLocaleString()} JOD`
+            : 'Not Available',
+          source: openBankingConnected ? 'Open banking' : undefined,
         },
       ],
     },
     {
       id: 'repayment',
       title: 'Repayment Capacity',
-      status: 'complete',
+      status: existingDebt > 0 || monthlyRev > 0 ? 'complete' : 'partial',
       items: [
         {
           label: 'Existing monthly debt',
           value: debtLabel,
-          source: existingDebt > 0 ? 'Open banking + applications' : 'No obligations synced',
+          source: existingDebt > 0 ? 'Open banking + applications' : undefined,
         },
         {
           label: 'Debt-to-income ratio',
-          value: dti == null ? '—' : `${dti}%`,
+          value: dti == null ? 'Not Available' : `${dti}%`,
         },
         ...(twin?.debtItems?.length
           ? twin.debtItems.slice(0, 4).map((item) => ({
               label: item.label,
-              value: `${Math.round(item.amount).toLocaleString()} JOD/mo`,
+              value: item.amount > 0 ? `${Math.round(item.amount).toLocaleString()} JOD/mo` : 'Not Available',
               source: 'Synced obligation',
             }))
           : []),
@@ -209,22 +238,20 @@ export function buildAutoProfile(
       title: 'Collateral & Assets',
       status: 'partial',
       items: [
-        { label: 'Business equipment', value: 'Declared (not valued)', source: 'Onboarding' },
-        { label: 'Inventory', value: 'Partial disclosure', source: 'JoFotara' },
-        { label: 'Real estate / property', value: 'Not declared' },
-        { label: 'Vehicles', value: 'Not declared' },
+        { label: 'Business equipment',    value: 'Not Available' },
+        { label: 'Inventory',             value: 'Not Available' },
+        { label: 'Real estate / property', value: 'Not Available' },
+        { label: 'Vehicles',              value: 'Not Available' },
       ],
     },
     {
       id: 'credit',
       title: 'Credit Score',
-      status: 'complete',
+      status: creditScore > 0 ? 'complete' : 'partial',
       items: [
-        { label: 'FinTwin credit score', value: `${creditScore} / 100`, source: 'FinTwin engine' },
-        { label: 'Payment history', value: '82 / 100', source: 'Open banking' },
-        { label: 'Cash flow health', value: '70 / 100' },
-        { label: 'Business age score', value: '65 / 100' },
-        { label: 'Data coverage', value: `${connected} of 4 sources connected` },
+        { label: 'FinTwin credit score', value: creditScore > 0 ? `${creditScore} / 100` : 'Not Available', source: 'FinTwin engine' },
+        { label: 'Green finance score',  value: greenScore  > 0 ? `${greenScore} / 100`  : 'Not Available', source: 'FinTwin engine' },
+        { label: 'Data coverage',        value: `${connected} of 4 sources connected` },
       ],
     },
     {
@@ -250,14 +277,14 @@ export function buildAutoProfile(
               label: 'Avg monthly inflow',
               value: twin?.avgMonthlyInflow != null && twin.avgMonthlyInflow > 0
                 ? `${Math.round(twin.avgMonthlyInflow).toLocaleString()} JOD`
-                : '—',
+                : 'Not Available',
               source: 'Open banking',
             },
             {
               label: 'Avg monthly outflow',
               value: twin?.avgMonthlyOutflow != null && twin.avgMonthlyOutflow > 0
                 ? `${Math.round(twin.avgMonthlyOutflow).toLocaleString()} JOD`
-                : '—',
+                : 'Not Available',
               source: 'Open banking',
             },
             {
@@ -276,10 +303,18 @@ export function buildAutoProfile(
       title: 'Legal & Compliance',
       status: hasReg ? 'complete' : 'partial',
       items: [
-        { label: 'Registration', value: hasReg ? 'Registered' : 'Unverified — add registration number', source: hasReg ? 'Ministry of Industry' : undefined },
-        { label: 'Tax / JoFotara', value: state.connectedSources.jofotara ? 'Connected & compliant' : 'Not verified', source: state.connectedSources.jofotara ? 'JoFotara' : undefined },
-        { label: 'Sanctions check', value: 'Clear', source: 'Internal check' },
-        { label: 'AML status', value: 'No flags', source: 'Internal check' },
+        {
+          label: 'Registration',
+          value: hasReg ? 'Registered' : 'Not Available',
+          source: hasReg ? 'Ministry of Industry' : undefined,
+        },
+        {
+          label: 'Tax / JoFotara',
+          value: state.connectedSources.jofotara ? 'Connected & compliant' : 'Not Available',
+          source: state.connectedSources.jofotara ? 'JoFotara' : undefined,
+        },
+        { label: 'Sanctions check', value: 'Not Available' },
+        { label: 'AML status',      value: 'Not Available' },
       ],
     },
   ];
