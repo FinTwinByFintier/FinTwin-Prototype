@@ -4,7 +4,8 @@ import { Link, useLocation } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useOnboarding } from "@/context/OnboardingContext";
-import { ApiError, login, routeFromNextStep, setToken } from "@/lib/api";
+import { ApiError, login, routeFromNextStep, setToken, fetchDashboardSummary, fetchScoringSummary } from "@/lib/api";
+import { queryClient, twinQueryKeys } from "@/lib/queryClient";
 import { SanadLoginBadge, SanadFutureCard, SanadLogo } from "@/components/SanadBadge";
 import { IdCard, LayoutDashboard, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,13 @@ export default function Login() {
       setToken(data.token);
       updateState({ authMethod: "sanad", nationalId });
       hydrateFromProfile(data.profile);
+
+      // First login this session — warm the shared cache so Dashboard opens
+      // instantly with numbers already in hand.
+      void Promise.allSettled([
+        queryClient.prefetchQuery({ queryKey: twinQueryKeys.dashboardSummary, queryFn: fetchDashboardSummary }),
+        queryClient.prefetchQuery({ queryKey: twinQueryKeys.scoringSummary, queryFn: fetchScoringSummary }),
+      ]);
 
       // Show the "Identity verified" Sanad flash for ~1 second
       setVerified(true);

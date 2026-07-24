@@ -466,10 +466,9 @@ function JoFotaraDialog({
 
 // ── POS flow ───────────────────────────────────────────────────────────────────
 const POS_PROVIDERS = [
-  { name: 'Network International', hasApi: true },
-  { name: 'HyperPay',              hasApi: true },
-  { name: 'MadfooatCom',           hasApi: true },
-  { name: 'Other',                 hasApi: false },
+  { name: 'POS Rocket', hasApi: true },
+  { name: 'Foodics', hasApi: true },
+  { name: 'Omega POS', hasApi: true },
 ];
 
 function PosDialog({

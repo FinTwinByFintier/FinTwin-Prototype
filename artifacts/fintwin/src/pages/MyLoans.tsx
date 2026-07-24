@@ -10,6 +10,7 @@ import {
   respondToLoanOffer,
   type LoanApplication,
 } from "@/lib/api";
+import { queryClient, twinQueryKeys, invalidateTwinData } from "@/lib/queryClient";
 import {
   buildPaymentSchedule,
   formatDueDate,
@@ -277,7 +278,10 @@ export default function MyLoans() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchLoanApplications();
+      const res = await queryClient.fetchQuery({
+        queryKey: twinQueryKeys.loanApplications,
+        queryFn: fetchLoanApplications,
+      });
       const list = res.applications || [];
       setApps(list);
       const parts = partitionLoans(list);
@@ -311,6 +315,7 @@ export default function MyLoans() {
     try {
       const updated = await respondToLoanOffer(id, decision);
       setApps((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      void invalidateTwinData(); // loan status changed — refresh cached loans/dashboard everywhere
       if (decision === "approved") {
         setTab("active");
         setExpandedId(id);

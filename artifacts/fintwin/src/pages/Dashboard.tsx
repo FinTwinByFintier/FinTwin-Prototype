@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useOnboarding } from "@/context/OnboardingContext";
@@ -21,6 +22,7 @@ import {
   type ScoringSummary, type LoanProduct, type LoanApplication, type ConcentrationSummary,
   type TwinTransaction,
 } from "@/lib/api";
+import { twinQueryKeys, invalidateTwinData } from "@/lib/queryClient";
 import { nextPayment, partitionLoans, formatDueDate } from "@/lib/loanSchedule";
 import {
   BarChart3, Leaf, FileText, TrendingUp, TrendingDown, Building,
@@ -75,13 +77,47 @@ export default function Dashboard() {
   const [menuOpen, setMenuOpen]               = useState(false);
   const [stepsOpen, setStepsOpen]             = useState(false);
   const [commitmentsOpen, setCommitmentsOpen] = useState(false);
-  const [summary, setSummary]                 = useState<DashboardSummary | null>(null);
   const [syncing, setSyncing]                 = useState(false);
-  const [scoring, setScoring]                 = useState<ScoringSummary | null>(null);
-  const [loanProducts, setLoanProducts]       = useState<LoanProduct[]>([]);
-  const [loanApps, setLoanApps]               = useState<LoanApplication[]>([]);
-  const [latestLoan, setLatestLoan]           = useState<LoanApplication | null>(null);
-  const [concentration, setConcentration]     = useState<ConcentrationSummary | null>(null);
+
+  // Shared, cached twin data — fetched once (per login session) and reused
+  // across every page (Dashboard, Simulation, Loan Prescreening, ...) so
+  // numbers never drift and refreshing / changing pages doesn't re-call the
+  // API. See src/lib/queryClient.ts.
+  const { data: summary } = useQuery<DashboardSummary>({
+    queryKey: twinQueryKeys.dashboardSummary,
+    queryFn: fetchDashboardSummary,
+    retry: 0,
+  });
+  const { data: scoring } = useQuery<ScoringSummary>({
+    queryKey: twinQueryKeys.scoringSummary,
+    queryFn: fetchScoringSummary,
+    retry: 0,
+  });
+  const { data: loanProductsData } = useQuery({
+    queryKey: twinQueryKeys.loanProducts,
+    queryFn: fetchLoanProducts,
+    retry: 0,
+  });
+  const loanProducts: LoanProduct[] = loanProductsData?.products || [];
+  const { data: loanAppsData } = useQuery({
+    queryKey: twinQueryKeys.loanApplications,
+    queryFn: fetchLoanApplications,
+    retry: 0,
+  });
+  const loanApps: LoanApplication[] = loanAppsData?.applications || [];
+  const latestLoan = useMemo<LoanApplication | null>(() => {
+    const { pending, active } = partitionLoans(loanApps);
+    return (
+      pending[0] || active[0] ||
+      loanApps.find((a) => !["cancelled", "rejected"].includes(a.status)) ||
+      loanApps[0] || null
+    );
+  }, [loanApps]);
+  const { data: concentration } = useQuery<ConcentrationSummary>({
+    queryKey: twinQueryKeys.concentration,
+    queryFn: fetchConcentration,
+    retry: 0,
+  });
 
   useEffect(() => {
     if (!getToken()) {
@@ -89,47 +125,22 @@ export default function Dashboard() {
     }
   }, [navigate]);
 
+  // Backfill the onboarding display name from the twin the first time it loads.
   useEffect(() => {
-    let cancelled = false;
-    fetchDashboardSummary()
-      .then((s) => {
-        if (cancelled) return;
-        setSummary(s);
-        const name = s.display_identity?.display_name;
-        if (name && !state.businessName) {
-          updateState({ businessName: name });
-        }
-      })
-      .catch(() => { /* keep mocks if the twin has no data yet */ });
-    fetchScoringSummary()
-      .then((s) => { if (!cancelled) setScoring(s); })
-      .catch(() => {});
-    fetchLoanProducts()
-      .then((r) => { if (!cancelled) setLoanProducts(r.products || []); })
-      .catch(() => {});
-    fetchLoanApplications()
-      .then((r) => {
-        if (cancelled) return;
-        const apps = r.applications || [];
-        setLoanApps(apps);
-        const { pending, active } = partitionLoans(apps);
-        const spotlight = pending[0] || active[0] || apps.find((a) => !["cancelled", "rejected"].includes(a.status)) || apps[0] || null;
-        setLatestLoan(spotlight);
-      })
-      .catch(() => {});
-    fetchConcentration()
-      .then((c) => { if (!cancelled) setConcentration(c); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+    const name = summary?.display_identity?.display_name;
+    if (name && !state.businessName) {
+      updateState({ businessName: name });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary?.display_identity?.display_name]);
 
   const handleSyncNow = async () => {
     setSyncing(true);
     try {
       await runDataSync();
-      const [s, sc] = await Promise.all([fetchDashboardSummary(), fetchScoringSummary()]);
-      setSummary(s);
-      setScoring(sc);
+      // Data actually changed — force every cached twin number to refetch
+      // (Dashboard + Simulation + Loan Prescreening all share this cache).
+      await invalidateTwinData();
     } catch {
       // best-effort — keep whatever we already have
     } finally {

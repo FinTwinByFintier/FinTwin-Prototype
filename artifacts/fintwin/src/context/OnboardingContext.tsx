@@ -10,6 +10,7 @@ import {
   setToken,
   type BusinessProfilePayload,
 } from '@/lib/api';
+import { clearQueryCache } from '@/lib/queryClient';
 
 export type { Commitment };
 
@@ -178,6 +179,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setCurrentStepState(1);
     setToken(null);
     clearOpenBankingAccountsCache();
+    clearQueryCache();
     setIsAuthenticated(false);
   };
 
@@ -188,6 +190,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       setToken(null);
     }
     clearOpenBankingAccountsCache();
+    clearQueryCache();
     setState(initialState);
     setCurrentStepState(1);
     setIsAuthenticated(false);
