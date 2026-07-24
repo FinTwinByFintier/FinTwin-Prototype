@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { type GreenAssessmentResult } from "@/lib/api";
 import { lastGreenAssessmentResult } from "@/pages/GreenAssessment";
-import { Leaf, BarChart3, Zap, Droplets, Car, Award, ArrowRight, RotateCcw, FlaskConical } from "lucide-react";
+import { Leaf, BarChart3, Zap, Droplets, Car, Award, ArrowRight, RotateCcw } from "lucide-react";
 
 /* ─── Grade helpers ─────────────────────────────────────────── */
 function gradeColor(grade: string) {
@@ -170,14 +170,6 @@ export default function GreenScore() {
               <BarChart3 className="w-3.5 h-3.5" />
               Confidence: <span className="font-semibold text-foreground ml-0.5">{result.confidence}%</span>
             </span>
-            <span>·</span>
-            <span>
-              Algorithm: <span className="font-semibold text-foreground">{result.algorithm_version}</span>
-            </span>
-            <span>·</span>
-            <span>
-              ID: <span className="font-mono text-foreground">{result.assessment_id}</span>
-            </span>
           </div>
         </motion.div>
 
@@ -247,13 +239,6 @@ export default function GreenScore() {
             onClick={() => navigate("/dashboard")}
           >
             <BarChart3 className="w-4 h-4" /> Back to Dashboard
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 rounded-full gap-2"
-            onClick={() => navigate("/simulation")}
-          >
-            <FlaskConical className="w-4 h-4" /> Run Simulation
           </Button>
           {result.green_score >= 55 && (
             <Button

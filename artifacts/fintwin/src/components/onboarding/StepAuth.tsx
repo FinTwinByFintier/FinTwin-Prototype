@@ -58,7 +58,10 @@ export function StepAuth() {
       await sleep(remaining);
       window.clearInterval(anim);
       setStepIdx(AUTH_STEPS.length);
-      setCurrentStep(data.next_step || 2);
+      // Always start at step 2 (Identity) after registration.
+      // Never trust next_step from the register endpoint — the backend may
+      // return a completed step value for returning users, which would skip onboarding.
+      setCurrentStep(2);
     } catch (err) {
       window.clearInterval(anim);
       setView("form");

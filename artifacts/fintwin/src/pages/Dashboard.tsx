@@ -581,69 +581,89 @@ export default function Dashboard() {
 
               {/* Green */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border rounded-3xl p-6 shadow-sm">
+                {/* Card header */}
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('dashboard.greenFinanceScore')}</p>
-                    <div className="flex items-end gap-1.5">
-                      <span className="text-4xl font-bold">{greenScore}</span>
-                      <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                    {t('dashboard.greenFinanceScore')}
+                  </p>
+                  <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                    <Leaf className="w-4 h-4 text-emerald-600" />
+                  </div>
+                </div>
+
+                {/* First-time: no assessment yet */}
+                {(!scoring || scoring.is_placeholder) && (
+                  <div className="text-center py-2 space-y-4">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
+                      <Leaf className="w-7 h-7 text-emerald-600" />
                     </div>
-                    <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${gc.text}`}>
-                      <Leaf className="w-3 h-3" />{gc.label}
-                      {scoring && !scoring.is_placeholder ? (
-                        <span className="ms-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                          Assessed
-                        </span>
-                      ) : (
-                        <span className="ms-1 text-[10px] font-medium text-muted-foreground">
-                          Heuristic
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">
-                    <Leaf className="w-5 h-5 text-emerald-600" />
-                  </div>
-                </div>
-
-                <div className="mb-5">
-                  <div className="relative h-3 rounded-full overflow-hidden flex">
-                    <div className="h-full bg-red-400/70" style={{ width: "50%" }} />
-                    <div className="h-full bg-amber-400/70" style={{ width: "25%" }} />
-                    <div className="h-full bg-emerald-400/70" style={{ width: "25%" }} />
-                  </div>
-                  <div className="relative h-0">
-                    <motion.div
-                      initial={{ left: "0%" }}
-                      animate={{ left: `${greenScore}%` }}
-                      transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
-                      className="absolute -top-4 -translate-x-1/2"
+                    <div>
+                      <h3 className="font-semibold text-base mb-1">No Assessment Yet</h3>
+                      <p className="text-xs text-muted-foreground max-w-[220px] mx-auto">
+                        Complete your Green Assessment to receive your personalized Green Finance Score.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => navigate('/green-assessment')}
+                      className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
                     >
-                      <div className="w-2.5 h-5 bg-foreground rounded-full shadow" />
-                    </motion.div>
+                      <Leaf className="w-4 h-4" /> Start Green Assessment
+                    </button>
                   </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mt-3">
-                    <span>{t('dashboard.lowHigh')}</span><span>{t('dashboard.midLabel')}</span><span>{t('dashboard.highLabel')}</span>
+                )}
+
+                {/* Returning user: real score */}
+                {scoring && !scoring.is_placeholder && (
+                  <div className="space-y-4">
+                    {/* Score + grade row */}
+                    <div className="flex items-end gap-2">
+                      <span className="text-4xl font-bold">{greenScore}</span>
+                      <span className="text-muted-foreground text-base mb-1">/100</span>
+                      <span className={`text-xl font-bold mb-1 ms-1 ${gc.text}`}>{scoring.green_band}</span>
+                      <span className={`ms-auto text-xs font-semibold px-2 py-0.5 rounded-full ${gc.text}`}
+                        style={{ backgroundColor: greenScore >= 75 ? 'rgb(240 253 244)' : greenScore >= 50 ? 'rgb(255 251 235)' : 'rgb(254 242 242)' }}>
+                        {gc.label}
+                      </span>
+                    </div>
+
+                    {/* Category breakdown */}
+                    {Object.keys(scoring.green_breakdown || {}).length > 0 && (
+                      <div className="space-y-2.5">
+                        {Object.entries(scoring.green_breakdown).map(([key, cat]) => (
+                          <div key={key}>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                              <span className="font-semibold">{cat.component_score}<span className="text-muted-foreground font-normal">/100</span></span>
+                            </div>
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${cat.component_score}%` }}
+                                transition={{ duration: 0.7, ease: "easeOut" }}
+                                className={`h-full rounded-full ${gc.bar}`}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Assessment date */}
+                    {scoring.computed_at && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Assessed {new Date(scoring.computed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    )}
+
+                    {/* Retake button */}
+                    <button
+                      onClick={() => navigate('/green-assessment')}
+                      className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 bg-emerald-500/8 hover:bg-emerald-500/12 border border-emerald-500/20 rounded-xl py-2 transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Retake Assessment
+                    </button>
                   </div>
-                </div>
-
-                <div className={`rounded-xl p-3 text-xs border ${gc.text}`} style={{ backgroundColor: greenScore >= 75 ? 'rgb(240 253 244)' : greenScore >= 50 ? 'rgb(255 251 235)' : 'rgb(254 242 242)' }}>
-                  <p className="font-semibold mb-0.5">{t('dashboard.cbgEligible')}</p>
-                  <p className="text-muted-foreground">{t('dashboard.cbgEligibleDesc', { rate: '2.75%' })}</p>
-                </div>
-
-                <div className="mt-4 flex justify-between text-xs text-muted-foreground border-t pt-4">
-                  <span>{t('dashboard.matchedGreenProducts')}</span>
-                  <span className="font-semibold text-foreground">{t('dashboard.available', { count: greenProductCount || matches.length })}</span>
-                </div>
-
-                <button
-                  onClick={() => navigate('/green-assessment')}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 bg-emerald-500/8 hover:bg-emerald-500/12 border border-emerald-500/20 rounded-xl py-2 transition-colors"
-                >
-                  <Leaf className="w-3.5 h-3.5" />
-                  Take Green Assessment
-                </button>
+                )}
               </motion.div>
             </div>
 
