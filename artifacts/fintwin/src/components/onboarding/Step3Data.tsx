@@ -70,8 +70,12 @@ function OpenBankingDialog({
         setPhase("error");
         return;
       }
-      setAccounts(result.accounts || []);
-      setSelected(new Set(result.selected_account_ids || []));
+      const list = result.accounts || [];
+      setAccounts(list);
+      const visibleIds = new Set(list.map((a) => a.account_id));
+      // Only keep selections that are actually on screen (never phantom seeded ids).
+      const incoming = (result.selected_account_ids || []).filter((id) => visibleIds.has(id));
+      setSelected(new Set(incoming));
       setFromCache(Boolean(result.cached) && !refresh);
       setPhase("select");
     } catch (err) {
@@ -86,11 +90,10 @@ function OpenBankingDialog({
     if (!open) return;
     let cancelled = false;
     void (async () => {
-      if (accounts.length && !cancelled) {
-        setPhase("select");
-        setError("");
-        return;
-      }
+      // Always reload when opening so we don't reuse a stale selection / account list.
+      setAccounts([]);
+      setSelected(new Set());
+      setError("");
       await loadAccounts(false);
       if (cancelled) return;
     })();
@@ -110,14 +113,16 @@ function OpenBankingDialog({
   };
 
   const handleSave = async () => {
-    if (!selected.size) {
+    const visibleIds = new Set(accounts.map((a) => a.account_id));
+    const toSave = [...selected].filter((id) => visibleIds.has(id));
+    if (!toSave.length) {
       setError("Select at least one SME account");
       return;
     }
     setError("");
     setPhase("saving");
     try {
-      const result = await saveOpenBankingAccounts([...selected]);
+      const result = await saveOpenBankingAccounts(toSave);
       setSavedCount(result.saved);
       setPrimaryIban(result.accounts[0]?.iban || "");
       setPhase("done");
@@ -209,7 +214,7 @@ function OpenBankingDialog({
               ) : (
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                   <p className="text-[11px] text-muted-foreground">
-                    Non-zero balance accounts are pre-selected when available — you can change the selection before saving.
+                    Select the account(s) you want to link. Nothing is selected by default until you choose.
                   </p>
                   {accounts.map((a) => {
                     const checked = selected.has(a.account_id);

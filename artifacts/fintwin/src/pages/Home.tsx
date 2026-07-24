@@ -2,9 +2,10 @@ import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BarChart3, Leaf, Landmark } from "lucide-react";
+import { ArrowRight, BarChart3, Leaf, Landmark, LayoutDashboard } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { useOnboarding } from "@/context/OnboardingContext";
 import { useTranslation } from "react-i18next";
 import heroDataImage from "@assets/Pasted--svg-viewBox-0-0-1200-720-fill-none-xmlns-http-www-w3-o_1784229700790.svg";
 
@@ -20,6 +21,7 @@ const stagger = {
 
 export default function Home() {
   const { t } = useTranslation();
+  const { isAuthenticated } = useOnboarding();
 
   useEffect(() => {
     const fromNav = sessionStorage.getItem("scrollToHowItWorks");
@@ -69,9 +71,19 @@ export default function Home() {
                   {t('home.heroSubtitle')}
                 </motion.p>
                 <motion.div variants={fadeIn}>
-                  <Button size="lg" className="h-14 px-8 text-lg rounded-full" asChild>
-                    <Link href="/get-started">
-                      {t('home.getStarted')} <ArrowRight className="ms-2 h-5 w-5 rtl:rotate-180" />
+                  <Button size="lg" className="h-14 px-8 text-lg rounded-full gap-2" asChild>
+                    <Link href={isAuthenticated ? "/dashboard" : "/get-started"}>
+                      {isAuthenticated ? (
+                        <>
+                          <LayoutDashboard className="h-5 w-5" />
+                          {t("nav.goToDashboard")}
+                        </>
+                      ) : (
+                        <>
+                          {t("home.getStarted")}{" "}
+                          <ArrowRight className="ms-2 h-5 w-5 rtl:rotate-180" />
+                        </>
+                      )}
                     </Link>
                   </Button>
                 </motion.div>
@@ -161,10 +173,12 @@ export default function Home() {
             <Button
               size="lg"
               variant="secondary"
-              className="h-14 px-10 text-lg rounded-full text-foreground"
+              className="h-14 px-10 text-lg rounded-full text-foreground gap-2"
               asChild
             >
-              <Link href="/get-started">{t('home.ctaButton')}</Link>
+              <Link href={isAuthenticated ? "/dashboard" : "/get-started"}>
+                {isAuthenticated ? t("nav.goToDashboard") : t("home.ctaButton")}
+              </Link>
             </Button>
           </div>
         </section>

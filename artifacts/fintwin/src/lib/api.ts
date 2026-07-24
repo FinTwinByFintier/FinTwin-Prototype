@@ -532,6 +532,15 @@ export type ScoringSummary = {
   }>;
   liquidity_gate_failures?: string[];
   liquidity_max_points?: Record<string, number>;
+  liquidity_metrics?: {
+    available_liquidity?: number;
+    avg_daily_outflow?: number;
+    projected_30d_obligations?: number;
+    runway_days?: number;
+    coverage_ratio?: number | null;
+    coverage_tier?: string;
+    coverage_strong_threshold?: number;
+  };
   green_score: number;
   green_band: string;
   credit_breakdown: Record<

@@ -7,6 +7,12 @@ import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { CommitmentsSheet } from "@/components/CommitmentsSheet";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   fetchDashboardSummary, runDataSync,
   fetchScoringSummary, fetchLoanProducts, fetchLoanApplications, fetchConcentration,
   getToken,
@@ -20,7 +26,7 @@ import {
   CheckCircle2, Clock, AlertCircle, LogOut, ArrowRight,
   Wallet, Droplets, CreditCard, Plus, ChevronDown, ChevronUp,
   Circle, FlaskConical, ReceiptText, Landmark, RefreshCw, CalendarClock,
-  PieChart,
+  PieChart, Loader2, Info,
 } from "lucide-react";
 
 /* ── Fallback mock data (used until real twin data loads / if a source has none) ── */
@@ -137,8 +143,16 @@ export default function Dashboard() {
   const sector       = state.businessSector || "Food & Hospitality";
   const creditScore  = scoring?.credit_score ?? 0;
   const greenScore   = scoring?.green_score ?? 62;
-  const creditEligible = scoring?.credit_eligible !== false;
+  const creditEligible = scoring?.credit_eligible === true;
+  // Pending / not yet computed — show calculating instead of unavailable/"—"
+  const creditCalculating = scoring == null || !creditEligible;
   const liquidityScore = scoring?.liquidity_score ?? null;
+  const liquidityEligible = scoring?.liquidity_eligible === true;
+  const liquidityMetrics = scoring?.liquidity_metrics;
+  const runwayDays =
+    liquidityMetrics?.runway_days != null && Number.isFinite(Number(liquidityMetrics.runway_days))
+      ? Number(liquidityMetrics.runway_days)
+      : null;
 
   function greenLabel(score: number) {
     if (score >= 75) return t('dashboard.greenScoreLabels.strong');
@@ -190,11 +204,19 @@ export default function Dashboard() {
     totalAvailableBalance != null && Number.isFinite(totalAvailableBalance)
       ? totalAvailableBalance
       : null;
-  const avgMonthlyExpense = totalExpenseSum > 0 ? totalExpenseSum / cashFlow.length : 0;
-  const runwayMonths =
-    liquidityAmount != null && liquidityAmount > 0 && avgMonthlyExpense > 0
-      ? liquidityAmount / avgMonthlyExpense
-      : null;
+
+  function runwayTierLabel(days: number | null): string {
+    if (days == null) return "Calculating";
+    if (days >= 30) return "Healthy runway";
+    if (days >= 7) return "Limited runway";
+    return "Critical runway";
+  }
+  function runwaySubColor(days: number | null): string {
+    if (days == null) return "text-muted-foreground";
+    if (days >= 30) return "text-emerald-600";
+    if (days >= 7) return "text-amber-600";
+    return "text-red-500";
+  }
 
   /* Real recent transactions from the twin — falls back to mock */
   const realTransactions: RecentTransaction[] = summary?.recent_transactions ?? [];
@@ -420,7 +442,7 @@ export default function Dashboard() {
         )}
 
         {/* Loan eligibility banner */}
-        {creditScore >= 55 && (
+        {!creditCalculating && creditScore >= 55 && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -467,19 +489,33 @@ export default function Dashboard() {
             {
               id: "liquidity",
               icon: Droplets,
-              label: t('dashboard.liquidity'),
-              value: liquidityAmount != null ? formatMoney(liquidityAmount) : "—",
-              sub: liquidityScore != null
-                ? `Liquidity score ${Math.round(liquidityScore)}/100`
-                : runwayMonths != null
-                  ? t('dashboard.liquidityRunwaySub', { months: runwayMonths.toFixed(1) })
-                  : liquidityAmount != null
-                    ? t('dashboard.liquidityFromBanks')
+              label: t('dashboard.runway'),
+              value:
+                liquidityEligible && runwayDays != null
+                  ? `${Math.round(runwayDays)} days`
+                  : scoring == null
+                    ? "···"
+                    : "—",
+              sub:
+                liquidityEligible && runwayDays != null
+                  ? `${runwayTierLabel(runwayDays)}${
+                      liquidityScore != null ? ` · Score ${Math.round(liquidityScore)}/100` : ""
+                    }`
+                  : scoring == null
+                    ? "Calculating…"
                     : t('dashboard.liquidityEmpty'),
-              subColor: liquidityScore != null || (liquidityAmount != null && liquidityAmount > 0)
-                ? "text-emerald-600"
-                : "text-muted-foreground",
+              subColor: runwaySubColor(runwayDays),
               viewAllHref: null as string | null,
+              tooltip:
+                liquidityEligible && runwayDays != null
+                  ? [
+                      "Cash runway = available bank balance ÷ average daily outflow.",
+                      `Available liquidity: ${formatMoney(liquidityMetrics?.available_liquidity ?? liquidityAmount)}`,
+                      `Avg daily outflow: ${formatMoney(liquidityMetrics?.avg_daily_outflow)}`,
+                      `Cash runway: ${Math.round(runwayDays)} days`,
+                      "≥30 days healthy · 7–29 limited · <7 critical",
+                    ].join("\n")
+                  : "Cash runway is calculated from your connected bank balance and recent outflows once open banking is linked.",
             },
             {
               id: "loans",
@@ -496,6 +532,7 @@ export default function Dashboard() {
             },
           ].map((stat, i) => {
             const Icon = stat.icon;
+            const tooltip = "tooltip" in stat ? (stat as { tooltip?: string }).tooltip : undefined;
             return (
               <motion.div
                 key={stat.id}
@@ -509,7 +546,30 @@ export default function Dashboard() {
                     <div className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center flex-shrink-0">
                       <Icon className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                      {tooltip && (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground/70 hover:text-foreground transition-colors"
+                                aria-label="Liquidity explanation"
+                              >
+                                <Info className="w-3.5 h-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="bottom"
+                              className="max-w-[280px] whitespace-pre-line leading-relaxed bg-foreground text-background"
+                            >
+                              {tooltip}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </div>
                   {stat.viewAllHref && (
                     <Button
@@ -540,36 +600,64 @@ export default function Dashboard() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">{t('dashboard.creditReadiness')}</p>
-                    <div className="flex items-end gap-1.5">
-                      <span className="text-4xl font-bold">{creditEligible ? creditScore : "—"}</span>
-                      <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
-                    </div>
-                    <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${creditEligible ? "text-amber-500" : "text-red-500"}`}>
-                      <AlertCircle className="w-3 h-3" />
-                      {creditEligible
-                        ? creditLabel(creditScore)
-                        : "Not eligible yet"}
-                    </p>
-                    {scoring?.default_probability != null && creditEligible && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Default risk {(scoring.default_probability * 100).toFixed(1)}%
-                      </p>
+                    {creditCalculating ? (
+                      <>
+                        <div className="flex items-end gap-2">
+                          <span className="text-3xl font-bold text-muted-foreground">···</span>
+                          <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
+                        </div>
+                        <p className="text-xs font-medium mt-1 flex items-center gap-1.5 text-primary">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Calculating…
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-end gap-1.5">
+                          <span className="text-4xl font-bold">{creditScore}</span>
+                          <span className="text-muted-foreground text-base mb-1">{t('common.outOf100')}</span>
+                        </div>
+                        <p className="text-xs font-medium mt-1 flex items-center gap-1 text-amber-500">
+                          <AlertCircle className="w-3 h-3" />
+                          {creditLabel(creditScore)}
+                        </p>
+                        {scoring?.default_probability != null && (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Default risk {(scoring.default_probability * 100).toFixed(1)}%
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-primary" />
+                    {creditCalculating
+                      ? <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                      : <BarChart3 className="w-5 h-5 text-primary" />}
                   </div>
                 </div>
 
                 <div className="mb-4">
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${creditEligible ? creditScore : 0}%` }} transition={{ duration: 1, delay: 0.3, ease: "easeOut" }} className="h-full bg-primary rounded-full" />
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${creditCalculating ? 35 : creditScore}%` }}
+                      transition={
+                        creditCalculating
+                          ? { duration: 1.2, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }
+                          : { duration: 1, delay: 0.3, ease: "easeOut" }
+                      }
+                      className={`h-full rounded-full ${creditCalculating ? "bg-primary/40" : "bg-primary"}`}
+                    />
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground mt-1.5"><span>0</span><span>100</span></div>
                 </div>
 
                 <div className="space-y-2.5">
-                  {scoreBreakdown.length > 0 ? scoreBreakdown.map(item => (
+                  {creditCalculating ? (
+                    <p className="text-xs text-muted-foreground">
+                      Your credit readiness score is being calculated from connected data sources…
+                    </p>
+                  ) : scoreBreakdown.length > 0 ? scoreBreakdown.map(item => (
                     <div key={item.label} className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground w-28 shrink-0">{item.label}</span>
                       <div className="flex-grow h-1.5 bg-muted rounded-full overflow-hidden">

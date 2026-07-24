@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { useTranslation } from "react-i18next";
-import { LogOut, Telescope } from "lucide-react";
+import { LayoutDashboard, LogOut, Telescope } from "lucide-react";
 
 export function Navbar() {
   const [location, setLocation] = useLocation();
@@ -12,7 +12,8 @@ export function Navbar() {
   const { t } = useTranslation();
   const { isAuthenticated, signOut } = useOnboarding();
 
-  const brandHref = "/";
+  const onOnboarding = location === "/onboarding";
+  const brandHref = isAuthenticated ? "/dashboard" : "/";
 
   const goToHowItWorks = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,7 +42,7 @@ export function Navbar() {
               Fin<span className="text-primary transition-colors group-hover:text-primary/80">Twin</span>
             </span>
           </Link>
-          {!isAuthenticated && (
+          {!onOnboarding && (
             <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
               <Link
                 href="/"
@@ -88,14 +89,28 @@ export function Navbar() {
             {t("lang.switch")}
           </button>
           {isAuthenticated ? (
-            <Button
-              variant="ghost"
-              className="gap-2 text-muted-foreground hover:text-destructive"
-              onClick={handleSignOut}
-            >
-              <LogOut className="w-4 h-4" />
-              {t("nav.signOut")}
-            </Button>
+            <>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
+                {t("nav.signedIn")}
+              </span>
+              {!onOnboarding && (
+                <Button asChild className="gap-2">
+                  <Link href="/dashboard">
+                    <LayoutDashboard className="w-4 h-4" />
+                    {t("nav.goToDashboard")}
+                  </Link>
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                className="gap-2 text-muted-foreground hover:text-destructive"
+                onClick={handleSignOut}
+              >
+                <LogOut className="w-4 h-4" />
+                {t("nav.signOut")}
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" asChild className="hidden sm:inline-flex">

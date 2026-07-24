@@ -33,7 +33,9 @@
     "signIn": "Sign In",
     "getStarted": "Get Started",
     "signOut": "Sign out",
-    "freePlan": "Free plan"
+    "freePlan": "Free plan",
+    "goToDashboard": "Go to dashboard",
+    "signedIn": "Signed in"
   },
   "home": {
     "heroTitle1": "Turn your business into a",

@@ -6,11 +6,12 @@ import { Footer } from "@/components/layout/Footer";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { ApiError, login, routeFromNextStep, setToken } from "@/lib/api";
 import { SanadLoginBadge, SanadFutureCard, SanadLogo } from "@/components/SanadBadge";
-import { IdCard, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { IdCard, LayoutDashboard, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { updateState, resumeAtStep, hydrateFromProfile } = useOnboarding();
+  const { updateState, resumeAtStep, hydrateFromProfile, isAuthenticated } = useOnboarding();
 
   const [nationalId, setNationalId] = useState("");
   const [password, setPassword] = useState("");
@@ -73,6 +74,27 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           className="max-w-md w-full"
         >
+          {isAuthenticated && !verified ? (
+            <div className="bg-card border rounded-3xl p-8 text-center space-y-5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
+                Signed in
+              </span>
+              <div>
+                <h1 className="text-2xl font-bold mb-2">You&apos;re already signed in</h1>
+                <p className="text-muted-foreground text-sm">
+                  Your session is active. Continue to your FinTwin dashboard.
+                </p>
+              </div>
+              <Button asChild className="w-full gap-2">
+                <Link href="/dashboard">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Go to dashboard
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <>
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
             <p className="text-muted-foreground text-sm">
@@ -198,6 +220,8 @@ export default function Login() {
               </motion.div>
             )}
           </AnimatePresence>
+            </>
+          )}
         </motion.div>
       </main>
 
