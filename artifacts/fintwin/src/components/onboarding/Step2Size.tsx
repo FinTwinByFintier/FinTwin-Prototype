@@ -49,11 +49,29 @@ export function Step2Size() {
   };
 
   const determineCategory = (): EnterpriseCategory => {
-    const emp = parseInt(employees) || 0;
     const revenue = parseInt(state.annualRevenue || '0') || 0;
-    if (emp >= 20 || revenue >= 1_000_000) return 'Medium Enterprise';
-    if (emp >= 5  || revenue >= 100_000)   return 'Small Enterprise';
-    return 'Micro Enterprise';
+    const sector = state.businessSector;
+
+    // Industrial: Small Manufacturing, Agriculture, Crafts & Trades
+    const isIndustrial = sector === 'Small Manufacturing' || sector === 'Agriculture' || sector === 'Crafts & Trades';
+    // Trade: Retail & Trade
+    const isTrade = sector === 'Retail & Trade';
+    // Services: everything else (Food & Hospitality, Services, Professional Services, Other, or unset)
+
+    if (isIndustrial) {
+      if (revenue < 100_000)   return 'Micro Enterprise';
+      if (revenue < 1_000_000) return 'Small Enterprise';
+      return 'Medium Enterprise';
+    }
+    if (isTrade) {
+      if (revenue < 120_000) return 'Micro Enterprise';
+      if (revenue < 500_000) return 'Small Enterprise';
+      return 'Medium Enterprise';
+    }
+    // Services (default)
+    if (revenue < 200_000) return 'Micro Enterprise';
+    if (revenue < 500_000) return 'Small Enterprise';
+    return 'Medium Enterprise';
   };
 
   const handleNext = () => {
@@ -162,7 +180,7 @@ export function Step2Size() {
           </div>
           {errors.revenue
             ? <p className="text-destructive text-xs">{errors.revenue}</p>
-            : <p className="text-xs text-muted-foreground">Approximate annual revenue before taxes.</p>
+            : <p className="text-xs text-muted-foreground">This is an estimate — you can update it at any time.</p>
           }
         </div>
       </div>
