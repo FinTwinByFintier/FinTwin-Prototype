@@ -33,7 +33,9 @@
     "signIn": "تسجيل الدخول",
     "getStarted": "ابدأ الآن",
     "signOut": "تسجيل الخروج",
-    "freePlan": "الخطة المجانية"
+    "freePlan": "الخطة المجانية",
+    "goToDashboard": "اذهب إلى لوحة التحكم",
+    "signedIn": "مسجّل الدخول"
   },
   "home": {
     "heroTitle1": "اجعل عملك",
