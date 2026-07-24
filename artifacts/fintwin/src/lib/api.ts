@@ -678,28 +678,27 @@ export function fetchConcentration() {
   return apiFetch<ConcentrationSummary>("/api/v1/lending/concentration/");
 }
 
-/* ── Green Scoring ──────────────────────────────────────── */
+/* ── Green Scoring (sector assessment → TwinScore) ───────── */
 
 export type GreenAssessmentPayload = {
-  // Energy (weight 30)
-  energy_source: string;           // "grid" | "solar" | "mixed" | "other"
-  renewable_energy_pct: string;    // "0" | "1-25" | "26-50" | "51-75" | "76-100"
-  energy_efficient_lighting: boolean;
+  solar_panels: boolean;
+  energy_efficient_equipment: string[];
+  monthly_electricity_consumption: number;
   energy_monitoring: boolean;
-  // Water (weight 15)
-  water_efficient_fixtures: boolean;
-  water_monitoring: boolean;
+  renewable_percentage: number;
+  water_source: string;
   water_recycling: boolean;
-  // Transportation (weight 30)
-  primary_transport: string;       // "none" | "personal_car" | "company_fleet" | "public"
-  has_electric_vehicles: boolean;
-  supports_remote_work: boolean;
-  monthly_business_trips: string;  // "0" | "1-5" | "6-20" | "20+"
-  // Certifications (weight 25)
-  has_iso_14001: boolean;
-  has_green_star: boolean;
-  has_other_green_cert: boolean;
-  has_sustainability_policy: boolean;
+  monthly_water_consumption: number;
+  water_monitoring: boolean;
+  employee_commute: string;
+  ev_charging: boolean;
+  delivery_methods: string[];
+  route_optimization: boolean;
+  iso14001: boolean;
+  green_building: boolean;
+  local_green_awards: boolean;
+  environmental_audits: boolean;
+  sustainability_report: boolean;
 };
 
 export type GreenCategoryResult = {
@@ -721,10 +720,15 @@ export type GreenAssessmentResult = {
     transportation: GreenCategoryResult;
     certifications: GreenCategoryResult;
   };
+  twin?: {
+    credit_score: number;
+    green_score: number;
+    is_placeholder: boolean;
+  };
 };
 
 export function submitGreenAssessment(payload: GreenAssessmentPayload) {
-  return apiFetch<GreenAssessmentResult>("/api/green-scoring/assessment/", {
+  return apiFetch<GreenAssessmentResult>("/api/v1/green-scoring/assessment/", {
     method: "POST",
     body: JSON.stringify(payload),
   });

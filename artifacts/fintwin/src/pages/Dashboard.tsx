@@ -590,6 +590,15 @@ export default function Dashboard() {
                     </div>
                     <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${gc.text}`}>
                       <Leaf className="w-3 h-3" />{gc.label}
+                      {scoring && !scoring.is_placeholder ? (
+                        <span className="ms-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+                          Assessed
+                        </span>
+                      ) : (
+                        <span className="ms-1 text-[10px] font-medium text-muted-foreground">
+                          Heuristic
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">

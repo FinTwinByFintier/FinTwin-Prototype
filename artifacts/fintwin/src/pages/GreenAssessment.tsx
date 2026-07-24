@@ -3,8 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   ApiError,
+  getToken,
   submitGreenAssessment,
   type GreenAssessmentPayload,
   type GreenAssessmentResult,
@@ -18,18 +21,40 @@ import {
 /* ─── Store result for GreenScore page ─────────────────────── */
 export let lastGreenAssessmentResult: GreenAssessmentResult | null = null;
 
-/* ─── Step config ───────────────────────────────────────────── */
 const STEPS = [
-  { id: "energy",          label: "Energy",         icon: Zap      },
-  { id: "water",           label: "Water",          icon: Droplets },
-  { id: "transportation",  label: "Transport",      icon: Car      },
-  { id: "certifications",  label: "Certifications", icon: Award    },
+  { id: "energy", label: "Energy", icon: Zap },
+  { id: "water", label: "Water", icon: Droplets },
+  { id: "transportation", label: "Transport", icon: Car },
+  { id: "certifications", label: "Certifications", icon: Award },
 ];
 
-/* ─── Field helpers ─────────────────────────────────────────── */
+const EQUIPMENT_OPTIONS = [
+  "LED lighting",
+  "Efficient HVAC",
+  "Smart thermostat",
+  "Energy-efficient appliances",
+  "Variable-speed motors",
+];
+
+const DELIVERY_OPTIONS = [
+  "EV delivery",
+  "Bike / cargo bike",
+  "Hybrid van",
+  "Petrol / diesel fleet",
+  "Third-party courier",
+];
+
 function ToggleCard({
-  label, sub, value, onChange,
-}: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void }) {
+  label,
+  sub,
+  value,
+  onChange,
+}: {
+  label: string;
+  sub?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <button
       type="button"
@@ -40,9 +65,11 @@ function ToggleCard({
           : "border-border hover:border-primary/30 hover:bg-muted/30"
       }`}
     >
-      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-        value ? "bg-emerald-600 border-emerald-600" : "border-muted-foreground/40"
-      }`}>
+      <div
+        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+          value ? "bg-emerald-600 border-emerald-600" : "border-muted-foreground/40"
+        }`}
+      >
         {value && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
       </div>
       <div className="min-w-0">
@@ -53,14 +80,63 @@ function ToggleCard({
   );
 }
 
+function ChipMulti({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (opt: string) => {
+    if (value.includes(opt)) onChange(value.filter((x) => x !== opt));
+    else onChange([...value, opt]);
+  };
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const on = value.includes(opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => toggle(opt)}
+              className={`px-3 py-1.5 rounded-full border text-xs transition-colors ${
+                on
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 font-medium"
+                  : "border-border text-muted-foreground hover:border-primary/30"
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function RadioGroup({
-  label, options, value, onChange,
-}: { label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void }) {
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-foreground">{label}</p>
       <div className="grid grid-cols-2 gap-2">
-        {options.map(opt => (
+        {options.map((opt) => (
           <button
             key={opt.value}
             type="button"
@@ -79,191 +155,42 @@ function RadioGroup({
   );
 }
 
-/* ─── Step panels ───────────────────────────────────────────── */
-function EnergyStep({
-  form, set,
-}: { form: GreenAssessmentPayload; set: <K extends keyof GreenAssessmentPayload>(k: K, v: GreenAssessmentPayload[K]) => void }) {
-  return (
-    <div className="space-y-5">
-      <RadioGroup
-        label="Primary energy source"
-        value={form.energy_source}
-        onChange={v => set("energy_source", v)}
-        options={[
-          { value: "grid",   label: "⚡ National grid" },
-          { value: "solar",  label: "☀️ Solar only" },
-          { value: "mixed",  label: "🔀 Grid + Solar" },
-          { value: "other",  label: "🔧 Other" },
-        ]}
-      />
-      <RadioGroup
-        label="Renewable energy share"
-        value={form.renewable_energy_pct}
-        onChange={v => set("renewable_energy_pct", v)}
-        options={[
-          { value: "0",      label: "None (0%)" },
-          { value: "1-25",   label: "Low (1–25%)" },
-          { value: "26-50",  label: "Moderate (26–50%)" },
-          { value: "51-75",  label: "High (51–75%)" },
-          { value: "76-100", label: "Mostly renewable (76–100%)" },
-        ]}
-      />
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Energy practices</p>
-        <ToggleCard
-          label="LED / energy-efficient lighting"
-          sub="All or most of your lighting uses energy-efficient bulbs"
-          value={form.energy_efficient_lighting}
-          onChange={v => set("energy_efficient_lighting", v)}
-        />
-        <ToggleCard
-          label="Energy consumption monitoring"
-          sub="You track monthly electricity use or have smart meters"
-          value={form.energy_monitoring}
-          onChange={v => set("energy_monitoring", v)}
-        />
-      </div>
-    </div>
-  );
-}
-
-function WaterStep({
-  form, set,
-}: { form: GreenAssessmentPayload; set: <K extends keyof GreenAssessmentPayload>(k: K, v: GreenAssessmentPayload[K]) => void }) {
-  return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium">Water practices</p>
-      <ToggleCard
-        label="Water-efficient fixtures"
-        sub="Low-flow taps, dual-flush toilets, or similar"
-        value={form.water_efficient_fixtures}
-        onChange={v => set("water_efficient_fixtures", v)}
-      />
-      <ToggleCard
-        label="Water usage monitoring"
-        sub="You track monthly water consumption"
-        value={form.water_monitoring}
-        onChange={v => set("water_monitoring", v)}
-      />
-      <ToggleCard
-        label="Water recycling or reuse"
-        sub="Greywater recycling, rainwater harvesting, or similar"
-        value={form.water_recycling}
-        onChange={v => set("water_recycling", v)}
-      />
-    </div>
-  );
-}
-
-function TransportStep({
-  form, set,
-}: { form: GreenAssessmentPayload; set: <K extends keyof GreenAssessmentPayload>(k: K, v: GreenAssessmentPayload[K]) => void }) {
-  return (
-    <div className="space-y-5">
-      <RadioGroup
-        label="Primary business transportation"
-        value={form.primary_transport}
-        onChange={v => set("primary_transport", v)}
-        options={[
-          { value: "none",          label: "🏠 No travel needed" },
-          { value: "personal_car",  label: "🚗 Personal vehicles" },
-          { value: "company_fleet", label: "🚐 Company fleet" },
-          { value: "public",        label: "🚌 Public transport" },
-        ]}
-      />
-      <RadioGroup
-        label="Monthly business trips (outside city)"
-        value={form.monthly_business_trips}
-        onChange={v => set("monthly_business_trips", v)}
-        options={[
-          { value: "0",    label: "None" },
-          { value: "1-5",  label: "1–5 trips" },
-          { value: "6-20", label: "6–20 trips" },
-          { value: "20+",  label: "20+ trips" },
-        ]}
-      />
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Transport practices</p>
-        <ToggleCard
-          label="Electric or hybrid vehicles"
-          sub="At least one EV or hybrid in your business fleet"
-          value={form.has_electric_vehicles}
-          onChange={v => set("has_electric_vehicles", v)}
-        />
-        <ToggleCard
-          label="Remote work supported"
-          sub="Employees can work remotely at least part of the week"
-          value={form.supports_remote_work}
-          onChange={v => set("supports_remote_work", v)}
-        />
-      </div>
-    </div>
-  );
-}
-
-function CertificationsStep({
-  form, set,
-}: { form: GreenAssessmentPayload; set: <K extends keyof GreenAssessmentPayload>(k: K, v: GreenAssessmentPayload[K]) => void }) {
-  return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium">Green certifications & policies</p>
-      <ToggleCard
-        label="ISO 14001 certified"
-        sub="International environmental management standard"
-        value={form.has_iso_14001}
-        onChange={v => set("has_iso_14001", v)}
-      />
-      <ToggleCard
-        label="Green Star or equivalent"
-        sub="Local or regional green building / operations certification"
-        value={form.has_green_star}
-        onChange={v => set("has_green_star", v)}
-      />
-      <ToggleCard
-        label="Other green certification"
-        sub="Any other environmental or sustainability certification"
-        value={form.has_other_green_cert}
-        onChange={v => set("has_other_green_cert", v)}
-      />
-      <ToggleCard
-        label="Documented sustainability policy"
-        sub="Written policy covering environmental commitments"
-        value={form.has_sustainability_policy}
-        onChange={v => set("has_sustainability_policy", v)}
-      />
-    </div>
-  );
-}
-
-/* ─── Default form state ────────────────────────────────────── */
 function defaultForm(): GreenAssessmentPayload {
   return {
-    energy_source: "",
-    renewable_energy_pct: "",
-    energy_efficient_lighting: false,
+    solar_panels: false,
+    energy_efficient_equipment: [],
+    monthly_electricity_consumption: 800,
     energy_monitoring: false,
-    water_efficient_fixtures: false,
-    water_monitoring: false,
+    renewable_percentage: 0,
+    water_source: "municipal",
     water_recycling: false,
-    primary_transport: "",
-    has_electric_vehicles: false,
-    supports_remote_work: false,
-    monthly_business_trips: "",
-    has_iso_14001: false,
-    has_green_star: false,
-    has_other_green_cert: false,
-    has_sustainability_policy: false,
+    monthly_water_consumption: 25000,
+    water_monitoring: false,
+    employee_commute: "personal_car",
+    ev_charging: false,
+    delivery_methods: [],
+    route_optimization: false,
+    iso14001: false,
+    green_building: false,
+    local_green_awards: false,
+    environmental_audits: false,
+    sustainability_report: false,
   };
 }
 
-/* ─── Step validation ───────────────────────────────────────── */
 function isStepValid(step: number, form: GreenAssessmentPayload): boolean {
-  if (step === 0) return !!form.energy_source && !!form.renewable_energy_pct;
-  if (step === 2) return !!form.primary_transport && !!form.monthly_business_trips;
-  return true; // water & certifications are all optional toggles
+  if (step === 0) {
+    return (
+      form.renewable_percentage >= 0 &&
+      form.renewable_percentage <= 100 &&
+      form.monthly_electricity_consumption >= 0
+    );
+  }
+  if (step === 1) return !!form.water_source && form.monthly_water_consumption >= 0;
+  if (step === 2) return !!form.employee_commute;
+  return true;
 }
 
-/* ─── Main page ─────────────────────────────────────────────── */
 export default function GreenAssessment() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(0);
@@ -272,7 +199,7 @@ export default function GreenAssessment() {
   const [error, setError] = useState<string | null>(null);
 
   const set = <K extends keyof GreenAssessmentPayload>(k: K, v: GreenAssessmentPayload[K]) =>
-    setForm(prev => ({ ...prev, [k]: v }));
+    setForm((prev) => ({ ...prev, [k]: v }));
 
   const canAdvance = isStepValid(step, form);
   const isLastStep = step === STEPS.length - 1;
@@ -280,22 +207,28 @@ export default function GreenAssessment() {
 
   const handleNext = () => {
     if (!canAdvance) return;
-    if (isLastStep) {
-      void handleSubmit();
-    } else {
-      setStep(s => s + 1);
-    }
+    if (isLastStep) void handleSubmit();
+    else setStep((s) => s + 1);
   };
 
   const handleSubmit = async () => {
+    if (!getToken()) {
+      navigate("/login");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const result = await submitGreenAssessment(form);
       lastGreenAssessmentResult = result;
+      sessionStorage.setItem("ft_green_result", JSON.stringify(result));
       navigate("/green-score");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not submit. Check your connection and try again.");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Could not submit. Check your connection and try again.",
+      );
       setSubmitting(false);
     }
   };
@@ -307,7 +240,6 @@ export default function GreenAssessment() {
       <Navbar />
 
       <main className="flex-grow container mx-auto px-4 py-10 max-w-2xl">
-        {/* Progress header */}
         <div className="mb-10">
           <div className="flex items-center justify-between relative mb-4">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-muted rounded-full -z-10" />
@@ -317,21 +249,27 @@ export default function GreenAssessment() {
               transition={{ duration: 0.4, ease: "easeInOut" }}
             />
             {STEPS.map((s, i) => {
-              const done   = i < step;
+              const done = i < step;
               const active = i === step;
-              const Icon   = s.icon;
+              const Icon = s.icon;
               return (
                 <div key={s.id} className="flex flex-col items-center gap-1.5">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
-                    done
-                      ? "bg-primary border-primary text-primary-foreground"
-                      : active
-                      ? "bg-primary border-primary text-primary-foreground scale-110 shadow-md shadow-primary/20"
-                      : "bg-card border-muted text-muted-foreground"
-                  }`}>
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                      done
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : active
+                          ? "bg-primary border-primary text-primary-foreground scale-110 shadow-md shadow-primary/20"
+                          : "bg-card border-muted text-muted-foreground"
+                    }`}
+                  >
                     {done ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                   </div>
-                  <span className={`text-[10px] font-medium hidden sm:block ${active || done ? "text-foreground" : "text-muted-foreground"}`}>
+                  <span
+                    className={`text-[10px] font-medium hidden sm:block ${
+                      active || done ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
                     {s.label}
                   </span>
                 </div>
@@ -339,11 +277,10 @@ export default function GreenAssessment() {
             })}
           </div>
           <p className="text-center text-xs text-muted-foreground">
-            Step {step + 1} of {STEPS.length}
+            Step {step + 1} of {STEPS.length} · Sector-weighted green score
           </p>
         </div>
 
-        {/* Step card */}
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -353,7 +290,6 @@ export default function GreenAssessment() {
             transition={{ duration: 0.2 }}
             className="bg-card border rounded-3xl p-8"
           >
-            {/* Step heading */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
                 <StepIcon className="w-5 h-5 text-emerald-600" />
@@ -361,29 +297,167 @@ export default function GreenAssessment() {
               <div>
                 <h2 className="text-lg font-bold">{STEPS[step].label}</h2>
                 <p className="text-xs text-muted-foreground">
-                  {step === 0 && "Tell us about your energy setup and usage"}
-                  {step === 1 && "How does your business manage water?"}
-                  {step === 2 && "How do you and your team get around?"}
-                  {step === 3 && "Any green certifications or formal policies?"}
+                  {step === 0 && "Solar, renewables, equipment, and electricity use"}
+                  {step === 1 && "Water source, recycling, and monthly consumption"}
+                  {step === 2 && "Commute, EV charging, deliveries, and routing"}
+                  {step === 3 && "ISO, green building, audits, and reporting"}
                 </p>
               </div>
             </div>
 
-            {/* Fields */}
-            {step === 0 && <EnergyStep form={form} set={set} />}
-            {step === 1 && <WaterStep  form={form} set={set} />}
-            {step === 2 && <TransportStep form={form} set={set} />}
-            {step === 3 && <CertificationsStep form={form} set={set} />}
+            {step === 0 && (
+              <div className="space-y-5">
+                <ToggleCard
+                  label="Solar panels installed"
+                  sub="On-site solar generation for the business"
+                  value={form.solar_panels}
+                  onChange={(v) => set("solar_panels", v)}
+                />
+                <ToggleCard
+                  label="Energy consumption monitoring"
+                  sub="Smart meters or monthly tracking"
+                  value={form.energy_monitoring}
+                  onChange={(v) => set("energy_monitoring", v)}
+                />
+                <ChipMulti
+                  label="Energy-efficient equipment"
+                  options={EQUIPMENT_OPTIONS}
+                  value={form.energy_efficient_equipment}
+                  onChange={(v) => set("energy_efficient_equipment", v)}
+                />
+                <div className="space-y-2">
+                  <Label>Renewable energy share (%)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.renewable_percentage}
+                    onChange={(e) =>
+                      set("renewable_percentage", Math.min(100, Math.max(0, Number(e.target.value) || 0)))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Monthly electricity consumption (kWh)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.monthly_electricity_consumption}
+                    onChange={(e) =>
+                      set("monthly_electricity_consumption", Math.max(0, Number(e.target.value) || 0))
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
-            {/* Validation hint */}
-            {!canAdvance && step !== 1 && step !== 3 && (
+            {step === 1 && (
+              <div className="space-y-5">
+                <RadioGroup
+                  label="Primary water source"
+                  value={form.water_source}
+                  onChange={(v) => set("water_source", v)}
+                  options={[
+                    { value: "municipal", label: "Municipal network" },
+                    { value: "well", label: "Private well" },
+                    { value: "rain", label: "Rainwater harvesting" },
+                    { value: "recycled", label: "Recycled / greywater" },
+                  ]}
+                />
+                <ToggleCard
+                  label="Water recycling or reuse"
+                  value={form.water_recycling}
+                  onChange={(v) => set("water_recycling", v)}
+                />
+                <ToggleCard
+                  label="Water usage monitoring"
+                  value={form.water_monitoring}
+                  onChange={(v) => set("water_monitoring", v)}
+                />
+                <div className="space-y-2">
+                  <Label>Monthly water consumption (liters)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.monthly_water_consumption}
+                    onChange={(e) =>
+                      set("monthly_water_consumption", Math.max(0, Number(e.target.value) || 0))
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-5">
+                <RadioGroup
+                  label="Typical employee commute"
+                  value={form.employee_commute}
+                  onChange={(v) => set("employee_commute", v)}
+                  options={[
+                    { value: "public_transit", label: "Public transit" },
+                    { value: "personal_car", label: "Personal car" },
+                    { value: "carpool", label: "Carpool / shared" },
+                    { value: "walk_bike", label: "Walk / bike" },
+                    { value: "remote", label: "Mostly remote / WFH" },
+                  ]}
+                />
+                <ToggleCard
+                  label="EV charging available"
+                  value={form.ev_charging}
+                  onChange={(v) => set("ev_charging", v)}
+                />
+                <ToggleCard
+                  label="Route optimization for deliveries"
+                  value={form.route_optimization}
+                  onChange={(v) => set("route_optimization", v)}
+                />
+                <ChipMulti
+                  label="Delivery methods used"
+                  options={DELIVERY_OPTIONS}
+                  value={form.delivery_methods}
+                  onChange={(v) => set("delivery_methods", v)}
+                />
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-3">
+                <ToggleCard
+                  label="ISO 14001 certified"
+                  value={form.iso14001}
+                  onChange={(v) => set("iso14001", v)}
+                />
+                <ToggleCard
+                  label="Green building certification"
+                  value={form.green_building}
+                  onChange={(v) => set("green_building", v)}
+                />
+                <ToggleCard
+                  label="Local green awards"
+                  value={form.local_green_awards}
+                  onChange={(v) => set("local_green_awards", v)}
+                />
+                <ToggleCard
+                  label="Environmental audits"
+                  value={form.environmental_audits}
+                  onChange={(v) => set("environmental_audits", v)}
+                />
+                <ToggleCard
+                  label="Published sustainability report"
+                  value={form.sustainability_report}
+                  onChange={(v) => set("sustainability_report", v)}
+                />
+              </div>
+            )}
+
+            {!canAdvance && (
               <p className="text-xs text-amber-600 flex items-center gap-1.5 mt-4">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                Please answer all required questions before continuing.
+                Please complete the required fields before continuing.
               </p>
             )}
 
-            {/* Submission error */}
             {error && isLastStep && (
               <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -393,12 +467,11 @@ export default function GreenAssessment() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation */}
         <div className="flex items-center justify-between mt-6">
           <Button
             variant="ghost"
             className="rounded-full gap-1.5"
-            onClick={() => step > 0 ? setStep(s => s - 1) : navigate("/dashboard")}
+            onClick={() => (step > 0 ? setStep((s) => s - 1) : navigate("/dashboard"))}
             disabled={submitting}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -411,11 +484,17 @@ export default function GreenAssessment() {
             disabled={!canAdvance || submitting}
           >
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Submitting…
+              </>
             ) : isLastStep ? (
-              <><CheckCircle2 className="w-4 h-4" /> Submit</>
+              <>
+                <CheckCircle2 className="w-4 h-4" /> Submit
+              </>
             ) : (
-              <>Next <ChevronRight className="w-4 h-4" /></>
+              <>
+                Next <ChevronRight className="w-4 h-4" />
+              </>
             )}
           </Button>
         </div>

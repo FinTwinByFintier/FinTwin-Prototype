@@ -244,6 +244,13 @@ export default function GreenScore() {
           </Button>
           <Button
             className="flex-1 rounded-full gap-2"
+            onClick={() => navigate("/dashboard")}
+          >
+            <BarChart3 className="w-4 h-4" /> Back to Dashboard
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 rounded-full gap-2"
             onClick={() => navigate("/simulation")}
           >
             <FlaskConical className="w-4 h-4" /> Run Simulation
