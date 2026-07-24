@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { type GreenAssessmentResult } from "@/lib/api";
-import { lastGreenAssessmentResult } from "@/pages/GreenAssessment";
-import { Leaf, BarChart3, Zap, Droplets, Car, Award, ArrowRight, RotateCcw } from "lucide-react";
+import { type GreenAssessmentPayload, type GreenAssessmentResult } from "@/lib/api";
+import { lastGreenAssessmentResult, lastGreenAssessmentPayload } from "@/pages/GreenAssessment";
+import { useOnboarding } from "@/context/OnboardingContext";
+import { getGreenRecommendations, type Recommendation, type RecommendationPriority } from "@/utils/greenRecommendations";
+import { Leaf, BarChart3, Zap, Droplets, Car, Award, ArrowRight, RotateCcw, TrendingUp, Lightbulb, ChevronRight } from "lucide-react";
 
 /* ─── Grade helpers ─────────────────────────────────────────── */
 function gradeColor(grade: string) {
@@ -75,17 +77,64 @@ function CategoryCard({
   );
 }
 
+/* ─── Priority badge ─────────────────────────────────────────── */
+const PRIORITY_STYLES: Record<RecommendationPriority, { badge: string; border: string; dot: string }> = {
+  high:   { badge: "bg-red-500/10 text-red-600 border-red-500/20",    border: "border-red-500/20",    dot: "bg-red-500"    },
+  medium: { badge: "bg-amber-500/10 text-amber-700 border-amber-400/20", border: "border-amber-400/20", dot: "bg-amber-500" },
+  low:    { badge: "bg-blue-500/10 text-blue-600 border-blue-500/20",  border: "border-blue-500/20",  dot: "bg-blue-500"  },
+};
+
+function RecommendationCard({ rec, index }: { rec: Recommendation; index: number }) {
+  const catMeta = CATEGORY_META[rec.category] ?? { icon: Leaf, label: rec.category };
+  const Icon = catMeta.icon;
+  const styles = PRIORITY_STYLES[rec.priority];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15 + index * 0.06 }}
+      className={`bg-card border rounded-2xl p-5 flex flex-col gap-3`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-semibold leading-snug">{rec.title}</p>
+        </div>
+        <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${styles.badge}`}>
+          {rec.priority}
+        </span>
+      </div>
+
+      <p className="text-xs text-muted-foreground leading-relaxed">{rec.description}</p>
+
+      <div className="flex items-start gap-2 rounded-xl bg-muted/40 px-3 py-2.5">
+        <TrendingUp className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+        <p className="text-xs text-foreground/80">{rec.impact}</p>
+      </div>
+
+      <div className="flex items-start gap-2">
+        <ChevronRight className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+        <p className="text-xs font-medium text-primary">{rec.action}</p>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ─── Main page ─────────────────────────────────────────────── */
 export default function GreenScore() {
   const [, navigate] = useLocation();
+  const { state: onboardingState } = useOnboarding();
 
   // Use the module-level result, or fall back to a stored copy in sessionStorage
   const [result, setResult] = useState<GreenAssessmentResult | null>(null);
+  const [payload, setPayload] = useState<GreenAssessmentPayload | null>(null);
 
   useEffect(() => {
     if (lastGreenAssessmentResult) {
       setResult(lastGreenAssessmentResult);
-      // Also persist to sessionStorage so a refresh doesn't lose it
       sessionStorage.setItem("ft_green_result", JSON.stringify(lastGreenAssessmentResult));
     } else {
       const stored = sessionStorage.getItem("ft_green_result");
@@ -93,7 +142,25 @@ export default function GreenScore() {
         try { setResult(JSON.parse(stored) as GreenAssessmentResult); } catch { /* ignore */ }
       }
     }
+
+    if (lastGreenAssessmentPayload) {
+      setPayload(lastGreenAssessmentPayload);
+    } else {
+      const stored = sessionStorage.getItem("ft_green_payload");
+      if (stored) {
+        try { setPayload(JSON.parse(stored) as GreenAssessmentPayload); } catch { /* ignore */ }
+      }
+    }
   }, []);
+
+  const recommendations = useMemo(() => {
+    if (!result) return [];
+    return getGreenRecommendations({
+      sector: onboardingState.businessSector ?? "general",
+      categories: result.categories,
+      assessmentData: { renewable_percentage: payload?.renewable_percentage },
+    });
+  }, [result, payload, onboardingState.businessSector]);
 
   if (!result) {
     return (
@@ -196,6 +263,23 @@ export default function GreenScore() {
             ))}
           </div>
         </div>
+
+        {/* Recommendations */}
+        {recommendations.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                How to Improve Your Green Score
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {recommendations.map((rec, i) => (
+                <RecommendationCard key={rec.id} rec={rec} index={i} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Weight legend */}
         <motion.div

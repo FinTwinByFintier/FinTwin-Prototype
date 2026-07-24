@@ -19,8 +19,9 @@ import {
   Loader2, AlertCircle,
 } from "lucide-react";
 
-/* ─── Store result for GreenScore page ─────────────────────── */
+/* ─── Store result + payload for GreenScore page ───────────── */
 export let lastGreenAssessmentResult: GreenAssessmentResult | null = null;
+export let lastGreenAssessmentPayload: GreenAssessmentPayload | null = null;
 
 const STEPS = [
   { id: "energy", label: "Energy", icon: Zap },
@@ -197,6 +198,7 @@ export default function GreenAssessment() {
   const { state: onboardingState } = useOnboarding();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<GreenAssessmentPayload>(defaultForm);
+  const [renewableStr, setRenewableStr] = useState("0");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -231,7 +233,9 @@ export default function GreenAssessment() {
     try {
       const result = await submitGreenAssessment(form);
       lastGreenAssessmentResult = result;
+      lastGreenAssessmentPayload = form;
       sessionStorage.setItem("ft_green_result", JSON.stringify(result));
+      sessionStorage.setItem("ft_green_payload", JSON.stringify(form));
       navigate("/green-score");
     } catch (err) {
       setError(
@@ -341,10 +345,14 @@ export default function GreenAssessment() {
                     type="number"
                     min={0}
                     max={100}
-                    value={form.renewable_percentage}
-                    onChange={(e) =>
-                      set("renewable_percentage", Math.min(100, Math.max(0, Number(e.target.value) || 0)))
-                    }
+                    value={renewableStr}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setRenewableStr(raw);
+                      const num = raw === "" ? 0 : Math.min(100, Math.max(0, parseFloat(raw) || 0));
+                      set("renewable_percentage", num);
+                    }}
+                    onBlur={() => setRenewableStr(String(form.renewable_percentage))}
                   />
                 </div>
                 <div className="space-y-2">
