@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { useTranslation } from "react-i18next";
-import { LayoutDashboard, LogOut, Telescope } from "lucide-react";
+import { LayoutDashboard, LogOut } from "lucide-react";
 
 export function Navbar() {
   const [location, setLocation] = useLocation();
@@ -63,22 +63,6 @@ export function Navbar() {
             </nav>
           )}
         </div>
-        {/* Future Vision — always visible for demo navigation */}
-        <Link
-          href="/investor-discovery"
-          className={cn(
-            "hidden md:flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full border transition-colors",
-            location === "/investor-discovery"
-              ? "border-primary/40 text-primary bg-primary/5"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-          )}
-        >
-          <Telescope className="w-3.5 h-3.5" />
-          Future Vision
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-700 uppercase tracking-wider">
-            Beta
-          </span>
-        </Link>
 
         <div className="flex items-center gap-2">
           <button
